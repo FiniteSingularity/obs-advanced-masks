@@ -1,0 +1,47 @@
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform texture2d source_image;
+uniform float4 channel_multipliers;
+uniform float multiplier;
+uniform bool invert;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
+	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
+	float4 color = image.Sample(textureSampler, v_in.uv);
+	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
+}
+
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImage(v_in);
+	}
+}
+
