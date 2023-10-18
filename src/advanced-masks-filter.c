@@ -58,6 +58,9 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_source_mask_invert = NULL;
 	filter->param_source_channel_multipliers = NULL;
 	filter->param_source_multiplier = NULL;
+	filter->param_source_threshold_value = NULL;
+	filter->param_source_range_min = NULL;
+	filter->param_source_range_max = NULL;
 
 	load_effect_files(filter);
 	obs_source_update(source, settings);
@@ -195,6 +198,11 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	}
 	filter->multiplier = (float)obs_data_get_double(settings, "mask_source_filter_multiplier");
 	filter->invert = obs_data_get_bool(settings, "source_invert");
+	filter->compression_type = (uint32_t)obs_data_get_int(settings, "mask_source_compression_list");
+	filter->threshold_value =
+		(float)obs_data_get_double(settings, "source_threshold_value");
+	filter->range_min = (float)obs_data_get_double(settings, "source_range_min");
+	filter->range_max = (float)obs_data_get_double(settings, "source_range_max");
 }
 
 static void advanced_masks_video_render(void *data, gs_effect_t *effect)
@@ -337,6 +345,54 @@ static obs_properties_t *advanced_masks_properties(void *data)
 			"AdvancedMasks.SourceMask.SourceParameters"),
 		OBS_GROUP_NORMAL, mask_source_group);
 
+	obs_properties_t *mask_source_compression_group = obs_properties_create();
+
+	obs_property_t *mask_source_compression_list = obs_properties_add_list(
+		mask_source_compression_group, "mask_source_compression_list",
+		obs_module_text("AdvancedMasks.SourceMask.CompressionTypes"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_property_list_add_int(
+		mask_source_compression_list,
+		obs_module_text(MASK_SOURCE_COMPRESSION_NONE_LABEL),
+		MASK_SOURCE_COMPRESSION_NONE);
+
+	obs_property_list_add_int(
+		mask_source_compression_list,
+		obs_module_text(MASK_SOURCE_COMPRESSION_THRESHOLD_LABEL),
+		MASK_SOURCE_COMPRESSION_THRESHOLD);
+
+	obs_property_list_add_int(
+		mask_source_compression_list,
+		obs_module_text(MASK_SOURCE_COMPRESSION_RANGE_LABEL),
+		MASK_SOURCE_COMPRESSION_RANGE);
+
+	obs_property_set_modified_callback(mask_source_compression_list,
+					   setting_mask_source_compression_modified);
+
+	obs_properties_add_float_slider(
+		mask_source_compression_group,
+		"source_threshold_value",
+		obs_module_text("AdvancedMasks.SourceMask.ThresholdValue"),
+		0.0, 1.0, 0.01
+	);
+
+	obs_properties_add_float_slider(
+		mask_source_compression_group, "source_range_min",
+		obs_module_text("AdvancedMasks.SourceMask.RangeMin"), 0.0,
+		1.0, 0.01);
+
+	obs_properties_add_float_slider(
+		mask_source_compression_group, "source_range_max",
+		obs_module_text("AdvancedMasks.SourceMask.RangeMax"), 0.0,
+		1.0, 0.01);
+
+	obs_properties_add_group(
+		props, "source_mask_compression_group",
+		obs_module_text("AdvancedMasks.SourceMaskCompress"),
+		OBS_GROUP_NORMAL, mask_source_compression_group
+	);
+	
 
 	//obs_properties_t *source_mask_group = obs_properties_create();
 
@@ -514,6 +570,34 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	return props;
 }
 
+static bool setting_mask_source_compression_modified(obs_properties_t *props,
+						obs_property_t *p,
+						obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	int filter_type = (int)obs_data_get_int(
+		settings, "mask_source_compression_list");
+	switch (filter_type) {
+	case MASK_SOURCE_COMPRESSION_NONE:
+		setting_visibility("source_threshold_value", false, props);
+		setting_visibility("source_range_min", false, props);
+		setting_visibility("source_range_max", false, props);
+		break;
+	case MASK_SOURCE_COMPRESSION_THRESHOLD:
+		setting_visibility("source_threshold_value", true, props);
+		setting_visibility("source_range_min", false, props);
+		setting_visibility("source_range_max", false, props);
+		break;
+	case MASK_SOURCE_COMPRESSION_RANGE:
+		setting_visibility("source_threshold_value", false, props);
+		setting_visibility("source_range_min", true, props);
+		setting_visibility("source_range_max", true, props);
+		break;
+	}
+
+	return true;
+}
+
 static bool setting_mask_source_filter_modified(obs_properties_t *props,
 						obs_property_t *p,
 						obs_data_t *settings)
@@ -550,6 +634,8 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 	case MASK_TYPE_SHAPE:
 		setting_visibility("mask_source", false, props);
 		setting_visibility("mask_source_group", false, props);
+		setting_visibility("source_mask_compression_group", false,
+				   props);
 		setting_visibility("shape_type", true, props);
 		setting_visibility("rectangle_source_group", true, props);
 		setting_visibility("rectangle_rounded_corners_group", true, props);
@@ -558,6 +644,8 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);
 		setting_visibility("mask_source_group", true, props);
+		setting_visibility("source_mask_compression_group", true,
+				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
@@ -881,6 +969,12 @@ static void load_source_mask_effect(advanced_masks_data_t *filter)
 				filter->param_source_channel_multipliers = param;
 			} else if (strcmp(info.name, "multiplier") == 0) {
 				filter->param_source_multiplier = param;
+			} else if (strcmp(info.name, "threshold_value") == 0) {
+				filter->param_source_threshold_value = param;
+			} else if (strcmp(info.name, "range_min") == 0) {
+				filter->param_source_range_min = param;
+			} else if (strcmp(info.name, "range_max") == 0) {
+				filter->param_source_range_max = param;
 			}
 		}
 	}
@@ -914,6 +1008,21 @@ static void render_source_mask(advanced_masks_data_t *data)
 	if (data->param_source_multiplier) {
 		gs_effect_set_float(data->param_source_multiplier,
 				    data->multiplier);
+	}
+
+	if (data->param_source_threshold_value) {
+		gs_effect_set_float(data->param_source_threshold_value,
+				    data->threshold_value);
+	}
+
+	if (data->param_source_range_min) {
+		gs_effect_set_float(data->param_source_range_min,
+				    data->range_min);
+	}
+
+	if (data->param_source_range_max) {
+		gs_effect_set_float(data->param_source_range_max,
+				    data->range_max);
 	}
 
 	gs_texrender_t *mask_source_render = NULL;
@@ -963,11 +1072,18 @@ static void render_source_mask(advanced_masks_data_t *data)
 
 	set_blending_parameters();
 
+	const char *technique =
+		data->compression_type == MASK_SOURCE_COMPRESSION_THRESHOLD
+			? "Threshold"
+		: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
+			? "Range"
+			: "Draw";
+
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
 		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
 			 -100.0f, 100.0f);
-		while (gs_effect_loop(effect, "Draw"))
+		while (gs_effect_loop(effect, technique))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
 	}

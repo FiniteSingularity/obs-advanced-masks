@@ -54,3 +54,6 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 static bool setting_mask_source_filter_modified(obs_properties_t *props,
 						obs_property_t *p,
 						obs_data_t *settings);
+static bool setting_mask_source_compression_modified(obs_properties_t *props,
+						     obs_property_t *p,
+						     obs_data_t *settings);
