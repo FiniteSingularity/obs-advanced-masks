@@ -5,6 +5,9 @@ uniform texture2d source_image;
 uniform float4 channel_multipliers;
 uniform float multiplier;
 uniform bool invert;
+uniform float threshold_value;
+uniform float range_min;
+uniform float range_max;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -35,6 +38,24 @@ float4 mainImage(VertData v_in) : TARGET
 	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
 }
 
+float4 thresholdImage(VertData v_in) : TARGET
+{
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
+	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
+	alpha = step(threshold_value, alpha);
+	float4 color = image.Sample(textureSampler, v_in.uv);
+	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
+}
+
+float4 rangeImage(VertData v_in) : TARGET
+{
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
+	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
+	alpha = smoothstep(range_min, range_max, alpha);
+	float4 color = image.Sample(textureSampler, v_in.uv);
+	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
+}
+
 
 technique Draw
 {
@@ -45,3 +66,20 @@ technique Draw
 	}
 }
 
+technique Threshold
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = thresholdImage(v_in);
+	}
+}
+
+technique Range
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = rangeImage(v_in);
+	}
+}

@@ -43,6 +43,15 @@
 #define MASK_SOURCE_FILTER_SLIDERS 4
 #define MASK_SOURCE_FILTER_SLIDERS_LABEL "AdvancedMasks.SourceMask.Filter.Sliders"
 
+#define MASK_SOURCE_COMPRESSION_NONE 1
+#define MASK_SOURCE_COMPRESSION_NONE_LABEL "AdvancedMasks.SourceMask.Compression.None"
+#define MASK_SOURCE_COMPRESSION_THRESHOLD 2
+#define MASK_SOURCE_COMPRESSION_THRESHOLD_LABEL \
+	"AdvancedMasks.SourceMask.Compression.Threshold"
+#define MASK_SOURCE_COMPRESSION_RANGE 3
+#define MASK_SOURCE_COMPRESSION_RANGE_LABEL \
+	"AdvancedMasks.SourceMask.Compression.Range"
+
 struct advanced_masks_data;
 typedef struct advanced_masks_data advanced_masks_data_t;
 
@@ -90,6 +99,11 @@ struct advanced_masks_data {
 	struct vec4 channel_multipliers;
 	float multiplier;
 	bool invert;
+	bool threshold;
+	uint32_t compression_type;
+	float threshold_value;
+	float range_min;
+	float range_max;
 
 	// Shader Parameters
 	gs_eparam_t *param_rectangle_image;
@@ -108,4 +122,7 @@ struct advanced_masks_data {
 	gs_eparam_t *param_source_mask_invert;
 	gs_eparam_t *param_source_channel_multipliers;
 	gs_eparam_t *param_source_multiplier;
+	gs_eparam_t *param_source_threshold_value;
+	gs_eparam_t *param_source_range_min;
+	gs_eparam_t *param_source_range_max;
 };
