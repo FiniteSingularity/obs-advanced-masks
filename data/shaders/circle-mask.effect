@@ -1,0 +1,71 @@
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+
+uniform float2 mask_position;
+uniform float radius;
+uniform float zoom;
+
+uniform float2 aspect_ratio;
+uniform float2 global_position;
+uniform float global_scale;
+
+// uniform float aa_scale;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+float4 applyCircleCrop(float2 uv)
+{
+	return image.Sample(textureSampler, uv);
+}
+
+float4 applyMask(float2 uv)
+{
+	float2 dist = uv - mask_position;
+	uv = mask_position + (dist / global_scale / zoom);
+	float2 position_uv = mask_position;
+	float2 crop_uv = float2(radius, radius) / zoom;
+
+	float2 min_vals = (position_uv - crop_uv);
+	float2 max_vals = (position_uv + crop_uv);
+
+	// Must expand out for OpenGL compatibility, rather than using the
+	// much more convenient `any`
+	bool dont_draw = uv.x < min_vals.x || uv.y < min_vals.y || uv.x > max_vals.x || uv.y > max_vals.y;
+	
+	return dont_draw ? float4(0.0, 0.0, 0.0, 0.0) : applyCircleCrop(uv);
+}
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 circleMaskImage(VertData v_in) : TARGET
+{
+	float2 shift = global_position - mask_position;
+	float2 uv = v_in.uv - shift;
+	return applyMask(uv);
+}
+
+technique CircleMask
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = circleMaskImage(v_in);
+	}
+}

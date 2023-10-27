@@ -68,6 +68,7 @@ struct advanced_masks_data {
 
 	// Effect Files
 	gs_effect_t *effect_rectangle_mask;
+	gs_effect_t *effect_circle_mask;
 	gs_effect_t *effect_source_mask;
 
 	bool rendered;
@@ -80,6 +81,7 @@ struct advanced_masks_data {
 	uint32_t mask_type;
 
 	// Parameters for shape masks
+	uint32_t mask_shape_type;
 	struct vec2 mask_center;
 	struct vec2 global_position;
 	float global_scale;
@@ -90,8 +92,12 @@ struct advanced_masks_data {
 	// Parameters for rectangle mask
 	float rectangle_width;
 	float rectangle_height;
+	float zoom;
 	struct vec4 rectangle_corner_radius;
 	float rectangle_max_corner_radius;
+
+	// Parameters for circle mask
+	float radius;
 
 	// Parameteres for source mask
 	uint32_t source_mask_filter_type;
@@ -116,6 +122,15 @@ struct advanced_masks_data {
 	gs_eparam_t *param_max_corner_radius;
 	gs_eparam_t *param_rect_aspect_ratio;
 	gs_eparam_t *param_rectangle_aa_scale;
+	gs_eparam_t *param_rectangle_zoom;
+
+	gs_eparam_t *param_circle_image;
+	gs_eparam_t *param_circle_radius;
+	gs_eparam_t *param_circle_mask_position;
+	gs_eparam_t *param_circle_zoom;
+	gs_eparam_t *param_circle_global_position;
+	gs_eparam_t *param_circle_global_scale;
+	gs_eparam_t *param_circle_aspect_ratio;
 
 	gs_eparam_t *param_source_mask_image;
 	gs_eparam_t *param_source_mask_source_image;

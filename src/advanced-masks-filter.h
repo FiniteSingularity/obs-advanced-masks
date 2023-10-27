@@ -27,6 +27,7 @@ static void get_input_source(advanced_masks_data_t *filter);
 static void draw_output(advanced_masks_data_t *filter);
 static void advanced_masks_render_filter(advanced_masks_data_t *filter);
 static void render_mask(advanced_masks_data_t *filter);
+static void render_shape_mask(advanced_masks_data_t *filter);
 
 	// Setup Stuff
 static void load_effect_files(advanced_masks_data_t *filter);
@@ -45,6 +46,12 @@ static bool setting_corner_type_modified(obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings);
 
+// Source Circle Stuff
+static bool setting_shape_type_modified(obs_properties_t *props,
+					obs_property_t *p,
+					obs_data_t *settings);
+static void load_circle_mask_effect(advanced_masks_data_t *filter);
+static void render_circle_mask(advanced_masks_data_t *data);
 
 // Source Mask Stuff
 static void load_source_mask_effect(advanced_masks_data_t *filter);
