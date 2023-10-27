@@ -5,6 +5,7 @@ uniform texture2d image;
 uniform float2 mask_position;
 uniform float width;
 uniform float height;
+uniform float zoom;
 
 uniform float2 aspect_ratio;
 uniform float2 global_position;
@@ -71,12 +72,12 @@ float4 applyRoundedCorners(float2 uv, float2 min_vals, float2 max_vals)
 float4 applyMask(float2 uv)
 {
 	float2 dist = uv - mask_position;
-	uv = mask_position + dist / global_scale;
+	uv = mask_position + (dist / global_scale / zoom);
 	float2 position_uv = mask_position;
-	float2 crop_uv = float2(width, height) / 2.0;
+	float2 crop_uv = float2(width, height) / 2.0 / zoom;
 
-	float2 min_vals = position_uv - crop_uv;
-	float2 max_vals = position_uv + crop_uv;
+	float2 min_vals = (position_uv - crop_uv);
+	float2 max_vals = (position_uv + crop_uv);
 
 	// Must expand out for OpenGL compatibility, rather than using the
 	// much more convenient `any`

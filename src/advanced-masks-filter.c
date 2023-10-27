@@ -37,6 +37,7 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 
 	filter->effect_rectangle_mask = NULL;
 	filter->effect_source_mask = NULL;
+	filter->effect_circle_mask = NULL;
 
 	filter->context = source;
 	filter->rendered = false;
@@ -52,6 +53,15 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_rect_aspect_ratio = NULL;
 	filter->param_rectangle_aa_scale = NULL;
 	filter->param_max_corner_radius = NULL;
+	filter->param_rectangle_zoom = NULL;
+
+	filter->param_circle_global_position = NULL;
+	filter->param_circle_mask_position = NULL;
+	filter->param_circle_image = NULL;
+	filter->param_circle_radius = NULL;
+	filter->param_circle_zoom = NULL;
+	filter->param_circle_aspect_ratio = NULL;
+	filter->param_circle_global_scale = NULL;
 
 	filter->param_source_mask_image = NULL;
 	filter->param_source_mask_source_image = NULL;
@@ -77,6 +87,9 @@ static void advanced_masks_destroy(void *data)
 	// EXAMPLE OF DESTROYING EFFECTS AND TEXRENDER
 	if (filter->effect_rectangle_mask) {
 		gs_effect_destroy(filter->effect_rectangle_mask);
+	}
+	if (filter->effect_circle_mask) {
+		gs_effect_destroy(filter->effect_circle_mask);
 	}
 	if (filter->effect_source_mask) {
 		gs_effect_destroy(filter->effect_source_mask);
@@ -119,6 +132,8 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	advanced_masks_data_t *filter = data;
 
 	filter->mask_type = (uint32_t)obs_data_get_int(settings, "mask_type");
+	filter->mask_shape_type =
+		(uint32_t)obs_data_get_int(settings, "shape_type");
 
 	filter->mask_center.x = (float)obs_data_get_double(settings, "shape_center_x");
 	filter->mask_center.y =
@@ -134,6 +149,7 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 		(float)obs_data_get_double(settings, "rectangle_width");
 	filter->rectangle_height =
 		(float)obs_data_get_double(settings, "rectangle_height");
+	filter->zoom = (float)obs_data_get_double(settings, "source_zoom");
 	filter->corner_radius_type =
 		(uint32_t)obs_data_get_int(settings, "rectangle_corner_type");
 	if (filter->corner_radius_type == MASK_CORNER_UNIFORM) {
@@ -157,6 +173,8 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 		filter->rectangle_max_corner_radius = max_radius;
 	}
 	filter->scale_type = (uint32_t)obs_data_get_int(settings, "scale_type");
+
+	filter->radius = (float)obs_data_get_double(settings, "circle_radius");
 
 	const char *mask_source_name =
 		obs_data_get_string(settings, "mask_source");
@@ -239,10 +257,21 @@ static void advanced_masks_video_render(void *data, gs_effect_t *effect)
 static void render_mask(advanced_masks_data_t* filter) {
 	switch (filter->mask_type) {
 	case MASK_TYPE_SHAPE:
-		render_rect_mask(filter);
+		render_shape_mask(filter);
 		break;
 	case MASK_TYPE_SOURCE:
 		render_source_mask(filter);
+		break;
+	}
+}
+
+static void render_shape_mask(advanced_masks_data_t* filter) {
+	switch (filter->mask_shape_type) {
+	case SHAPE_RECTANGLE:
+		render_rect_mask(filter);
+		break;
+	case SHAPE_CIRCLE:
+		render_circle_mask(filter);
 		break;
 	}
 }
@@ -415,9 +444,9 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_list_add_int(shape_type_list,
 				  obs_module_text(SHAPE_RECTANGLE_LABEL),
 				  SHAPE_RECTANGLE);
-	//obs_property_list_add_int(shape_type_list,
-	//			  obs_module_text(SHAPE_CIRCLE_LABEL),
-	//			  SHAPE_CIRCLE);
+	obs_property_list_add_int(shape_type_list,
+				  obs_module_text(SHAPE_CIRCLE_LABEL),
+				  SHAPE_CIRCLE);
 	//obs_property_list_add_int(shape_type_list,
 	//			  obs_module_text(SHAPE_ELLIPSE_LABEL),
 	//			  SHAPE_ELLIPSE);
@@ -425,12 +454,17 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	//			  obs_module_text(SHAPE_HEXAGON_LABEL),
 	//			  SHAPE_HEXAGON);
 
+	obs_property_set_modified_callback(shape_type_list,
+					   setting_shape_type_modified);
+
+
+	// START OF SHAPE - CIRCLE
 
 	// START OF SHAPE - RECTANGLE
 
 	obs_properties_t *source_rect_mask_group = obs_properties_create();
 
-	obs_property_t * p = obs_properties_add_float_slider(
+	obs_property_t *p = obs_properties_add_float_slider(
 		source_rect_mask_group, "shape_center_x",
 		obs_module_text("AdvancedMasks.Shape.Center.X"), -2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
@@ -453,6 +487,18 @@ static obs_properties_t *advanced_masks_properties(void *data)
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "circle_radius",
+		obs_module_text("AdvancedMasks.Shape.Circle.Radius"), 0.0,
+		6000.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "source_zoom",
+		obs_module_text("AdvancedMasks.Shape.SourceZoom"), 1.0, 5000.0,
+		1.0);
+	obs_property_float_set_suffix(p, "%");
+	
 	obs_properties_add_group(
 		props, "rectangle_source_group",
 		obs_module_text(
@@ -551,7 +597,7 @@ static obs_properties_t *advanced_masks_properties(void *data)
 		obs_data_release(settings);
 	}
 
-	float scale_max = type == MASK_SCALE_PERCENT ? 100.0f : 1920.0f;
+	float scale_max = type == MASK_SCALE_PERCENT ? 10000.0f : 1920.0f;
 
 
 	p = obs_properties_add_float_slider(
@@ -568,6 +614,28 @@ static obs_properties_t *advanced_masks_properties(void *data)
 		OBS_GROUP_NORMAL, scale_position_group);
 
 	return props;
+}
+
+static bool setting_shape_type_modified(obs_properties_t *props,
+						     obs_property_t *p,
+						     obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	int shape_type =
+		(int)obs_data_get_int(settings, "shape_type");
+	switch (shape_type) {
+	case SHAPE_RECTANGLE:
+		setting_visibility("rectangle_width", true, props);
+		setting_visibility("rectangle_height", true, props);
+		setting_visibility("circle_radius", false, props);
+		break;
+	case SHAPE_CIRCLE:
+		setting_visibility("rectangle_width", false, props);
+		setting_visibility("rectangle_height", false, props);
+		setting_visibility("circle_radius", true, props);
+	}
+
+	return true;
 }
 
 static bool setting_mask_source_compression_modified(obs_properties_t *props,
@@ -714,7 +782,7 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 		obs_property_t *scale_p =
 			obs_properties_get(props, "position_scale");
 		obs_property_float_set_limits(scale_p, (double)0.0,
-					      (double)100.0, (double)0.1);
+					      (double)10000.0, (double)0.1);
 		obs_data_set_double(settings, "position_scale", 100.0);
 		obs_property_float_set_suffix(scale_p, "%");
 	}
@@ -751,6 +819,7 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "position_scale", 100.0);
 	obs_data_set_default_double(settings, "mask_source_filter_multiplier",
 				    1.0);
+	obs_data_set_default_double(settings, "source_zoom", 100.0);
 }
 
 static void get_input_source(advanced_masks_data_t *filter)
@@ -799,6 +868,7 @@ static void advanced_masks_render_filter(advanced_masks_data_t *filter)
 static void load_effect_files(advanced_masks_data_t* filter) {
 	shape_load_rectangle_effect(filter);
 	load_source_mask_effect(filter);
+	load_circle_mask_effect(filter);
 }
 
 static void shape_load_rectangle_effect(advanced_masks_data_t *filter)
@@ -837,6 +907,8 @@ static void shape_load_rectangle_effect(advanced_masks_data_t *filter)
 				filter->param_rect_aspect_ratio = param;
 			} else if (strcmp(info.name, "aa_scale") == 0) {
 				filter->param_rectangle_aa_scale = param;
+			} else if (strcmp(info.name, "zoom") == 0) {
+				filter->param_rectangle_zoom = param;
 			}
 		}
 	}
@@ -862,6 +934,11 @@ static void render_rect_mask(advanced_masks_data_t *data)
 
 	if (data->param_rectangle_image) {
 		gs_effect_set_texture(data->param_rectangle_image, texture);
+	}
+
+	if (data->param_rectangle_zoom) {
+		gs_effect_set_float(data->param_rectangle_zoom,
+				    data->zoom / 100.0f);
 	}
 	if (data->param_rectangle_mask_position) {
 		struct vec2 mask_center;
@@ -901,14 +978,16 @@ static void render_rect_mask(advanced_masks_data_t *data)
 	if (data->param_corner_radius) {
 		struct vec4 corner_radius;
 		vec4_divf(&corner_radius, &data->rectangle_corner_radius,
-			  (float)fmin((double)data->width, (double)data->height) * scale_factor);
+			  (float)fmin((double)data->width,
+				      (double)data->height) *
+				  scale_factor * (data->zoom / 100.0f));
 		gs_effect_set_vec4(data->param_corner_radius,
 				    &corner_radius);
 	}
 
 	if (data->param_max_corner_radius) {
 		float max_corner_radius =
-			data->rectangle_max_corner_radius / scale_factor /
+			data->rectangle_max_corner_radius / scale_factor * (data->zoom/100.0f) /
 			(float)fmin((double)data->width, (double)data->height);
 		gs_effect_set_float(data->param_max_corner_radius,
 				    max_corner_radius);
@@ -932,6 +1011,182 @@ static void render_rect_mask(advanced_masks_data_t *data)
 	set_blending_parameters();
 
 	if (gs_texrender_begin(data->output_texrender, data->width, data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, "SharpCorners"))
+			gs_draw_sprite(texture, 0, data->width, data->height);
+		gs_texrender_end(data->output_texrender);
+	}
+
+	gs_blend_state_pop();
+}
+
+
+static void render_circle_mask(advanced_masks_data_t *data)
+{
+	//gs_effect_t *effect = data->effect_circle_mask;
+	//gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
+	//if (!effect || !texture) {
+	//	return;
+	//}
+
+	//data->output_texrender =
+	//	create_or_reset_texrender(data->output_texrender);
+
+	//float scale_factor =
+	//	data->scale_type == MASK_SCALE_PERCENT
+	//		? data->global_scale / 100.0f
+	//	: data->scale_type == MASK_SCALE_WIDTH
+	//		? data->global_scale / data->rectangle_width
+	//		: data->global_scale / data->rectangle_height;
+
+	//if (data->param_circle_image) {
+	//	gs_effect_set_texture(data->param_circle_image, texture);
+	//}
+
+	//if (data->param_circle_zoom) {
+	//	gs_effect_set_float(data->param_circle_zoom,
+	//			    data->zoom / 100.0f);
+	//}
+	//if (data->param_circle_mask_position) {
+	//	struct vec2 mask_center;
+	//	mask_center.x = data->mask_center.x / (float)data->width;
+	//	mask_center.y = data->mask_center.y / (float)data->height;
+	//	gs_effect_set_vec2(data->param_circle_mask_position,
+	//			   &mask_center);
+	//}
+
+	//if (data->param_circle_radius) {
+	//	float radius = data->radius / (float)data->width;
+	//	gs_effect_set_float(data->param_circle_radius, radius);
+	//}
+
+	//if (data->param_circle_global_position) {
+	//	struct vec2 global_position;
+	//	global_position.x =
+	//		data->global_position.x / (float)data->width;
+	//	global_position.y =
+	//		data->global_position.y / (float)data->height;
+	//	gs_effect_set_vec2(data->param_circle_global_position,
+	//			   &global_position);
+	//}
+
+	//if (data->param_circle_global_scale) {
+	//	gs_effect_set_float(data->param_circle_global_scale, scale_factor);
+	//}
+	//if (data->param_circle_aspect_ratio) {
+	//	struct vec2 box_ar;
+	//	box_ar.x =
+	//		(float)data->width /
+	//		(float)fmin((double)data->width, (double)data->height);
+	//	box_ar.y =
+	//		(float)data->height /
+	//		(float)fmin((double)data->width, (double)data->height);
+	//	gs_effect_set_vec2(data->param_circle_aspect_ratio, &box_ar);
+	//}
+
+	////if (data->param_rectangle_aa_scale) {
+	////	float aa_scale = 5.0f / (float)data->height;
+	////	gs_effect_set_float(data->param_rectangle_aa_scale, aa_scale);
+	////}
+
+	gs_effect_t *effect = data->effect_rectangle_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	data->output_texrender =
+		create_or_reset_texrender(data->output_texrender);
+
+	float scale_factor =
+		data->scale_type == MASK_SCALE_PERCENT
+			? data->global_scale / 100.0f
+		: data->scale_type == MASK_SCALE_WIDTH
+			? data->global_scale / data->rectangle_width
+			: data->global_scale / data->rectangle_height;
+
+	if (data->param_rectangle_image) {
+		gs_effect_set_texture(data->param_rectangle_image, texture);
+	}
+
+	if (data->param_rectangle_zoom) {
+		gs_effect_set_float(data->param_rectangle_zoom,
+				    data->zoom / 100.0f);
+	}
+	if (data->param_rectangle_mask_position) {
+		struct vec2 mask_center;
+		mask_center.x = data->mask_center.x / (float)data->width;
+		mask_center.y = data->mask_center.y / (float)data->height;
+		gs_effect_set_vec2(data->param_rectangle_mask_position,
+				   &mask_center);
+	}
+
+	if (data->param_rectangle_width) {
+		float width = 2.0f * data->radius / (float)data->width;
+		gs_effect_set_float(data->param_rectangle_width, width);
+	}
+
+	if (data->param_rectangle_height) {
+		float height = 2.0f * data->radius / (float)data->height;
+		gs_effect_set_float(data->param_rectangle_height, height);
+	}
+
+	if (data->param_global_position) {
+		struct vec2 global_position;
+		global_position.x =
+			data->global_position.x / (float)data->width;
+		global_position.y =
+			data->global_position.y / (float)data->height;
+		gs_effect_set_vec2(data->param_global_position,
+				   &global_position);
+	}
+
+	if (data->param_global_scale) {
+
+		gs_effect_set_float(data->param_global_scale, scale_factor);
+	}
+
+	if (data->param_corner_radius) {
+		struct vec4 corner_radius;
+		float r = data->radius / ((float)fmin((double)data->width,
+						      (double)data->height) *
+					  (data->zoom / 100.0f));
+		vec4_set(&corner_radius, r, r, r, r);
+		gs_effect_set_vec4(data->param_corner_radius, &corner_radius);
+	}
+
+	if (data->param_max_corner_radius) {
+		float max_corner_radius =
+			data->radius / 
+			(data->zoom / 100.0f) /
+			(float)fmin((double)data->width, (double)data->height);
+		gs_effect_set_float(data->param_max_corner_radius,
+				    max_corner_radius);
+	}
+
+	if (data->param_rect_aspect_ratio) {
+		struct vec2 box_ar;
+		box_ar.x =
+			(float)data->width /
+			(float)fmin((double)data->width, (double)data->height);
+		box_ar.y =
+			(float)data->height /
+			(float)fmin((double)data->width, (double)data->height);
+
+		gs_effect_set_vec2(data->param_rect_aspect_ratio, &box_ar);
+	}
+
+	if (data->param_rectangle_aa_scale) {
+		float aa_scale = 5.0f / (float)data->height;
+		gs_effect_set_float(data->param_rectangle_aa_scale, aa_scale);
+	}
+
+
+	set_blending_parameters();
+
+	if (gs_texrender_begin(data->output_texrender, data->width,
+			       data->height)) {
 		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
 			 -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "SharpCorners"))
@@ -1089,4 +1344,39 @@ static void render_source_mask(advanced_masks_data_t *data)
 	}
 	gs_texrender_destroy(mask_source_render);
 	gs_blend_state_pop();
+}
+
+// CIRCLE MASK STUFF
+static void load_circle_mask_effect(advanced_masks_data_t *filter)
+{
+	const char *effect_file_path = "/shaders/circle-mask.effect";
+
+	filter->effect_circle_mask = load_shader_effect(
+		filter->effect_circle_mask, effect_file_path);
+	if (filter->effect_circle_mask) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->effect_circle_mask);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->effect_circle_mask, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "image") == 0) {
+				filter->param_circle_image = param;
+			} else if (strcmp(info.name, "radius") == 0) {
+				filter->param_circle_radius = param;
+			} else if (strcmp(info.name, "zoom") == 0) {
+				filter->param_circle_zoom = param;
+			} else if (strcmp(info.name, "mask_position") == 0) {
+				filter->param_circle_mask_position = param;
+			} else if (strcmp(info.name, "global_position") == 0) {
+				filter->param_circle_global_position = param;
+			} else if (strcmp(info.name, "aspect_ratio") == 0) {
+				filter->param_circle_aspect_ratio = param;
+			} else if (strcmp(info.name, "global_scale") == 0) {
+				filter->param_circle_global_scale = param;
+			}
+		}
+	}
 }
