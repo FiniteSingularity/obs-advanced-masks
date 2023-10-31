@@ -628,11 +628,13 @@ static bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_width", true, props);
 		setting_visibility("rectangle_height", true, props);
 		setting_visibility("circle_radius", false, props);
+		setting_visibility("rectangle_rounded_corners_group", true, props);
 		break;
 	case SHAPE_CIRCLE:
 		setting_visibility("rectangle_width", false, props);
 		setting_visibility("rectangle_height", false, props);
 		setting_visibility("circle_radius", true, props);
+		setting_visibility("rectangle_rounded_corners_group", false, props);
 	}
 
 	return true;
@@ -1024,72 +1026,6 @@ static void render_rect_mask(advanced_masks_data_t *data)
 
 static void render_circle_mask(advanced_masks_data_t *data)
 {
-	//gs_effect_t *effect = data->effect_circle_mask;
-	//gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
-	//if (!effect || !texture) {
-	//	return;
-	//}
-
-	//data->output_texrender =
-	//	create_or_reset_texrender(data->output_texrender);
-
-	//float scale_factor =
-	//	data->scale_type == MASK_SCALE_PERCENT
-	//		? data->global_scale / 100.0f
-	//	: data->scale_type == MASK_SCALE_WIDTH
-	//		? data->global_scale / data->rectangle_width
-	//		: data->global_scale / data->rectangle_height;
-
-	//if (data->param_circle_image) {
-	//	gs_effect_set_texture(data->param_circle_image, texture);
-	//}
-
-	//if (data->param_circle_zoom) {
-	//	gs_effect_set_float(data->param_circle_zoom,
-	//			    data->zoom / 100.0f);
-	//}
-	//if (data->param_circle_mask_position) {
-	//	struct vec2 mask_center;
-	//	mask_center.x = data->mask_center.x / (float)data->width;
-	//	mask_center.y = data->mask_center.y / (float)data->height;
-	//	gs_effect_set_vec2(data->param_circle_mask_position,
-	//			   &mask_center);
-	//}
-
-	//if (data->param_circle_radius) {
-	//	float radius = data->radius / (float)data->width;
-	//	gs_effect_set_float(data->param_circle_radius, radius);
-	//}
-
-	//if (data->param_circle_global_position) {
-	//	struct vec2 global_position;
-	//	global_position.x =
-	//		data->global_position.x / (float)data->width;
-	//	global_position.y =
-	//		data->global_position.y / (float)data->height;
-	//	gs_effect_set_vec2(data->param_circle_global_position,
-	//			   &global_position);
-	//}
-
-	//if (data->param_circle_global_scale) {
-	//	gs_effect_set_float(data->param_circle_global_scale, scale_factor);
-	//}
-	//if (data->param_circle_aspect_ratio) {
-	//	struct vec2 box_ar;
-	//	box_ar.x =
-	//		(float)data->width /
-	//		(float)fmin((double)data->width, (double)data->height);
-	//	box_ar.y =
-	//		(float)data->height /
-	//		(float)fmin((double)data->width, (double)data->height);
-	//	gs_effect_set_vec2(data->param_circle_aspect_ratio, &box_ar);
-	//}
-
-	////if (data->param_rectangle_aa_scale) {
-	////	float aa_scale = 5.0f / (float)data->height;
-	////	gs_effect_set_float(data->param_rectangle_aa_scale, aa_scale);
-	////}
-
 	gs_effect_t *effect = data->effect_rectangle_mask;
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
 	if (!effect || !texture) {
