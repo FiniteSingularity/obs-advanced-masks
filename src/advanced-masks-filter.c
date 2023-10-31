@@ -30,7 +30,7 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 
 	filter->input_texrender =
 		create_or_reset_texrender(filter->input_texrender);
-	filter->input_texrender =
+	filter->output_texrender =
 		create_or_reset_texrender(filter->output_texrender);
 	filter->source_mask_texrender =
 		create_or_reset_texrender(filter->source_mask_texrender);
@@ -182,6 +182,7 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 		(mask_source_name && strlen(mask_source_name))
 			? obs_get_source_by_name(mask_source_name)
 			: NULL;
+	
 	if (mask_source) {
 		obs_weak_source_release(filter->mask_source_source);
 		filter->mask_source_source =
