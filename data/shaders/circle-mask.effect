@@ -1,3 +1,5 @@
+#include "common.effect"
+
 uniform float4x4 ViewProj;
 
 uniform texture2d image;
@@ -22,7 +24,7 @@ sampler_state textureSampler{
 
 float4 applyCircleCrop(float2 uv)
 {
-	return image.Sample(textureSampler, uv);
+	return pmrgba_to_rgba(image.Sample(textureSampler, uv));
 }
 
 float4 applyMask(float2 uv)

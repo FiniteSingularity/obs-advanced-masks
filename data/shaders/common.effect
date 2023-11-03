@@ -1,0 +1,11 @@
+// Convert pre-multiplied rgba values
+// to linear rgba.
+float4 pmrgba_to_rgba(float4 color)
+{
+	return saturate(float4(color.rgb / color.a, color.a));
+}
+
+float4 adjust_brightness(float4 color, float brightness)
+{
+	return saturate(float4(color.rgb + brightness, color.a));
+}

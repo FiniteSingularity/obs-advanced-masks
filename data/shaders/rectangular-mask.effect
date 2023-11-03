@@ -1,3 +1,5 @@
+#include "common.effect"
+
 uniform float4x4 ViewProj;
 
 uniform texture2d image;
@@ -41,7 +43,7 @@ float4 applyRoundedCorners(float2 uv, float2 min_vals, float2 max_vals)
 	float2 min_vals_max = min_vals + max_corner_radius / aspect_ratio;
 	float2 max_vals_max = max_vals - max_corner_radius / aspect_ratio;
 	bool safe_zone = !(uv.x < min_vals_max.x || uv.y < min_vals_max.y || uv.x > max_vals_max.x || uv.y > max_vals_max.y);
-	float4 color = image.Sample(textureSampler, uv);
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, uv));
 	float alpha = color.a;
 	float2 local = float2(0.0f, 0.0f);
 	if (safe_zone) {
@@ -102,7 +104,7 @@ float4 sharpCornersImage(VertData v_in) : TARGET
 float4 roundedCornersImage(VertData v_in) : TARGET
 {
     // 1. Sample incoming pixel
-	float4 c1 = image.Sample(textureSampler, v_in.uv);
+	float4 c1 = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
 	return c1;
 }
 
