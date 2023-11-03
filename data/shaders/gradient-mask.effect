@@ -1,0 +1,134 @@
+#include "common.effect"
+
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform float2 uv_size; // source dimensions in px
+uniform float width;    // width in pixels
+uniform float position; // Pixel position
+uniform float rotation; // rotation in radians
+uniform bool adj_brightness;
+uniform float min_brightness;
+uniform float max_brightness;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 mainAlphaImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float h = uv_size.x / 2.0f;
+	float k = uv_size.y / 2.0f;
+	float sina = sin(rotation);
+	float cosa = cos(rotation);
+	
+	float2 coord_p = float2(
+	     cosa * coord.x + sina * coord.y - h * cosa - k * sina,
+	     -sina * coord.x + cosa * coord.y + h * sina - k * cosa
+	);
+	
+	float alpha = saturate((coord_p.x - position + width / 2.0f) / width);
+	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	return float4(col.rgb, col.a * alpha);
+}
+
+float4 mainAdjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float h = uv_size.x / 2.0f;
+	float k = uv_size.y / 2.0f;
+	float sina = sin(rotation);
+	float cosa = cos(rotation);
+	
+	float2 coord_p = float2(
+	     cosa * coord.x + sina * coord.y - h * cosa - k * sina,
+	     -sina * coord.x + cosa * coord.y + h * sina - k * cosa
+	);
+	
+	float scale = saturate((coord_p.x - position + width / 2.0f) / width);
+	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	if (adj_brightness)
+	{
+		col = adjust_brightness(col, lerp(min_brightness, max_brightness, scale));
+	}
+	
+	return float4(col.rgb, col.a);
+}
+
+float4 debugAlphaImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float h = uv_size.x / 2.0f;
+	float k = uv_size.y / 2.0f;
+	float sina = sin(rotation);
+	float cosa = cos(rotation);
+	
+	float2 coord_p = float2(
+	     cosa * coord.x + sina * coord.y - h * cosa - k * sina,
+	     -sina * coord.x + cosa * coord.y + h * sina - k * cosa
+	);
+
+	
+	float alpha = saturate((coord_p.x - position + width / 2.0f) / width);
+	
+	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	if (coord_p.x - position > -(width / 2.0 + 2.0) && coord_p.x - position < -(width / 2.0))
+	{
+		return float4(0.0, 1.0, 0.0, 1.0);
+	}
+	if (coord_p.x - position < (width / 2.0 + 2.0) && coord_p.x - position > width / 2.0)
+	{
+		return float4(0.0, 1.0, 0.0, 1.0);
+	}
+	if (coord_p.x - position > -1.0 && coord_p.x - position < 1.0)
+	{
+		return float4(1.0, 0.0, 0.0, 1.0);
+	}
+	return float4(col.rgb, col.a * alpha);
+}
+
+
+technique DrawAlpha
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainAlphaImage(v_in);
+	}
+}
+
+technique DrawAdjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainAdjustmentsImage(v_in);
+	}
+}
+
+technique DebugAlpha
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = debugAlphaImage(v_in);
+
+	}
+}

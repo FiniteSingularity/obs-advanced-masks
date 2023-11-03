@@ -6,12 +6,19 @@
 	"<a href=\"https://github.com/finitesingularity/obs-stroke-glow-shadow/\">Plugin Template</a> (" PROJECT_VERSION \
 	") by <a href=\"https://twitch.tv/finitesingularity\">FiniteSingularity</a>"
 
+#define MASK_EFFECT_ALPHA 1
+#define MASK_EFFECT_ALPHA_LABEL "AdvancedMasks.Effects.Alpha"
+#define MASK_EFFECT_ADJUSTMENT 2
+#define MASK_EFFECT_ADJUSTMENT_LABEL "AdvancedMasks.Effects.Adjustment"
+
 #define MASK_TYPE_SHAPE 1
 #define MASK_TYPE_SHAPE_LABEL "AdvancedMasks.Shape"
 #define MASK_TYPE_SOURCE 2
 #define MASK_TYPE_SOURCE_LABEL "AdvancedMasks.Source"
 #define MASK_TYPE_IMAGE 3
 #define MASK_TYPE_IMAGE_LABEL "AdvancedMasks.Image"
+#define MASK_TYPE_GRADIENT 4
+#define MASK_TYPE_GRADIENT_LABEL "AdvancedMasks.Gradient"
 
 #define SHAPE_RECTANGLE 1
 #define SHAPE_RECTANGLE_LABEL "AdvancedMasks.Shape.Rectangle"
@@ -70,6 +77,7 @@ struct advanced_masks_data {
 	gs_effect_t *effect_rectangle_mask;
 	gs_effect_t *effect_circle_mask;
 	gs_effect_t *effect_source_mask;
+	gs_effect_t *effect_gradient_mask;
 
 	bool rendered;
 	bool rendering;
@@ -78,7 +86,14 @@ struct advanced_masks_data {
 	uint32_t height;
 
 	// Parameters go here
+	uint32_t mask_effect;
 	uint32_t mask_type;
+
+	// Adjustment Values
+	bool adj_brightness;
+	float brightness;
+	float min_brightness;
+	float max_brightness;
 
 	// Parameters for shape masks
 	uint32_t mask_shape_type;
@@ -99,7 +114,7 @@ struct advanced_masks_data {
 	// Parameters for circle mask
 	float radius;
 
-	// Parameteres for source mask
+	// Parameters for source mask
 	uint32_t source_mask_filter_type;
 	obs_weak_source_t *mask_source_source;
 	struct vec4 channel_multipliers;
@@ -110,6 +125,12 @@ struct advanced_masks_data {
 	float threshold_value;
 	float range_min;
 	float range_max;
+
+	// Parameters for gradient mask
+	float gradient_width;
+	float gradient_position;
+	float gradient_rotation;
+	bool gradient_debug;
 
 	// Shader Parameters
 	gs_eparam_t *param_rectangle_image;
@@ -140,4 +161,16 @@ struct advanced_masks_data {
 	gs_eparam_t *param_source_threshold_value;
 	gs_eparam_t *param_source_range_min;
 	gs_eparam_t *param_source_range_max;
+	gs_eparam_t *param_source_adj_brightness;
+	gs_eparam_t *param_source_min_brightness;
+	gs_eparam_t *param_source_max_brightness;
+
+	gs_eparam_t *param_gradient_image;
+	gs_eparam_t *param_gradient_width;
+	gs_eparam_t *param_gradient_position;
+	gs_eparam_t *param_gradient_rotation;
+	gs_eparam_t *param_gradient_uv_size;
+	gs_eparam_t *param_gradient_adj_brightness;
+	gs_eparam_t *param_gradient_min_brightness;
+	gs_eparam_t *param_gradient_max_brightness;
 };
