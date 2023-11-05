@@ -3,6 +3,7 @@
 uniform float4x4 ViewProj;
 
 uniform texture2d image;
+uniform float2 uv_size;
 
 uniform float2 mask_position;
 uniform float width;
@@ -14,6 +15,16 @@ uniform float2 global_position;
 uniform float global_scale;
 uniform float max_corner_radius;
 uniform float4 corner_radius;
+uniform bool invert;
+
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
 
 uniform float aa_scale;
 
@@ -37,55 +48,122 @@ float circleAlpha(float2 uv, float r) {
 	return smoothstep(r + wd, r - wd, d);
 }
 
-float4 applyRoundedCorners(float2 uv, float2 min_vals, float2 max_vals)
+float4 applyRoundedCorners(float2 coord, float2 min_vals, float2 max_vals)
 {
 	//float2 scaled_uv = uv * aspect_ratio;
-	float2 min_vals_max = min_vals + max_corner_radius / aspect_ratio;
-	float2 max_vals_max = max_vals - max_corner_radius / aspect_ratio;
-	bool safe_zone = !(uv.x < min_vals_max.x || uv.y < min_vals_max.y || uv.x > max_vals_max.x || uv.y > max_vals_max.y);
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, uv));
+	float2 min_vals_max = min_vals + max_corner_radius;
+	float2 max_vals_max = max_vals - max_corner_radius;
+	bool safe_zone = !(coord.x < min_vals_max.x || coord.y < min_vals_max.y || coord.x > max_vals_max.x || coord.y > max_vals_max.y);
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, coord / uv_size));
 	float alpha = color.a;
-	float2 local = float2(0.0f, 0.0f);
+	
 	if (safe_zone) {
 		return color;
 	}
-	float2 tl = min_vals + corner_radius[0] / aspect_ratio;
-	float2 tr = float2(max_vals.x, min_vals.y) + float2(-corner_radius[1], corner_radius[1]) / aspect_ratio;
-	float2 bl = float2(min_vals.x, max_vals.y) + float2(corner_radius[2], -corner_radius[2]) / aspect_ratio;
-	float2 br = max_vals - corner_radius[3] / aspect_ratio;
+	float2 local = float2(0.0f, 0.0f);
+	float2 tl = min_vals + corner_radius[0];
+	float2 tr = float2(max_vals.x, min_vals.y) + float2(-corner_radius[1], corner_radius[1]);
+	float2 bl = float2(min_vals.x, max_vals.y) + float2(corner_radius[2], -corner_radius[2]);
+	float2 br = max_vals - corner_radius[3];
 	
-	if (uv.x < tl.x && uv.y < tl.y) {
-		local = (uv - tl) * aspect_ratio;
+	if (coord.x < tl.x && coord.y < tl.y) {
+		local = (coord - tl);
 		alpha *= circleAlpha(local, corner_radius[0]);
-	} else if (uv.x > tr.x && uv.y < tr.y) {
-		local = (uv - tr) * aspect_ratio;
+	} else if (coord.x > tr.x && coord.y < tr.y) {
+		local = (coord - tr);
 		alpha *= circleAlpha(local, corner_radius[1]);
-	} else if (uv.x < bl.x && uv.y > bl.y) {
-		local = (uv - bl) * aspect_ratio;
+	} else if (coord.x < bl.x && coord.y > bl.y) {
+		local = (coord - bl);
 		alpha *= circleAlpha(local, corner_radius[2]);
-	} else if (uv.x > br.x && uv.y > br.y) {
-		local = (uv - br) * aspect_ratio;
+	} else if (coord.x > br.x && coord.y > br.y) {
+		local = (coord - br);
 		alpha *= circleAlpha(local, corner_radius[3]);
 	}
 
 	return float4(color.rgb, alpha);
 }
 
-float4 applyMask(float2 uv)
+float4 applyAdjustmentCorners(float2 coord, float2 min_vals, float2 max_vals)
 {
-	float2 dist = uv - mask_position;
-	uv = mask_position + (dist / global_scale / zoom);
-	float2 position_uv = mask_position;
-	float2 crop_uv = float2(width, height) / 2.0 / zoom;
+	//float2 scaled_uv = uv * aspect_ratio;
+	float2 min_vals_max = min_vals + max_corner_radius;
+	float2 max_vals_max = max_vals - max_corner_radius;
+	bool safe_zone = !(coord.x < min_vals_max.x || coord.y < min_vals_max.y || coord.x > max_vals_max.x || coord.y > max_vals_max.y);
+	if (safe_zone)
+	{
+		return 1.0;
+	}
+	float alpha = 1.0;
+	float2 local = float2(0.0f, 0.0f);
+	float2 tl = min_vals + corner_radius[0];
+	float2 tr = float2(max_vals.x, min_vals.y) + float2(-corner_radius[1], corner_radius[1]);
+	float2 bl = float2(min_vals.x, max_vals.y) + float2(corner_radius[2], -corner_radius[2]);
+	float2 br = max_vals - corner_radius[3];
+	
+	if (coord.x < tl.x && coord.y < tl.y)
+	{
+		local = (coord - tl);
+		alpha *= circleAlpha(local, corner_radius[0]);
+	}
+	else if (coord.x > tr.x && coord.y < tr.y)
+	{
+		local = (coord - tr);
+		alpha *= circleAlpha(local, corner_radius[1]);
+	}
+	else if (coord.x < bl.x && coord.y > bl.y)
+	{
+		local = (coord - bl);
+		alpha *= circleAlpha(local, corner_radius[2]);
+	}
+	else if (coord.x > br.x && coord.y > br.y)
+	{
+		local = (coord - br);
+		alpha *= circleAlpha(local, corner_radius[3]);
+	}
 
-	float2 min_vals = (position_uv - crop_uv);
-	float2 max_vals = (position_uv + crop_uv);
+	return alpha;
+}
+
+float4 applyMask(float2 coord)
+{
+	float2 dist = coord - mask_position;
+	coord = mask_position + (dist / global_scale / zoom);
+	float2 crop = float2(width, height) / 2.0 / zoom;
+
+	float2 min_vals = (mask_position - crop);
+	float2 max_vals = (mask_position + crop);
 
 	// Must expand out for OpenGL compatibility, rather than using the
 	// much more convenient `any`
-	bool dont_draw = uv.x < min_vals.x || uv.y < min_vals.y || uv.x > max_vals.x || uv.y > max_vals.y;
+	bool dont_draw = coord.x < min_vals.x || coord.y < min_vals.y || coord.x > max_vals.x || coord.y > max_vals.y;
 	
-	return dont_draw ? float4(0.0, 0.0, 0.0, 0.0) : applyRoundedCorners(uv, min_vals, max_vals);
+	return dont_draw ? float4(0.0, 0.0, 0.0, 0.0) : applyRoundedCorners(coord, min_vals, max_vals);
+}
+
+float4 applyAdjustments(float2 coord)
+{
+	float2 crop = float2(width, height) / 2.0 / zoom;
+	float2 min_vals = (mask_position - crop);
+	float2 max_vals = (mask_position + crop);
+
+	bool outside = coord.x < min_vals.x || coord.y < min_vals.y || coord.x > max_vals.x || coord.y > max_vals.y;
+	float scale = outside ? 0.0 : applyAdjustmentCorners(coord, min_vals, max_vals);
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, coord / uv_size));
+	float4 color_adj_min = adjustments(
+		color,
+		min_brightness,
+		min_contrast,
+		min_saturation,
+		min_hue_shift
+	);
+	float4 color_adj_max = adjustments(
+		color,
+		max_brightness,
+		max_contrast,
+		max_saturation,
+		max_hue_shift
+	);
+	return (color_adj_min * (1.0 - scale) + color_adj_max * scale);
 }
 
 VertData mainTransform(VertData v_in)
@@ -94,34 +172,34 @@ VertData mainTransform(VertData v_in)
 	return v_in;
 }
 
-float4 sharpCornersImage(VertData v_in) : TARGET
+float4 alphaImage(VertData v_in) : TARGET
 {
+	float2 coord = v_in.uv * uv_size;
 	float2 shift = global_position - mask_position;
-	float2 uv = v_in.uv - shift;
-	return applyMask(uv);
+	float2 coord_p = coord - shift;
+	return applyMask(coord_p);
 }
 
-float4 roundedCornersImage(VertData v_in) : TARGET
+float4 adjustmentsImage(VertData v_in) : TARGET
 {
-    // 1. Sample incoming pixel
-	float4 c1 = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
-	return c1;
+	float2 coord = v_in.uv * uv_size;
+	return applyAdjustments(coord);
 }
 
-technique SharpCorners
+technique Alpha
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
-		pixel_shader = sharpCornersImage(v_in);
+		pixel_shader = alphaImage(v_in);
 	}
 }
 
-technique RoundedCorners
+technique Adjustments
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
-		pixel_shader = roundedCornersImage(v_in);
+		pixel_shader = adjustmentsImage(v_in);
 	}
 }

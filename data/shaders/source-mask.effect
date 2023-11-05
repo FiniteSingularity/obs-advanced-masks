@@ -11,9 +11,14 @@ uniform float threshold_value;
 uniform float range_min;
 uniform float range_max;
 
-uniform bool adj_brightness;
 uniform float min_brightness;
 uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -36,7 +41,7 @@ VertData mainTransform(VertData v_in)
 	return v_in;
 }
 
-float4 mainImage(VertData v_in) : TARGET
+float4 alphaImage(VertData v_in) : TARGET
 {
 	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
@@ -44,21 +49,23 @@ float4 mainImage(VertData v_in) : TARGET
 	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
 }
 
-float4 mainAdjustmentsImage(VertData v_in) : TARGET
+float4 adjustmentsImage(VertData v_in) : TARGET
 {
 	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
 	float scale = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
-	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
-
-	if (adj_brightness)
-	{
-		col = adjust_brightness(col, lerp(min_brightness, max_brightness, scale));
-	}
-	
-	return float4(col.rgb, col.a);
+	scale = invert ? 1.0 - scale : scale;
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	color = adjustments(
+		color,
+		lerp(min_brightness, max_brightness, scale),
+		lerp(min_contrast, max_contrast, scale),
+		lerp(min_saturation, max_saturation, scale),
+		lerp(min_hue_shift, max_hue_shift, scale)
+	);
+	return color;
 }
 
-float4 thresholdImage(VertData v_in) : TARGET
+float4 alphaThresholdImage(VertData v_in) : TARGET
 {
 	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
@@ -67,7 +74,24 @@ float4 thresholdImage(VertData v_in) : TARGET
 	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
 }
 
-float4 rangeImage(VertData v_in) : TARGET
+float4 adjustmentsThresholdImage(VertData v_in) : TARGET
+{
+	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float scale = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
+	scale = step(threshold_value, scale);
+	scale = invert ? 1.0 - scale : scale;
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	color = adjustments(
+		color,
+		lerp(min_brightness, max_brightness, scale),
+		lerp(min_contrast, max_contrast, scale),
+		lerp(min_saturation, max_saturation, scale),
+		lerp(min_hue_shift, max_hue_shift, scale)
+	);
+	return color;
+}
+
+float4 alphaRangeImage(VertData v_in) : TARGET
 {
 	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
@@ -76,39 +100,73 @@ float4 rangeImage(VertData v_in) : TARGET
 	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
 }
 
+float4 adjustmentsRangeImage(VertData v_in) : TARGET
+{
+	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float scale = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
+	scale = smoothstep(range_min, range_max, scale);
+	scale = invert ? 1.0 - scale : scale;
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	color = adjustments(
+		color,
+		lerp(min_brightness, max_brightness, scale),
+		lerp(min_contrast, max_contrast, scale),
+		lerp(min_saturation, max_saturation, scale),
+		lerp(min_hue_shift, max_hue_shift, scale)
+	);
+	return color;
+}
 
-technique Draw
+technique Alpha
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
-		pixel_shader = mainImage(v_in);
+		pixel_shader = alphaImage(v_in);
 	}
 }
 
-technique DrawAdjustments
+technique Adjustments
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
-		pixel_shader = mainAdjustmentsImage(v_in);
+		pixel_shader = adjustmentsImage(v_in);
 	}
 }
 
-technique Threshold
+technique AlphaThreshold
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
-		pixel_shader = thresholdImage(v_in);
+		pixel_shader = alphaThresholdImage(v_in);
 	}
 }
 
-technique Range
+technique AlphaRange
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
-		pixel_shader = rangeImage(v_in);
+		pixel_shader = alphaRangeImage(v_in);
+	}
+}
+
+technique AdjustmentsThreshold
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsThresholdImage(v_in);
+	}
+}
+
+technique AdjustmentsRange
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsRangeImage(v_in);
 	}
 }

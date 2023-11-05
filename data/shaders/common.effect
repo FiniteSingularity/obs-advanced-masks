@@ -1,3 +1,10 @@
+
+#define PI180 0.0174533f
+#define SQRT3 0.5773503f
+#define LUM_R 0.299f
+#define LUM_G 0.587f
+#define LUM_B 0.114f
+
 // Convert pre-multiplied rgba values
 // to linear rgba.
 float4 pmrgba_to_rgba(float4 color)
@@ -8,4 +15,38 @@ float4 pmrgba_to_rgba(float4 color)
 float4 adjust_brightness(float4 color, float brightness)
 {
 	return saturate(float4(color.rgb + brightness, color.a));
+}
+
+float4 adjustments(float4 color, float b, float c, float s, float hue_shift) {
+	// Calculate Contrast Value
+	float ca = c < 0.0f ? 1.0f / (-c + 1.0f) : (c + 1.0f);
+
+	// Calculate Saturation Values
+	float s_r = (1.0f - s) * LUM_R;
+	float s_g = (1.0f - s) * LUM_G;
+	float s_b = (1.0f - s) * LUM_B;
+
+	float3 col = float3(
+		ca * (s_r + s) * color.r + ca * s_g * color.g + ca * s_b * color.b + b,
+		ca * s_r * color.r + ca * (s_g + s) * color.g + ca * s_b * color.b + b,
+		ca * s_r * color.r + ca * s_g * color.g + ca * (s_b + s) * color.b + b
+	);
+	
+	// Calculate Hue shift values
+	float half_angle = 0.5f * hue_shift * PI180;
+	float rq = SQRT3 * sin(half_angle);
+	float cross = rq * rq;
+	float sq = 2.0f * cross;
+	float d = 2.0f * (0.5f - sq);
+	float w_imag = rq * cos(half_angle);
+	float a_l = 2.0f * (cross + w_imag);
+	float b_l = 2.0f * (cross - w_imag);
+	
+	
+	return saturate(float4(
+		col.r * d   + col.g * a_l + col.b * b_l,
+		col.r * b_l + col.g * d   + col.b * a_l,
+		col.r * a_l + col.g * b_l + col.b * d,
+		color.a
+	));
 }

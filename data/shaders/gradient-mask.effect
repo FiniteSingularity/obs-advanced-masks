@@ -7,9 +7,15 @@ uniform float2 uv_size; // source dimensions in px
 uniform float width;    // width in pixels
 uniform float position; // Pixel position
 uniform float rotation; // rotation in radians
-uniform bool adj_brightness;
+uniform bool invert;
 uniform float min_brightness;
 uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -46,7 +52,7 @@ float4 mainAlphaImage(VertData v_in) : TARGET
 	
 	float alpha = saturate((coord_p.x - position + width / 2.0f) / width);
 	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
-	return float4(col.rgb, col.a * alpha);
+	return float4(col.rgb, col.a * (invert ? 1.0f - alpha : alpha));
 }
 
 float4 mainAdjustmentsImage(VertData v_in) : TARGET
@@ -63,13 +69,17 @@ float4 mainAdjustmentsImage(VertData v_in) : TARGET
 	);
 	
 	float scale = saturate((coord_p.x - position + width / 2.0f) / width);
-	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
-	if (adj_brightness)
-	{
-		col = adjust_brightness(col, lerp(min_brightness, max_brightness, scale));
-	}
+	scale = invert ? 1.0f - scale : scale;
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
 	
-	return float4(col.rgb, col.a);
+	color = adjustments(
+		color,
+		lerp(min_brightness, max_brightness, scale),
+		lerp(min_contrast, max_contrast, scale),
+		lerp(min_saturation, max_saturation, scale),
+		lerp(min_hue_shift, max_hue_shift, scale)
+	);
+	return color;
 }
 
 float4 debugAlphaImage(VertData v_in) : TARGET
@@ -88,24 +98,64 @@ float4 debugAlphaImage(VertData v_in) : TARGET
 	
 	float alpha = saturate((coord_p.x - position + width / 2.0f) / width);
 	
-	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
-	if (coord_p.x - position > -(width / 2.0 + 2.0) && coord_p.x - position < -(width / 2.0))
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	if (coord_p.x - position > -(width / 2.0f + 2.0f) && coord_p.x - position < -(width / 2.0f))
 	{
-		return float4(0.0, 1.0, 0.0, 1.0);
+		return float4(0.0f, 1.0f, 0.0f, 1.0f);
 	}
-	if (coord_p.x - position < (width / 2.0 + 2.0) && coord_p.x - position > width / 2.0)
+	if (coord_p.x - position < (width / 2.0f + 2.0f) && coord_p.x - position > width / 2.0f)
 	{
-		return float4(0.0, 1.0, 0.0, 1.0);
+		return float4(0.0f, 1.0f, 0.0f, 1.0f);
 	}
-	if (coord_p.x - position > -1.0 && coord_p.x - position < 1.0)
+	if (coord_p.x - position > -1.0f && coord_p.x - position < 1.0f)
 	{
-		return float4(1.0, 0.0, 0.0, 1.0);
+		return float4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
-	return float4(col.rgb, col.a * alpha);
+	
+	return float4(color.rgb, color.a * (invert ? 1.0f - alpha : alpha));
 }
 
 
-technique DrawAlpha
+float4 debugAdjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float h = uv_size.x / 2.0f;
+	float k = uv_size.y / 2.0f;
+	float sina = sin(rotation);
+	float cosa = cos(rotation);
+	
+	float2 coord_p = float2(
+	     cosa * coord.x + sina * coord.y - h * cosa - k * sina,
+	     -sina * coord.x + cosa * coord.y + h * sina - k * cosa
+	);
+
+	float scale = saturate((coord_p.x - position + width / 2.0f) / width);
+	scale = invert ? 1.0f - scale : scale;
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	if (coord_p.x - position > -(width / 2.0f + 2.0f) && coord_p.x - position < -(width / 2.0f))
+	{
+		return float4(0.0f, 1.0f, 0.0f, 1.0f);
+	}
+	if (coord_p.x - position < (width / 2.0f + 2.0f) && coord_p.x - position > width / 2.0f)
+	{
+		return float4(0.0f, 1.0f, 0.0f, 1.0f);
+	}
+	if (coord_p.x - position > -1.0f && coord_p.x - position < 1.0f)
+	{
+		return float4(1.0f, 0.0f, 0.0f, 1.0f);
+	}
+	
+	color = adjustments(
+		color,
+		lerp(min_brightness, max_brightness, scale),
+		lerp(min_contrast, max_contrast, scale),
+		lerp(min_saturation, max_saturation, scale),
+		lerp(min_hue_shift, max_hue_shift, scale)
+	);
+	return color;
+}
+
+technique Alpha
 {
 	pass
 	{
@@ -114,7 +164,7 @@ technique DrawAlpha
 	}
 }
 
-technique DrawAdjustments
+technique Adjustments
 {
 	pass
 	{
@@ -129,6 +179,16 @@ technique DebugAlpha
 	{
 		vertex_shader = mainTransform(v_in);
 		pixel_shader = debugAlphaImage(v_in);
+
+	}
+}
+
+technique DebugAdjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = debugAdjustmentsImage(v_in);
 
 	}
 }

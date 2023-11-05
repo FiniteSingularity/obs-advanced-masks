@@ -44,6 +44,7 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->rendering = false;
 
 	filter->param_rectangle_image = NULL;
+	filter->param_rectangle_uv_size = NULL;
 	filter->param_rectangle_mask_position = NULL;
 	filter->param_rectangle_width = NULL;
 	filter->param_rectangle_height = NULL;
@@ -54,6 +55,15 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_rectangle_aa_scale = NULL;
 	filter->param_max_corner_radius = NULL;
 	filter->param_rectangle_zoom = NULL;
+	filter->param_rectangle_min_brightness = NULL;
+	filter->param_rectangle_max_brightness = NULL;
+	filter->param_rectangle_min_contrast = NULL;
+	filter->param_rectangle_max_contrast = NULL;
+	filter->param_rectangle_min_saturation = NULL;
+	filter->param_rectangle_max_saturation = NULL;
+	filter->param_rectangle_min_hue_shift = NULL;
+	filter->param_rectangle_max_hue_shift = NULL;
+
 
 	filter->param_circle_global_position = NULL;
 	filter->param_circle_mask_position = NULL;
@@ -71,18 +81,29 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_source_threshold_value = NULL;
 	filter->param_source_range_min = NULL;
 	filter->param_source_range_max = NULL;
-	filter->param_source_adj_brightness = NULL;
 	filter->param_source_min_brightness = NULL;
 	filter->param_source_max_brightness = NULL;
+	filter->param_source_min_contrast = NULL;
+	filter->param_source_max_contrast = NULL;
+	filter->param_source_min_saturation = NULL;
+	filter->param_source_max_saturation = NULL;
+	filter->param_source_min_hue_shift = NULL;
+	filter->param_source_max_hue_shift = NULL;
 
 	filter->param_gradient_image = NULL;
 	filter->param_gradient_width = NULL;
 	filter->param_gradient_position = NULL;
 	filter->param_gradient_rotation = NULL;
 	filter->param_gradient_uv_size = NULL;
-	filter->param_gradient_adj_brightness = NULL;
+	filter->param_gradient_invert = NULL;
 	filter->param_gradient_min_brightness = NULL;
 	filter->param_gradient_max_brightness = NULL;
+	filter->param_gradient_min_contrast = NULL;
+	filter->param_gradient_max_contrast = NULL;
+	filter->param_gradient_min_saturation = NULL;
+	filter->param_gradient_max_saturation = NULL;
+	filter->param_gradient_min_hue_shift = NULL;
+	filter->param_gradient_max_hue_shift = NULL;
 
 	load_effect_files(filter);
 	obs_source_update(source, settings);
@@ -147,12 +168,28 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 		(uint32_t)obs_data_get_int(settings, "mask_effect");
 
 	filter->adj_brightness = obs_data_get_bool(settings, "brightness");
-	filter->brightness =
-		(float)obs_data_get_double(settings, "brightness_value");
 	filter->min_brightness =
 		(float)obs_data_get_double(settings, "min_brightness_value");
 	filter->max_brightness =
 		(float)obs_data_get_double(settings, "max_brightness_value");
+
+	filter->adj_contrast = obs_data_get_bool(settings, "contrast");
+	filter->min_contrast =
+		(float)obs_data_get_double(settings, "min_contrast_value");
+	filter->max_contrast =
+		(float)obs_data_get_double(settings, "max_contrast_value");
+
+	filter->adj_saturation = obs_data_get_bool(settings, "saturation");
+	filter->min_saturation =
+		(float)obs_data_get_double(settings, "min_saturation_value");
+	filter->max_saturation =
+		(float)obs_data_get_double(settings, "max_saturation_value");
+
+	filter->adj_hue_shift = obs_data_get_bool(settings, "hue_shift");
+	filter->min_hue_shift =
+		(float)obs_data_get_double(settings, "min_hue_shift_value");
+	filter->max_hue_shift =
+		(float)obs_data_get_double(settings, "max_hue_shift_value");
 
 	filter->mask_type = (uint32_t)obs_data_get_int(settings, "mask_type");
 	filter->mask_shape_type =
@@ -167,13 +204,15 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	filter->global_position.y =
 		(float)obs_data_get_double(settings, "position_y");
 	filter->global_scale =
-		(float)obs_data_get_double(settings, "position_scale");
+		filter->mask_effect == MASK_EFFECT_ALPHA ? (float)obs_data_get_double(settings, "position_scale") : 100.0f;
 
 	filter->rectangle_width =
 		(float)obs_data_get_double(settings, "rectangle_width");
 	filter->rectangle_height =
 		(float)obs_data_get_double(settings, "rectangle_height");
-	filter->zoom = (float)obs_data_get_double(settings, "source_zoom");
+	filter->zoom = filter->mask_effect == MASK_EFFECT_ALPHA
+		? (float)obs_data_get_double(settings, "source_zoom") : 100.0f;
+
 	filter->corner_radius_type =
 		(uint32_t)obs_data_get_int(settings, "rectangle_corner_type");
 	if (filter->corner_radius_type == MASK_CORNER_UNIFORM) {
@@ -268,6 +307,8 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 		(float)obs_data_get_double(settings, "mask_gradient_rotation");
 	filter->gradient_debug =
 		obs_data_get_bool(settings, "mask_gradient_debug");
+	filter->gradient_invert =
+		obs_data_get_bool(settings, "gradient_invert");
 }
 
 static void advanced_masks_video_render(void *data, gs_effect_t *effect)
@@ -369,16 +410,44 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_set_modified_callback(mask_type_list,
 					   setting_mask_type_modified);
 
+	obs_property_t *mask_source = obs_properties_add_list(
+		props, "mask_source",
+		obs_module_text("AdvancedMasks.SourceMask.Source"),
+		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
+	obs_property_list_add_string(
+		mask_source, obs_module_text("AdvancedMasks.Common.None"), "");
+	obs_enum_sources(add_source_to_list, mask_source);
+	obs_enum_scenes(add_source_to_list, mask_source);
+
+	obs_property_t *shape_type_list = obs_properties_add_list(
+		props, "shape_type", obs_module_text("AdvancedMasks.Shape"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_property_list_add_int(shape_type_list,
+				  obs_module_text(SHAPE_RECTANGLE_LABEL),
+				  SHAPE_RECTANGLE);
+	obs_property_list_add_int(shape_type_list,
+				  obs_module_text(SHAPE_CIRCLE_LABEL),
+				  SHAPE_CIRCLE);
+	//obs_property_list_add_int(shape_type_list,
+	//			  obs_module_text(SHAPE_ELLIPSE_LABEL),
+	//			  SHAPE_ELLIPSE);
+	//obs_property_list_add_int(shape_type_list,
+	//			  obs_module_text(SHAPE_HEXAGON_LABEL),
+	//			  SHAPE_HEXAGON);
+
+	obs_property_set_modified_callback(shape_type_list,
+					   setting_shape_type_modified);
+
+
 	obs_properties_t *mask_adjustments_group = obs_properties_create();
 
 	p = obs_properties_add_bool(
 		mask_adjustments_group, "brightness",
 		obs_module_text("AdvancedMasks.Adjustments.Brightness"));
 
-	p = obs_properties_add_float_slider(
-		mask_adjustments_group, "brightness_value",
-		obs_module_text("AdvancedMasks.Adjustments.Brightness"), -1.0,
-		1.0, 0.01);
+	obs_property_set_modified_callback(p,
+					   setting_mask_adjustment_modified);
 
 	p = obs_properties_add_float_slider(
 		mask_adjustments_group, "min_brightness_value",
@@ -389,6 +458,54 @@ static obs_properties_t *advanced_masks_properties(void *data)
 		mask_adjustments_group, "max_brightness_value",
 		obs_module_text("AdvancedMasks.Adjustments.MaxBrightness"),
 		-1.0, 1.0, 0.01);
+
+	p = obs_properties_add_bool(
+		mask_adjustments_group, "contrast",
+		obs_module_text("AdvancedMasks.Adjustments.Contrast"));
+
+	obs_property_set_modified_callback(p, setting_mask_adjustment_modified);
+
+	p = obs_properties_add_float_slider(
+		mask_adjustments_group, "min_contrast_value",
+		obs_module_text("AdvancedMasks.Adjustments.MinContrast"),
+		-4.0, 4.0, 0.01);
+
+	p = obs_properties_add_float_slider(
+		mask_adjustments_group, "max_contrast_value",
+		obs_module_text("AdvancedMasks.Adjustments.MaxContrast"),
+		-4.0, 4.0, 0.01);
+
+	p = obs_properties_add_bool(
+		mask_adjustments_group, "saturation",
+		obs_module_text("AdvancedMasks.Adjustments.Saturation"));
+
+	obs_property_set_modified_callback(p, setting_mask_adjustment_modified);
+
+	p = obs_properties_add_float_slider(
+		mask_adjustments_group, "min_saturation_value",
+		obs_module_text("AdvancedMasks.Adjustments.MinSaturation"),
+		0.0, 5.0, 0.01);
+
+	p = obs_properties_add_float_slider(
+		mask_adjustments_group, "max_saturation_value",
+		obs_module_text("AdvancedMasks.Adjustments.MaxSaturation"),
+		0.0, 5.0, 0.01);
+
+	p = obs_properties_add_bool(
+		mask_adjustments_group, "hue_shift",
+		obs_module_text("AdvancedMasks.Adjustments.HueShift"));
+
+	obs_property_set_modified_callback(p, setting_mask_adjustment_modified);
+
+	p = obs_properties_add_float_slider(
+		mask_adjustments_group, "min_hue_shift_value",
+		obs_module_text("AdvancedMasks.Adjustments.MinHueShift"), -360.0,
+		360.0, 0.1);
+
+	p = obs_properties_add_float_slider(
+		mask_adjustments_group, "max_hue_shift_value",
+		obs_module_text("AdvancedMasks.Adjustments.MaxHueShift"), -360.0,
+		360.0, 0.1);
 
 	obs_properties_add_group(
 		props, "mask_adjustments_group",
@@ -416,6 +533,10 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_float_set_suffix(p, "deg");
 
 	obs_properties_add_bool(
+		mask_gradient_group, "gradient_invert",
+		obs_module_text("AdvancedMasks.GradientMask.Invert"));
+
+	obs_properties_add_bool(
 		mask_gradient_group, "mask_gradient_debug",
 		obs_module_text("AdvancedMasks.GradientMask.DebugLines"));
 
@@ -425,15 +546,6 @@ static obs_properties_t *advanced_masks_properties(void *data)
 		OBS_GROUP_NORMAL, mask_gradient_group);
 
 	// START OF SOURCE STUFF
-	obs_property_t *mask_source = obs_properties_add_list(
-		props, "mask_source",
-		obs_module_text("AdvancedMasks.SourceMask.Source"),
-		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
-	obs_property_list_add_string(
-		mask_source, obs_module_text("AdvancedMasks.Common.None"), "");
-	obs_enum_sources(add_source_to_list, mask_source);
-	obs_enum_scenes(add_source_to_list, mask_source);
-
 	obs_properties_t *mask_source_group = obs_properties_create();
 
 	obs_property_t *mask_source_filter_list = obs_properties_add_list(
@@ -542,35 +654,8 @@ static obs_properties_t *advanced_masks_properties(void *data)
 		obs_module_text("AdvancedMasks.SourceMaskCompress"),
 		OBS_GROUP_NORMAL, mask_source_compression_group);
 
-	//obs_properties_t *source_mask_group = obs_properties_create();
-
-	//obs_properties_add_group(
-	//	props, "source_mask_group",
-	//	obs_module_text("AdvancedMasks.SourceMask"),
-	//	OBS_GROUP_NORMAL, source_mask_group);
-
-	// Add a source to this.
-
 	// START OF SHAPE STUFF
-	obs_property_t *shape_type_list = obs_properties_add_list(
-		props, "shape_type", obs_module_text("AdvancedMasks.Shape"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
-	obs_property_list_add_int(shape_type_list,
-				  obs_module_text(SHAPE_RECTANGLE_LABEL),
-				  SHAPE_RECTANGLE);
-	obs_property_list_add_int(shape_type_list,
-				  obs_module_text(SHAPE_CIRCLE_LABEL),
-				  SHAPE_CIRCLE);
-	//obs_property_list_add_int(shape_type_list,
-	//			  obs_module_text(SHAPE_ELLIPSE_LABEL),
-	//			  SHAPE_ELLIPSE);
-	//obs_property_list_add_int(shape_type_list,
-	//			  obs_module_text(SHAPE_HEXAGON_LABEL),
-	//			  SHAPE_HEXAGON);
-
-	obs_property_set_modified_callback(shape_type_list,
-					   setting_shape_type_modified);
 
 	// START OF SHAPE - RECTANGLE
 
@@ -735,6 +820,7 @@ static bool setting_shape_type_modified(obs_properties_t *props,
 {
 	UNUSED_PARAMETER(p);
 	int shape_type = (int)obs_data_get_int(settings, "shape_type");
+	int effect_type = (int)obs_data_get_int(settings, "mask_effect");
 	switch (shape_type) {
 	case SHAPE_RECTANGLE:
 		setting_visibility("rectangle_width", true, props);
@@ -750,7 +836,13 @@ static bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 	}
-
+	setting_visibility("source_zoom", effect_type == MASK_EFFECT_ALPHA, props);
+	obs_property_t *group = obs_properties_get(props, "rectangle_source_group");
+	const char *group_name =
+		effect_type == MASK_EFFECT_ALPHA
+			? obs_module_text("AdvancedMasks.Shape.Rectangle.SourceGroup")
+			: obs_module_text("AdvancedMasks.Shape.Rectangle.GeometryGroup");
+	obs_property_set_description(group, group_name);
 	return true;
 }
 
@@ -809,6 +901,26 @@ static bool setting_mask_source_filter_modified(obs_properties_t *props,
 	return true;
 }
 
+static bool setting_mask_adjustment_modified(obs_properties_t *props,
+						obs_property_t *p,
+						obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	bool brightness = obs_data_get_bool(settings, "brightness");
+	bool contrast = obs_data_get_bool(settings, "contrast");
+	bool saturation = obs_data_get_bool(settings, "saturation");
+	bool hue_shift = obs_data_get_bool(settings, "hue_shift");
+	setting_visibility("min_brightness_value", brightness, props);
+	setting_visibility("max_brightness_value", brightness, props);
+	setting_visibility("min_contrast_value", contrast, props);
+	setting_visibility("max_contrast_value", contrast, props);
+	setting_visibility("min_saturation_value", saturation, props);
+	setting_visibility("max_saturation_value", saturation, props);
+	setting_visibility("min_hue_shift_value", hue_shift, props);
+	setting_visibility("max_hue_shift_value", hue_shift, props);
+	return true;
+}
+
 static bool setting_mask_effect_modified(obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings)
@@ -818,12 +930,14 @@ static bool setting_mask_effect_modified(obs_properties_t *props,
 	switch (mask_effect) {
 	case MASK_EFFECT_ADJUSTMENT:
 		setting_visibility("mask_adjustments_group", true, props);
-		return true;
+		break;
 	case MASK_EFFECT_ALPHA:
 		setting_visibility("mask_adjustments_group", false, props);
-		return true;
+		break;
 	}
-	return false;
+	setting_mask_type_modified(props, p, settings);
+	setting_shape_type_modified(props, p, settings);
+	return true;
 }
 
 static bool setting_mask_type_modified(obs_properties_t *props,
@@ -831,6 +945,7 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 {
 	UNUSED_PARAMETER(p);
 	int mask_type = (int)obs_data_get_int(settings, "mask_type");
+	int effect_type = (int)obs_data_get_int(settings, "mask_effect");
 	switch (mask_type) {
 	case MASK_TYPE_SHAPE:
 		setting_visibility("mask_source", false, props);
@@ -841,7 +956,8 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_source_group", true, props);
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
-		setting_visibility("scale_position_group", true, props);
+		setting_visibility("scale_position_group",
+				   effect_type == MASK_EFFECT_ALPHA, props);
 		setting_visibility("mask_gradient_group", false, props);
 		return true;
 	case MASK_TYPE_SOURCE:
@@ -958,9 +1074,18 @@ static void advanced_masks_video_tick(void *data, float seconds)
 static void advanced_masks_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "mask_effect", MASK_EFFECT_ALPHA);
-	obs_data_set_default_double(settings, "brightness_value", 0.0);
-	obs_data_set_default_double(settings, "min_brightness_value", 0.0);
+	obs_data_set_default_bool(settings, "brightness", false);
+	obs_data_set_default_double(settings, "min_brightness_value", -1.0);
 	obs_data_set_default_double(settings, "max_brightness_value", 1.0);
+	obs_data_set_default_bool(settings, "contrast", false);
+	obs_data_set_default_double(settings, "min_contrast_value", 0.0);
+	obs_data_set_default_double(settings, "max_contrast_value", 1.0);
+	obs_data_set_default_bool(settings, "saturation", false);
+	obs_data_set_default_double(settings, "min_saturation_value", 0.0);
+	obs_data_set_default_double(settings, "max_saturation_value", 4.0);
+	obs_data_set_default_bool(settings, "hue_shift", false);
+	obs_data_set_default_double(settings, "min_hue_shift_value", -180.0);
+	obs_data_set_default_double(settings, "max_hue_shift_value", 180.0);
 
 	obs_data_set_default_int(settings, "mask_type", MASK_TYPE_SHAPE);
 	obs_data_set_default_int(settings, "shape_type", SHAPE_RECTANGLE);
@@ -974,6 +1099,8 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "mask_source_filter_multiplier",
 				    1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
+
+	obs_data_set_default_bool(settings, "gradient_invert", false);
 }
 
 static void get_input_source(advanced_masks_data_t *filter)
@@ -1044,6 +1171,8 @@ static void shape_load_rectangle_effect(advanced_masks_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "image") == 0) {
 				filter->param_rectangle_image = param;
+			} else if (strcmp(info.name, "uv_size") == 0) {
+				filter->param_rectangle_uv_size = param;
 			} else if (strcmp(info.name, "mask_position") == 0) {
 				filter->param_rectangle_mask_position = param;
 			} else if (strcmp(info.name, "width") == 0) {
@@ -1056,8 +1185,7 @@ static void shape_load_rectangle_effect(advanced_masks_data_t *filter)
 				filter->param_global_scale = param;
 			} else if (strcmp(info.name, "corner_radius") == 0) {
 				filter->param_corner_radius = param;
-			} else if (strcmp(info.name, "max_corner_radius") ==
-				   0) {
+			} else if (strcmp(info.name, "max_corner_radius") == 0) {
 				filter->param_max_corner_radius = param;
 			} else if (strcmp(info.name, "aspect_ratio") == 0) {
 				filter->param_rect_aspect_ratio = param;
@@ -1065,6 +1193,22 @@ static void shape_load_rectangle_effect(advanced_masks_data_t *filter)
 				filter->param_rectangle_aa_scale = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				filter->param_rectangle_zoom = param;
+			} else if (strcmp(info.name, "min_brightness") == 0) {
+				filter->param_rectangle_min_brightness = param;
+			} else if (strcmp(info.name, "max_brightness") == 0) {
+				filter->param_rectangle_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				filter->param_rectangle_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				filter->param_rectangle_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				filter->param_rectangle_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				filter->param_rectangle_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				filter->param_rectangle_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				filter->param_rectangle_max_hue_shift = param;
 			}
 		}
 	}
@@ -1097,31 +1241,24 @@ static void render_rect_mask(advanced_masks_data_t *data)
 				    data->zoom / 100.0f);
 	}
 	if (data->param_rectangle_mask_position) {
-		struct vec2 mask_center;
-		mask_center.x = data->mask_center.x / (float)data->width;
-		mask_center.y = data->mask_center.y / (float)data->height;
 		gs_effect_set_vec2(data->param_rectangle_mask_position,
-				   &mask_center);
+				   &data->mask_center);
 	}
 
 	if (data->param_rectangle_width) {
-		float width = data->rectangle_width / (float)data->width;
-		gs_effect_set_float(data->param_rectangle_width, width);
+		gs_effect_set_float(data->param_rectangle_width,
+				    data->rectangle_width);
 	}
 
 	if (data->param_rectangle_height) {
-		float height = data->rectangle_height / (float)data->height;
-		gs_effect_set_float(data->param_rectangle_height, height);
+		gs_effect_set_float(data->param_rectangle_height,
+				    data->rectangle_height);
 	}
 
 	if (data->param_global_position) {
-		struct vec2 global_position;
-		global_position.x =
-			data->global_position.x / (float)data->width;
-		global_position.y =
-			data->global_position.y / (float)data->height;
 		gs_effect_set_vec2(data->param_global_position,
-				   &global_position);
+				   &data->global_position);
+
 	}
 
 	if (data->param_global_scale) {
@@ -1132,8 +1269,6 @@ static void render_rect_mask(advanced_masks_data_t *data)
 	if (data->param_corner_radius) {
 		struct vec4 corner_radius;
 		vec4_divf(&corner_radius, &data->rectangle_corner_radius,
-			  (float)fmin((double)data->width,
-				      (double)data->height) *
 				  scale_factor * (data->zoom / 100.0f));
 		gs_effect_set_vec4(data->param_corner_radius, &corner_radius);
 	}
@@ -1141,8 +1276,7 @@ static void render_rect_mask(advanced_masks_data_t *data)
 	if (data->param_max_corner_radius) {
 		float max_corner_radius =
 			data->rectangle_max_corner_radius / scale_factor *
-			(data->zoom / 100.0f) /
-			(float)fmin((double)data->width, (double)data->height);
+			(data->zoom / 100.0f);
 		gs_effect_set_float(data->param_max_corner_radius,
 				    max_corner_radius);
 	}
@@ -1164,13 +1298,80 @@ static void render_rect_mask(advanced_masks_data_t *data)
 		gs_effect_set_float(data->param_rectangle_aa_scale, aa_scale);
 	}
 
+	if (data->param_rectangle_min_brightness) {
+		const float min_brightness =
+			data->adj_brightness ? data->min_brightness : 0.0f;
+		gs_effect_set_float(data->param_rectangle_min_brightness,
+				    min_brightness);
+	}
+
+	if (data->param_rectangle_max_brightness) {
+		const float max_brightness =
+			data->adj_brightness ? data->max_brightness : 0.0f;
+		gs_effect_set_float(data->param_rectangle_max_brightness,
+				    max_brightness);
+	}
+
+	if (data->param_rectangle_min_contrast) {
+		const float min_contrast =
+			data->adj_contrast ? data->min_contrast : 0.0f;
+		gs_effect_set_float(data->param_rectangle_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_rectangle_max_contrast) {
+		const float max_contrast =
+			data->adj_contrast ? data->max_contrast : 0.0f;
+		gs_effect_set_float(data->param_rectangle_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_rectangle_min_saturation) {
+		const float min_saturation =
+			data->adj_saturation ? data->min_saturation : 1.0f;
+		gs_effect_set_float(data->param_rectangle_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_rectangle_max_saturation) {
+		const float max_saturation =
+			data->adj_saturation ? data->max_saturation : 1.0f;
+		gs_effect_set_float(data->param_rectangle_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_rectangle_min_hue_shift) {
+		const float min_hue_shift =
+			data->adj_hue_shift ? data->min_hue_shift : 0.0f;
+		gs_effect_set_float(data->param_rectangle_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_rectangle_max_hue_shift) {
+		const float max_hue_shift =
+			data->adj_hue_shift ? data->max_hue_shift : 1.0f;
+		gs_effect_set_float(data->param_rectangle_max_hue_shift,
+				    max_hue_shift);
+	}
+
+	if (data->param_rectangle_uv_size) {
+		struct vec2 uv_size;
+		uv_size.x = (float)data->width;
+		uv_size.y = (float)data->height;
+		gs_effect_set_vec2(data->param_rectangle_uv_size, &uv_size);
+	}
+
 	set_blending_parameters();
+	const char *technique = data->mask_effect == MASK_EFFECT_ALPHA
+					? "Alpha"
+					: "Adjustments";
+
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
 		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
-			 -100.0f, 100.0f);
-		while (gs_effect_loop(effect, "SharpCorners"))
+			 -100.0f, 100.0f);  
+		while (gs_effect_loop(effect, technique))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
 	}
@@ -1205,31 +1406,23 @@ static void render_circle_mask(advanced_masks_data_t *data)
 				    data->zoom / 100.0f);
 	}
 	if (data->param_rectangle_mask_position) {
-		struct vec2 mask_center;
-		mask_center.x = data->mask_center.x / (float)data->width;
-		mask_center.y = data->mask_center.y / (float)data->height;
 		gs_effect_set_vec2(data->param_rectangle_mask_position,
-				   &mask_center);
+				   &data->mask_center);
 	}
 
 	if (data->param_rectangle_width) {
-		float width = 2.0f * data->radius / (float)data->width;
+		float width = 2.0f * data->radius;
 		gs_effect_set_float(data->param_rectangle_width, width);
 	}
 
 	if (data->param_rectangle_height) {
-		float height = 2.0f * data->radius / (float)data->height;
+		float height = 2.0f * data->radius;
 		gs_effect_set_float(data->param_rectangle_height, height);
 	}
 
 	if (data->param_global_position) {
-		struct vec2 global_position;
-		global_position.x =
-			data->global_position.x / (float)data->width;
-		global_position.y =
-			data->global_position.y / (float)data->height;
 		gs_effect_set_vec2(data->param_global_position,
-				   &global_position);
+				   &data->global_position);
 	}
 
 	if (data->param_global_scale) {
@@ -1239,17 +1432,14 @@ static void render_circle_mask(advanced_masks_data_t *data)
 
 	if (data->param_corner_radius) {
 		struct vec4 corner_radius;
-		float r = data->radius / ((float)fmin((double)data->width,
-						      (double)data->height) *
-					  (data->zoom / 100.0f));
+		float r = data->radius / (data->zoom / 100.0f);
 		vec4_set(&corner_radius, r, r, r, r);
 		gs_effect_set_vec4(data->param_corner_radius, &corner_radius);
 	}
 
 	if (data->param_max_corner_radius) {
 		float max_corner_radius =
-			data->radius / (data->zoom / 100.0f) /
-			(float)fmin((double)data->width, (double)data->height);
+			data->radius / (data->zoom / 100.0f);
 		gs_effect_set_float(data->param_max_corner_radius,
 				    max_corner_radius);
 	}
@@ -1271,13 +1461,80 @@ static void render_circle_mask(advanced_masks_data_t *data)
 		gs_effect_set_float(data->param_rectangle_aa_scale, aa_scale);
 	}
 
+	if (data->param_rectangle_min_brightness) {
+		const float min_brightness =
+			data->adj_brightness ? data->min_brightness : 0.0f;
+		gs_effect_set_float(data->param_rectangle_min_brightness,
+				    min_brightness);
+	}
+
+	if (data->param_rectangle_max_brightness) {
+		const float max_brightness =
+			data->adj_brightness ? data->max_brightness : 0.0f;
+		gs_effect_set_float(data->param_rectangle_max_brightness,
+				    max_brightness);
+	}
+
+	if (data->param_rectangle_min_contrast) {
+		const float min_contrast =
+			data->adj_contrast ? data->min_contrast : 0.0f;
+		gs_effect_set_float(data->param_rectangle_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_rectangle_max_contrast) {
+		const float max_contrast =
+			data->adj_contrast ? data->max_contrast : 0.0f;
+		gs_effect_set_float(data->param_rectangle_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_rectangle_min_saturation) {
+		const float min_saturation =
+			data->adj_saturation ? data->min_saturation : 1.0f;
+		gs_effect_set_float(data->param_rectangle_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_rectangle_max_saturation) {
+		const float max_saturation =
+			data->adj_saturation ? data->max_saturation : 1.0f;
+		gs_effect_set_float(data->param_rectangle_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_rectangle_min_hue_shift) {
+		const float min_hue_shift =
+			data->adj_hue_shift ? data->min_hue_shift : 0.0f;
+		gs_effect_set_float(data->param_rectangle_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_rectangle_max_hue_shift) {
+		const float max_hue_shift =
+			data->adj_hue_shift ? data->max_hue_shift : 1.0f;
+		gs_effect_set_float(data->param_rectangle_max_hue_shift,
+				    max_hue_shift);
+	}
+
+	if (data->param_rectangle_uv_size) {
+		struct vec2 uv_size;
+		uv_size.x = (float)data->width;
+		uv_size.y = (float)data->height;
+		gs_effect_set_vec2(data->param_rectangle_uv_size, &uv_size);
+	}
+
 	set_blending_parameters();
+
+	const char *technique = data->mask_effect == MASK_EFFECT_ALPHA
+					? "Alpha"
+					: "Adjustments";
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
 		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
 			 -100.0f, 100.0f);
-		while (gs_effect_loop(effect, "SharpCorners"))
+		while (gs_effect_loop(effect, technique))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
 	}
@@ -1307,10 +1564,8 @@ static void load_source_mask_effect(advanced_masks_data_t *filter)
 				filter->param_source_mask_source_image = param;
 			} else if (strcmp(info.name, "invert") == 0) {
 				filter->param_source_mask_invert = param;
-			} else if (strcmp(info.name, "channel_multipliers") ==
-				   0) {
-				filter->param_source_channel_multipliers =
-					param;
+			} else if (strcmp(info.name, "channel_multipliers") == 0) {
+				filter->param_source_channel_multipliers = param;
 			} else if (strcmp(info.name, "multiplier") == 0) {
 				filter->param_source_multiplier = param;
 			} else if (strcmp(info.name, "threshold_value") == 0) {
@@ -1319,12 +1574,22 @@ static void load_source_mask_effect(advanced_masks_data_t *filter)
 				filter->param_source_range_min = param;
 			} else if (strcmp(info.name, "range_max") == 0) {
 				filter->param_source_range_max = param;
-			} else if (strcmp(info.name, "adj_brightness") == 0) {
-				filter->param_source_adj_brightness = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
 				filter->param_source_min_brightness = param;
 			} else if (strcmp(info.name, "max_brightness") == 0) {
 				filter->param_source_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				filter->param_source_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				filter->param_source_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				filter->param_source_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				filter->param_source_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				filter->param_source_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				filter->param_source_max_hue_shift = param;
 			}
 		}
 	}
@@ -1375,19 +1640,60 @@ static void render_source_mask(advanced_masks_data_t *data)
 				    data->range_max);
 	}
 
-	if (data->param_source_adj_brightness) {
-		gs_effect_set_bool(data->param_source_adj_brightness,
-				   data->adj_brightness);
-	}
-
 	if (data->param_source_min_brightness) {
+		const float min_brightness =
+			data->adj_brightness ? data->min_brightness : 0.0f;
 		gs_effect_set_float(data->param_source_min_brightness,
-				    data->min_brightness);
+				    min_brightness);
 	}
 
 	if (data->param_source_max_brightness) {
+		const float max_brightness =
+			data->adj_brightness ? data->max_brightness : 0.0f;
 		gs_effect_set_float(data->param_source_max_brightness,
-				    data->max_brightness);
+				    max_brightness);
+	}
+
+	if (data->param_source_min_contrast) {
+		const float min_contrast =
+			data->adj_contrast ? data->min_contrast : 0.0f;
+		gs_effect_set_float(data->param_source_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_source_max_contrast) {
+		const float max_contrast = data->adj_contrast ? data->max_contrast
+							: 0.0f;
+		gs_effect_set_float(data->param_source_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_source_min_saturation) {
+		const float min_saturation = data->adj_saturation ? data->min_saturation
+							: 1.0f;
+		gs_effect_set_float(data->param_source_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_source_max_saturation) {
+		const float max_saturation = data->adj_saturation ? data->max_saturation
+							: 1.0f;
+		gs_effect_set_float(data->param_source_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_source_min_hue_shift) {
+		const float min_hue_shift =
+			data->adj_hue_shift ? data->min_hue_shift : 0.0f;
+		gs_effect_set_float(data->param_source_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_source_max_hue_shift) {
+		const float max_hue_shift =
+			data->adj_hue_shift ? data->max_hue_shift : 1.0f;
+		gs_effect_set_float(data->param_source_max_hue_shift,
+				    max_hue_shift);
 	}
 
 	gs_texrender_t *mask_source_render = NULL;
@@ -1438,14 +1744,17 @@ static void render_source_mask(advanced_masks_data_t *data)
 
 	set_blending_parameters();
 
-	const char *technique =
+	char technique[32];
+	strcpy(technique, data->mask_effect == MASK_EFFECT_ADJUSTMENT
+				  ? "Adjustments"
+				  : "Alpha");
+	char *techniqueType =
 		data->compression_type == MASK_SOURCE_COMPRESSION_THRESHOLD
-			? "Threshold"
-		: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
-			? "Range"
-		: data->mask_effect == MASK_EFFECT_ADJUSTMENT
-			? "DrawAdjustments"
-			: "Draw";
+				? "Threshold"
+			: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
+				? "Range"
+			: "";
+	strcat(technique, techniqueType);
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
@@ -1519,12 +1828,24 @@ static void load_gradient_mask_effect(advanced_masks_data_t *filter)
 				filter->param_gradient_position = param;
 			} else if (strcmp(info.name, "rotation") == 0) {
 				filter->param_gradient_rotation = param;
-			} else if (strcmp(info.name, "adj_brightness") == 0) {
-				filter->param_gradient_adj_brightness = param;
+			} else if (strcmp(info.name, "invert") == 0) {
+				filter->param_gradient_invert = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
 				filter->param_gradient_min_brightness = param;
 			} else if (strcmp(info.name, "max_brightness") == 0) {
 				filter->param_gradient_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				filter->param_gradient_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				filter->param_gradient_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				filter->param_gradient_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				filter->param_gradient_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				filter->param_gradient_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				filter->param_gradient_max_hue_shift = param;
 			}
 		}
 	}
@@ -1550,6 +1871,10 @@ static void render_gradient_mask(advanced_masks_data_t *data)
 				    data->gradient_width);
 	}
 
+	if (data->param_gradient_invert) {
+		gs_effect_set_bool(data->param_gradient_invert, data->gradient_invert);
+	}
+
 	if (data->param_gradient_position) {
 		const float position =
 			data->gradient_position - (float)data->width / 2.0f;
@@ -1561,19 +1886,60 @@ static void render_gradient_mask(advanced_masks_data_t *data)
 		gs_effect_set_float(data->param_gradient_rotation, rotation);
 	}
 
-	if (data->param_gradient_adj_brightness) {
-		gs_effect_set_bool(data->param_gradient_adj_brightness,
-				   data->adj_brightness);
-	}
-
 	if (data->param_gradient_min_brightness) {
+		const float min_brightness =
+			data->adj_brightness ? data->min_brightness : 0.0f;
 		gs_effect_set_float(data->param_gradient_min_brightness,
-				    data->min_brightness);
+				    min_brightness);
 	}
 
 	if (data->param_gradient_max_brightness) {
+		const float max_brightness =
+			data->adj_brightness ? data->max_brightness : 0.0f;
 		gs_effect_set_float(data->param_gradient_max_brightness,
-				    data->max_brightness);
+				    max_brightness);
+	}
+
+	if (data->param_gradient_min_contrast) {
+		const float min_contrast =
+			data->adj_contrast ? data->min_contrast : 0.0f;
+		gs_effect_set_float(data->param_gradient_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_gradient_max_contrast) {
+		const float max_contrast =
+			data->adj_contrast ? data->max_contrast : 0.0f;
+		gs_effect_set_float(data->param_gradient_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_gradient_min_saturation) {
+		const float min_saturation =
+			data->adj_saturation ? data->min_saturation : 1.0f;
+		gs_effect_set_float(data->param_gradient_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_gradient_max_saturation) {
+		const float max_saturation =
+			data->adj_saturation ? data->max_saturation : 1.0f;
+		gs_effect_set_float(data->param_gradient_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_gradient_min_hue_shift) {
+		const float min_hue_shift =
+			data->adj_hue_shift ? data->min_hue_shift : 0.0f;
+		gs_effect_set_float(data->param_gradient_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_gradient_max_hue_shift) {
+		const float max_hue_shift =
+			data->adj_hue_shift ? data->max_hue_shift : 1.0f;
+		gs_effect_set_float(data->param_gradient_max_hue_shift,
+				    max_hue_shift);
 	}
 
 	if (data->param_gradient_uv_size) {
@@ -1582,11 +1948,15 @@ static void render_gradient_mask(advanced_masks_data_t *data)
 		uv_size.y = (float)data->height;
 		gs_effect_set_vec2(data->param_gradient_uv_size, &uv_size);
 	}
+
 	set_render_parameters();
 	set_blending_parameters();
-	const char *technique = data->mask_effect == MASK_EFFECT_ALPHA
-					? "DrawAlpha"
-					: "DrawAdjustments";
+	char technique[32];
+	strcpy(technique, data->gradient_debug ? "Debug" : "");
+	strcat(technique, data->mask_effect == MASK_EFFECT_ALPHA
+				  ? "Alpha"
+				  : "Adjustments");
+
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
 		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
