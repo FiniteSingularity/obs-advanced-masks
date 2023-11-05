@@ -83,7 +83,7 @@ float4 applyRoundedCorners(float2 coord, float2 min_vals, float2 max_vals)
 	return float4(color.rgb, alpha);
 }
 
-float4 applyAdjustmentCorners(float2 coord, float2 min_vals, float2 max_vals)
+float applyAdjustmentCorners(float2 coord, float2 min_vals, float2 max_vals)
 {
 	//float2 scaled_uv = uv * aspect_ratio;
 	float2 min_vals_max = min_vals + max_corner_radius;
