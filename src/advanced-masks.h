@@ -95,6 +95,18 @@ struct advanced_masks_data {
 	float min_brightness;
 	float max_brightness;
 
+	bool adj_contrast;
+	float min_contrast;
+	float max_contrast;
+
+	bool adj_saturation;
+	float min_saturation;
+	float max_saturation;
+
+	bool adj_hue_shift;
+	float min_hue_shift;
+	float max_hue_shift;
+
 	// Parameters for shape masks
 	uint32_t mask_shape_type;
 	struct vec2 mask_center;
@@ -130,10 +142,12 @@ struct advanced_masks_data {
 	float gradient_width;
 	float gradient_position;
 	float gradient_rotation;
+	bool gradient_invert;
 	bool gradient_debug;
 
 	// Shader Parameters
 	gs_eparam_t *param_rectangle_image;
+	gs_eparam_t *param_rectangle_uv_size;
 	gs_eparam_t *param_rectangle_mask_position;
 	gs_eparam_t *param_rectangle_width;
 	gs_eparam_t *param_rectangle_height;
@@ -144,6 +158,14 @@ struct advanced_masks_data {
 	gs_eparam_t *param_rect_aspect_ratio;
 	gs_eparam_t *param_rectangle_aa_scale;
 	gs_eparam_t *param_rectangle_zoom;
+	gs_eparam_t *param_rectangle_min_brightness;
+	gs_eparam_t *param_rectangle_max_brightness;
+	gs_eparam_t *param_rectangle_min_contrast;
+	gs_eparam_t *param_rectangle_max_contrast;
+	gs_eparam_t *param_rectangle_min_saturation;
+	gs_eparam_t *param_rectangle_max_saturation;
+	gs_eparam_t *param_rectangle_min_hue_shift;
+	gs_eparam_t *param_rectangle_max_hue_shift;
 
 	gs_eparam_t *param_circle_image;
 	gs_eparam_t *param_circle_radius;
@@ -161,16 +183,27 @@ struct advanced_masks_data {
 	gs_eparam_t *param_source_threshold_value;
 	gs_eparam_t *param_source_range_min;
 	gs_eparam_t *param_source_range_max;
-	gs_eparam_t *param_source_adj_brightness;
 	gs_eparam_t *param_source_min_brightness;
 	gs_eparam_t *param_source_max_brightness;
+	gs_eparam_t *param_source_min_contrast;
+	gs_eparam_t *param_source_max_contrast;
+	gs_eparam_t *param_source_min_saturation;
+	gs_eparam_t *param_source_max_saturation;
+	gs_eparam_t *param_source_min_hue_shift;
+	gs_eparam_t *param_source_max_hue_shift;
 
 	gs_eparam_t *param_gradient_image;
 	gs_eparam_t *param_gradient_width;
 	gs_eparam_t *param_gradient_position;
 	gs_eparam_t *param_gradient_rotation;
 	gs_eparam_t *param_gradient_uv_size;
-	gs_eparam_t *param_gradient_adj_brightness;
+	gs_eparam_t *param_gradient_invert;
 	gs_eparam_t *param_gradient_min_brightness;
 	gs_eparam_t *param_gradient_max_brightness;
+	gs_eparam_t *param_gradient_min_contrast;
+	gs_eparam_t *param_gradient_max_contrast;
+	gs_eparam_t *param_gradient_min_saturation;
+	gs_eparam_t *param_gradient_max_saturation;
+	gs_eparam_t *param_gradient_min_hue_shift;
+	gs_eparam_t *param_gradient_max_hue_shift;
 };
