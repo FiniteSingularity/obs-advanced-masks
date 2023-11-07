@@ -62,6 +62,8 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 	data->mask_shape_type =
 		(uint32_t)obs_data_get_int(settings, "shape_type");
 
+	data->shape_relative = obs_data_get_bool(settings, "shape_relative");
+
 	data->mask_center.x =
 		(float)obs_data_get_double(settings, "shape_center_x");
 	data->mask_center.y =
@@ -127,6 +129,7 @@ void mask_shape_defaults(obs_data_t* settings) {
 	obs_data_set_default_double(settings, "position_scale", 100.0);
 	obs_data_set_default_double(settings, "mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
+	obs_data_set_default_bool(settings, "shape_relative", true);
 }
 
 void shape_mask_top_properties(obs_properties_t *props)
@@ -150,6 +153,15 @@ void shape_mask_top_properties(obs_properties_t *props)
 
 	obs_property_set_modified_callback(shape_type_list,
 					   setting_shape_type_modified);
+
+	obs_property_t *shape_relative =
+		obs_properties_add_bool(props, "shape_relative",
+					obs_module_text("AdvancedMasks.Shape.Relative"));
+
+	obs_property_set_modified_callback(shape_relative,
+					   setting_shape_relative_modified);
+
+	
 }
 
 void shape_mask_bot_properties(obs_properties_t *props,
@@ -346,6 +358,19 @@ bool setting_shape_type_modified(obs_properties_t *props,
 	return true;
 }
 
+static bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
+				 obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	bool relative = obs_data_get_bool(settings, "shape_relative");
+	if (relative) {
+		setting_visibility("scale_position_group", true, props);
+	} else{
+		setting_visibility("scale_position_group", false, props);
+	}
+	return true;
+}
+
 static bool setting_corner_type_modified(obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings)
@@ -471,13 +496,17 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 	}
 
 	if (data->param_global_position) {
-		gs_effect_set_vec2(data->param_global_position,
-				   &data->global_position);
+		if (data->shape_relative) {
+			gs_effect_set_vec2(data->param_global_position,
+					   &data->global_position);
+		} else {
+			gs_effect_set_vec2(data->param_global_position,
+					   &data->mask_center);
+		}
 	}
 
 	if (data->param_global_scale) {
-
-		gs_effect_set_float(data->param_global_scale, scale_factor);
+		gs_effect_set_float(data->param_global_scale, data->shape_relative ? scale_factor : 1.0f);
 	}
 
 	if (data->param_corner_radius) {
@@ -635,13 +664,19 @@ static void render_circle_mask(mask_shape_data_t *data,
 	}
 
 	if (data->param_global_position) {
-		gs_effect_set_vec2(data->param_global_position,
-				   &data->global_position);
+		if (data->shape_relative) {
+			gs_effect_set_vec2(data->param_global_position,
+					   &data->global_position);
+		} else {
+			gs_effect_set_vec2(data->param_global_position,
+					   &data->mask_center);
+		}
 	}
 
 	if (data->param_global_scale) {
 
-		gs_effect_set_float(data->param_global_scale, scale_factor);
+		gs_effect_set_float(data->param_global_scale,
+				    data->shape_relative ? scale_factor : 1.0f);
 	}
 
 	if (data->param_corner_radius) {

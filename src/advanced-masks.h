@@ -20,5 +20,4 @@ struct advanced_masks_data {
 	mask_gradient_data_t *gradient_data;
 
 	bool invert;
-
 };

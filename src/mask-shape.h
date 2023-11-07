@@ -37,6 +37,7 @@ struct mask_shape_data {
 	struct vec2 mask_center;
 	struct vec2 global_position;
 	float global_scale;
+	bool shape_relative;
 	uint32_t scale_type;
 	uint32_t last_scale_type;
 	uint32_t corner_radius_type;
@@ -105,6 +106,8 @@ static void render_circle_mask(mask_shape_data_t *data,
 extern bool setting_shape_type_modified(obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
+static bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
+				     obs_data_t *settings);
 static bool setting_corner_type_modified(obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings);
