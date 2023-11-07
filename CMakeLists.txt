@@ -22,9 +22,18 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in ${CMAKE_CURRENT_SOUR
 
 target_sources(${PROJECT_NAME} PRIVATE
 	src/advanced-masks-filter.c
+	src/base-filter.h
+	src/color-adjustments.c
+	src/color-adjustments.h
 	src/obs-advanced-masks-plugin.c
 	src/advanced-masks-filter.h
 	src/advanced-masks.h
+	src/mask-gradient.c
+	src/mask-gradient.h
+	src/mask-shape.c
+	src/mask-shape.h
+	src/mask-source.c
+	src/mask-source.h
 	src/obs-utils.c
 	src/obs-utils.h
 	src/version.h)
