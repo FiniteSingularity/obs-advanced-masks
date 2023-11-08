@@ -2,8 +2,8 @@
 
 #include <obs-module.h>
 
-#define PLUGIN_INFO                                                                                                      \
-	"<a href=\"https://github.com/finitesingularity/obs-stroke-glow-shadow/\">Plugin Template</a> (" PROJECT_VERSION \
+#define PLUGIN_INFO                                                                                                 \
+	"<a href=\"https://github.com/finitesingularity/obs-advanced-masks/\">Advanced Masks</a> (" PROJECT_VERSION \
 	") by <a href=\"https://twitch.tv/finitesingularity\">FiniteSingularity</a>"
 
 #define MASK_EFFECT_ALPHA 1
