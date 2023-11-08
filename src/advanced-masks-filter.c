@@ -91,7 +91,8 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 
 	filter->base->mask_effect =
 		(uint32_t)obs_data_get_int(settings, "mask_effect");
-	filter->base->mask_type = (uint32_t)obs_data_get_int(settings, "mask_type");
+	filter->base->mask_type =
+		(uint32_t)obs_data_get_int(settings, "mask_type");
 
 	color_adjustments_update(filter->color_adj_data, settings);
 
@@ -134,13 +135,16 @@ static void render_mask(advanced_masks_data_t *filter)
 {
 	switch (filter->base->mask_type) {
 	case MASK_TYPE_SHAPE:
-		render_shape_mask(filter->shape_data, filter->base, filter->color_adj_data);
+		render_shape_mask(filter->shape_data, filter->base,
+				  filter->color_adj_data);
 		break;
 	case MASK_TYPE_SOURCE:
-		render_source_mask(filter->source_data, filter->base, filter->color_adj_data);
+		render_source_mask(filter->source_data, filter->base,
+				   filter->color_adj_data);
 		break;
 	case MASK_TYPE_GRADIENT:
-		render_gradient_mask(filter->gradient_data, filter->base, filter->color_adj_data);
+		render_gradient_mask(filter->gradient_data, filter->base,
+				     filter->color_adj_data);
 		break;
 	}
 }
@@ -186,17 +190,18 @@ static obs_properties_t *advanced_masks_properties(void *data)
 
 	source_mask_top_properties(props);
 	shape_mask_top_properties(props);
-	
+
 	color_adjustments_properties(props);
 
 	source_mask_bot_properties(props);
 	shape_mask_bot_properties(props, filter->context, filter->shape_data);
 	gradient_mask_properties(props);
 
+	obs_properties_add_text(props, "plugin_info", PLUGIN_INFO,
+				OBS_TEXT_INFO);
+
 	return props;
 }
-
-
 
 static bool setting_mask_effect_modified(obs_properties_t *props,
 					 obs_property_t *p,
@@ -269,8 +274,6 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 	return false;
 }
 
-
-
 static void advanced_masks_video_tick(void *data, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
@@ -306,8 +309,8 @@ static void get_input_source(advanced_masks_data_t *filter)
 		create_or_reset_texrender(filter->base->input_texrender);
 	if (obs_source_process_filter_begin(filter->context, GS_RGBA,
 					    OBS_ALLOW_DIRECT_RENDERING) &&
-	    gs_texrender_begin(filter->base->input_texrender, filter->base->width,
-			       filter->base->height)) {
+	    gs_texrender_begin(filter->base->input_texrender,
+			       filter->base->width, filter->base->height)) {
 
 		set_blending_parameters();
 		gs_ortho(0.0f, (float)filter->base->width, 0.0f,
