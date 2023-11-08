@@ -111,10 +111,11 @@ void mask_source_update(mask_source_data_t *data, obs_data_t *settings)
 
 void mask_source_defaults(obs_data_t *settings)
 {
-
+	UNUSED_PARAMETER(settings);
 }
 
-void source_mask_top_properties(obs_properties_t *props) {
+void source_mask_top_properties(obs_properties_t *props)
+{
 	obs_property_t *mask_source = obs_properties_add_list(
 		props, "mask_source",
 		obs_module_text("AdvancedMasks.SourceMask.Source"),
@@ -125,7 +126,8 @@ void source_mask_top_properties(obs_properties_t *props) {
 	obs_enum_scenes(add_source_to_list, mask_source);
 }
 
-void source_mask_bot_properties(obs_properties_t* props) {
+void source_mask_bot_properties(obs_properties_t *props)
+{
 	obs_properties_t *mask_source_group = obs_properties_create();
 
 	obs_property_t *mask_source_filter_list = obs_properties_add_list(
@@ -264,8 +266,8 @@ static bool setting_mask_source_compression_modified(obs_properties_t *props,
 }
 
 bool setting_mask_source_filter_modified(obs_properties_t *props,
-						obs_property_t *p,
-						obs_data_t *settings)
+					 obs_property_t *p,
+					 obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
 	int filter_type = (int)obs_data_get_int(
@@ -291,7 +293,7 @@ bool setting_mask_source_filter_modified(obs_properties_t *props,
 }
 
 void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
-		   color_adjustments_data_t *color_adj)
+			color_adjustments_data_t *color_adj)
 {
 	gs_effect_t *effect = data->effect_source_mask;
 	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
@@ -337,8 +339,9 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 	}
 
 	if (data->param_source_min_brightness) {
-		const float min_brightness =
-			color_adj->adj_brightness ? color_adj->min_brightness : 0.0f;
+		const float min_brightness = color_adj->adj_brightness
+						     ? color_adj->min_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_source_min_brightness,
 				    min_brightness);
 	}
@@ -471,7 +474,8 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 	gs_blend_state_pop();
 }
 
-static void load_source_effect_files(mask_source_data_t* data) {
+static void load_source_effect_files(mask_source_data_t *data)
+{
 	load_source_mask_effect(data);
 }
 
@@ -479,8 +483,8 @@ static void load_source_mask_effect(mask_source_data_t *data)
 {
 	const char *effect_file_path = "/shaders/source-mask.effect";
 
-	data->effect_source_mask = load_shader_effect(
-		data->effect_source_mask, effect_file_path);
+	data->effect_source_mask =
+		load_shader_effect(data->effect_source_mask, effect_file_path);
 	if (data->effect_source_mask) {
 		size_t effect_count =
 			gs_effect_get_num_params(data->effect_source_mask);
@@ -496,7 +500,8 @@ static void load_source_mask_effect(mask_source_data_t *data)
 				data->param_source_mask_source_image = param;
 			} else if (strcmp(info.name, "invert") == 0) {
 				data->param_source_mask_invert = param;
-			} else if (strcmp(info.name, "channel_multipliers") == 0) {
+			} else if (strcmp(info.name, "channel_multipliers") ==
+				   0) {
 				data->param_source_channel_multipliers = param;
 			} else if (strcmp(info.name, "multiplier") == 0) {
 				data->param_source_multiplier = param;
