@@ -10,8 +10,8 @@
 #define SHAPE_CIRCLE_LABEL "AdvancedMasks.Shape.Circle"
 #define SHAPE_ELLIPSE 3
 #define SHAPE_ELLIPSE_LABEL "AdvancedMasks.Shape.Ellipse"
-#define SHAPE_HEXAGON 4
-#define SHAPE_HEXAGON_LABEL "AdvancedMasks.Shape.Hexagon"
+#define SHAPE_POLYGON 4
+#define SHAPE_POLYGON_LABEL "AdvancedMasks.Shape.Polygon"
 
 #define MASK_SCALE_PERCENT 1
 #define MASK_SCALE_PERCENT_LABEL "AdvancedMasks.ScaleType.Percent"
@@ -31,6 +31,7 @@ typedef struct mask_shape_data mask_shape_data_t;
 struct mask_shape_data {
 	gs_effect_t *effect_rectangle_mask;
 	gs_effect_t *effect_circle_mask;
+	gs_effect_t *effect_polygon_mask;
 
 	// General Shape Parameters
 	uint32_t mask_shape_type;
@@ -51,6 +52,10 @@ struct mask_shape_data {
 
 	// Parameters for circle mask
 	float radius;
+
+	// Parameters for Hexagon mask
+	float rotation;
+	float num_sides;
 
 	// Shader file params
 	gs_eparam_t *param_rectangle_image;
@@ -81,6 +86,30 @@ struct mask_shape_data {
 	gs_eparam_t *param_circle_global_position;
 	gs_eparam_t *param_circle_global_scale;
 	gs_eparam_t *param_circle_aspect_ratio;
+
+	// Shader file params
+	gs_eparam_t *param_polygon_image;
+	gs_eparam_t *param_polygon_uv_size;
+	gs_eparam_t *param_polygon_mask_position;
+	gs_eparam_t *param_polygon_sin_theta;
+	gs_eparam_t *param_polygon_cos_theta;
+	gs_eparam_t *param_polygon_radius;
+	gs_eparam_t *param_polygon_num_sides;
+	gs_eparam_t *param_polygon_global_position;
+	gs_eparam_t *param_polygon_global_scale;
+	gs_eparam_t *param_polygon_corner_radius;
+	gs_eparam_t *param_polygon_max_corner_radius;
+	gs_eparam_t *param_polygon_aa_scale;
+	gs_eparam_t *param_polygon_zoom;
+	gs_eparam_t *param_polygon_min_brightness;
+	gs_eparam_t *param_polygon_max_brightness;
+	gs_eparam_t *param_polygon_min_contrast;
+	gs_eparam_t *param_polygon_max_contrast;
+	gs_eparam_t *param_polygon_min_saturation;
+	gs_eparam_t *param_polygon_max_saturation;
+	gs_eparam_t *param_polygon_min_hue_shift;
+	gs_eparam_t *param_polygon_max_hue_shift;
+
 };
 
 extern mask_shape_data_t *mask_shape_create();
@@ -101,12 +130,14 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 static void render_circle_mask(mask_shape_data_t *data,
 			       base_filter_data_t *base,
 			       color_adjustments_data_t *color_adj);
-
+static void render_polygon_mask(mask_shape_data_t *data,
+				base_filter_data_t *base,
+				color_adjustments_data_t *color_adj);
 
 extern bool setting_shape_type_modified(obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
-static bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
+extern bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
 				     obs_data_t *settings);
 static bool setting_corner_type_modified(obs_properties_t *props,
 					 obs_property_t *p,
@@ -118,3 +149,4 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 static void load_shape_effect_files(mask_shape_data_t *data);
 static void load_rectangle_mask_effect(mask_shape_data_t *data);
 static void load_circle_mask_effect(mask_shape_data_t *data);
+static void load_polygon_mask_effect(mask_shape_data_t *data);

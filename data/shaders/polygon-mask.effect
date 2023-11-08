@@ -1,0 +1,122 @@
+#include "common.effect"
+
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform float2 uv_size;
+uniform float2 mask_position;
+uniform float2 global_position;
+uniform float global_scale;
+uniform float zoom;
+uniform float radius;
+uniform float num_sides;
+uniform float sin_theta;
+uniform float cos_theta;
+
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+// Returns the internal hexagonal distance from
+// the center of a given hexagon to a coordinate.
+float hexDist(float2 coord, float2 hex_center)
+{
+	float2 delta = abs(hex_center - coord);
+	float diagonal_dist = SIN30 * delta.x + COS30 * delta.y;
+	return max(delta.x, diagonal_dist);
+}
+
+float polyDist(float2 coord, float n)
+{
+	float theta = PI2 / n;
+	float d = length(coord);
+	float phi = acos(coord.x / d);
+	float alpha = fmod(phi, theta);
+	return d * cos(theta / 2.0f - alpha);
+}
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 alphaImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
+	//float radius_dist = radius * global_scale - hexDist(sample_dist, float2(0.0f, 0.0f)) + 1.0;
+	float radius_dist = radius * global_scale - polyDist(sample_dist, num_sides) + 1.0;
+	float alpha = smoothstep(0.0f, 1.0f, radius_dist);
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
+	return float4(color.rgb, color.a * alpha);
+}
+
+float4 adjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+
+	float2 dist = coord - mask_position;
+	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
+	float radius_dist = radius - hexDist(sample_dist, float2(0.0f, 0.0f)) + 1.0;
+	float scale = smoothstep(0.0, 1.0, radius_dist);
+	
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, coord / uv_size));
+	
+	float4 color_adj_min = adjustments(
+		color,
+		min_brightness,
+		min_contrast,
+		min_saturation,
+		min_hue_shift
+	);
+	float4 color_adj_max = adjustments(
+		color,
+		max_brightness,
+		max_contrast,
+		max_saturation,
+		max_hue_shift
+	);
+	return (color_adj_min * (1.0 - scale) + color_adj_max * scale);
+}
+
+technique Alpha
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaImage(v_in);
+	}
+}
+
+technique Adjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsImage(v_in);
+	}
+}
