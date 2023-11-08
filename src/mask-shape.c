@@ -7,6 +7,7 @@ mask_shape_data_t *mask_shape_create()
 
 	data->effect_rectangle_mask = NULL;
 	data->effect_circle_mask = NULL;
+	data->effect_polygon_mask = NULL;
 
 	data->param_rectangle_image = NULL;
 	data->param_rectangle_uv_size = NULL;
@@ -36,6 +37,28 @@ mask_shape_data_t *mask_shape_create()
 	data->param_circle_zoom = NULL;
 	data->param_circle_aspect_ratio = NULL;
 	data->param_circle_global_scale = NULL;
+
+	data->param_polygon_image = NULL;
+	data->param_polygon_uv_size = NULL;
+	data->param_polygon_mask_position = NULL;
+	data->param_polygon_sin_theta = NULL;
+	data->param_polygon_cos_theta = NULL;
+	data->param_polygon_radius = NULL;
+	data->param_polygon_num_sides = NULL;
+	data->param_polygon_global_position = NULL;
+	data->param_polygon_global_scale = NULL;
+	data->param_polygon_corner_radius = NULL;
+	data->param_polygon_max_corner_radius = NULL;
+	data->param_polygon_aa_scale = NULL;
+	data->param_polygon_zoom = NULL;
+	data->param_polygon_min_brightness = NULL;
+	data->param_polygon_max_brightness = NULL;
+	data->param_polygon_min_contrast = NULL;
+	data->param_polygon_max_contrast = NULL;
+	data->param_polygon_min_saturation = NULL;
+	data->param_polygon_max_saturation = NULL;
+	data->param_polygon_min_hue_shift = NULL;
+	data->param_polygon_max_hue_shift = NULL;
 
 	load_shape_effect_files(data);
 
@@ -114,14 +137,25 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 		data->rectangle_max_corner_radius = max_radius;
 	}
 	data->scale_type = (uint32_t)obs_data_get_int(settings, "scale_type");
+	const double rotation = obs_data_get_double(settings, "shape_rotation");
+	data->rotation = (float)(rotation * M_PI / 180.0f);
 
-	data->radius = (float)obs_data_get_double(settings, "circle_radius");
+	data->num_sides = (float)obs_data_get_int(settings, "shape_num_sides");
+
+	const float radius =
+		data->mask_shape_type == SHAPE_CIRCLE
+			? (float)obs_data_get_double(settings, "circle_radius")
+			: (float)obs_data_get_double(settings,
+						     "circle_radius") * (float)cos(M_PI / data->num_sides);
+
+	data->radius = radius;
 }
 
 void mask_shape_defaults(obs_data_t* settings) {
 	obs_data_set_default_int(settings, "shape_type", SHAPE_RECTANGLE);
 	obs_data_set_default_double(settings, "shape_center_x", 960.0);
 	obs_data_set_default_double(settings, "shape_center_y", 540.0);
+	obs_data_set_default_double(settings, "shape_rotation", 0.0);
 	obs_data_set_default_double(settings, "rectangle_width", 250.0);
 	obs_data_set_default_double(settings, "rectangle_height", 250.0);
 	obs_data_set_default_double(settings, "position_x", 960.0);
@@ -130,6 +164,7 @@ void mask_shape_defaults(obs_data_t* settings) {
 	obs_data_set_default_double(settings, "mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
 	obs_data_set_default_bool(settings, "shape_relative", true);
+	obs_data_set_default_int(settings, "shape_num_sides", 6);
 }
 
 void shape_mask_top_properties(obs_properties_t *props)
@@ -147,9 +182,9 @@ void shape_mask_top_properties(obs_properties_t *props)
 	//obs_property_list_add_int(shape_type_list,
 	//			  obs_module_text(SHAPE_ELLIPSE_LABEL),
 	//			  SHAPE_ELLIPSE);
-	//obs_property_list_add_int(shape_type_list,
-	//			  obs_module_text(SHAPE_HEXAGON_LABEL),
-	//			  SHAPE_HEXAGON);
+	obs_property_list_add_int(shape_type_list,
+				  obs_module_text(SHAPE_POLYGON_LABEL),
+				  SHAPE_POLYGON);
 
 	obs_property_set_modified_callback(shape_type_list,
 					   setting_shape_type_modified);
@@ -182,6 +217,16 @@ void shape_mask_bot_properties(obs_properties_t *props,
 		obs_module_text("AdvancedMasks.Shape.Center.Y"), -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "shape_rotation",
+		obs_module_text("AdvancedMasks.Shape.Rotation"), -360.0, 360.0,
+		1.0);
+	obs_property_float_set_suffix(p, "deg");
+
+	p = obs_properties_add_int_slider(
+		source_rect_mask_group, "shape_num_sides",
+		obs_module_text("AdvancedMasks.Shape.NumSides"), 3, 100, 1);
 
 	p = obs_properties_add_float_slider(
 		source_rect_mask_group, "rectangle_width",
@@ -329,11 +374,13 @@ bool setting_shape_type_modified(obs_properties_t *props,
 	UNUSED_PARAMETER(p);
 	int shape_type = (int)obs_data_get_int(settings, "shape_type");
 	int effect_type = (int)obs_data_get_int(settings, "mask_effect");
+	bool relative = obs_data_get_bool(settings, "shape_relative");
 	switch (shape_type) {
 	case SHAPE_RECTANGLE:
 		setting_visibility("rectangle_width", true, props);
 		setting_visibility("rectangle_height", true, props);
 		setting_visibility("circle_radius", false, props);
+		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
 		break;
@@ -341,33 +388,49 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_width", false, props);
 		setting_visibility("rectangle_height", false, props);
 		setting_visibility("circle_radius", true, props);
+		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
+		break;
+	case SHAPE_POLYGON:
+		setting_visibility("rectangle_width", false, props);
+		setting_visibility("rectangle_height", false, props);
+		setting_visibility("circle_radius", true, props);
+		setting_visibility("shape_num_sides", true, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+				   props);
+		break;
 	}
 	setting_visibility("source_zoom", effect_type == MASK_EFFECT_ALPHA,
 			   props);
 	obs_property_t *group =
 		obs_properties_get(props, "rectangle_source_group");
 	const char *group_name =
-		effect_type == MASK_EFFECT_ALPHA
+		effect_type == MASK_EFFECT_ALPHA && relative
 			? obs_module_text(
 				  "AdvancedMasks.Shape.Rectangle.SourceGroup")
+			: effect_type == MASK_EFFECT_ALPHA
+			? obs_module_text(
+				  "AdvancedMasks.Shape.Rectangle.MaskGeometryGroup")
 			: obs_module_text(
 				  "AdvancedMasks.Shape.Rectangle.GeometryGroup");
 	obs_property_set_description(group, group_name);
+	setting_visibility("shape_relative", effect_type == MASK_EFFECT_ALPHA, props);
 	return true;
 }
 
-static bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
+bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
 				 obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
 	bool relative = obs_data_get_bool(settings, "shape_relative");
-	if (relative) {
+	uint32_t mask_effect = (uint32_t)obs_data_get_int(settings, "mask_effect");
+	if (relative && mask_effect == MASK_EFFECT_ALPHA) {
 		setting_visibility("scale_position_group", true, props);
 	} else{
 		setting_visibility("scale_position_group", false, props);
 	}
+	setting_shape_type_modified(props, p, settings);
 	return true;
 }
 
@@ -448,6 +511,9 @@ void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		break;
 	case SHAPE_CIRCLE:
 		render_circle_mask(data, base, color_adj);
+		break;
+	case SHAPE_POLYGON:
+		render_polygon_mask(data, base, color_adj);
 		break;
 	}
 }
@@ -601,6 +667,161 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 		uv_size.x = (float)base->width;
 		uv_size.y = (float)base->height;
 		gs_effect_set_vec2(data->param_rectangle_uv_size, &uv_size);
+	}
+
+	set_blending_parameters();
+	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
+					? "Alpha"
+					: "Adjustments";
+
+	if (gs_texrender_begin(base->output_texrender, base->width,
+			       base->height)) {
+		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique))
+			gs_draw_sprite(texture, 0, base->width, base->height);
+		gs_texrender_end(base->output_texrender);
+	}
+
+	gs_blend_state_pop();
+}
+
+static void render_polygon_mask(mask_shape_data_t *data,
+				  base_filter_data_t *base,
+				  color_adjustments_data_t *color_adj)
+{
+	gs_effect_t *effect = data->effect_polygon_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	float scale_factor =
+		data->scale_type == MASK_SCALE_PERCENT
+			? data->global_scale / 100.0f
+		: data->scale_type == MASK_SCALE_WIDTH
+			? data->global_scale / data->rectangle_width
+			: data->global_scale / data->rectangle_height;
+
+	if (data->param_polygon_image) {
+		gs_effect_set_texture(data->param_polygon_image, texture);
+	}
+
+	if (data->param_polygon_zoom) {
+		gs_effect_set_float(data->param_polygon_zoom,
+				    data->zoom / 100.0f);
+	}
+	if (data->param_polygon_mask_position) {
+		gs_effect_set_vec2(data->param_polygon_mask_position,
+				   &data->mask_center);
+	}
+	if (data->param_polygon_sin_theta) {
+		gs_effect_set_float(data->param_polygon_sin_theta,
+				    (float)sin(data->rotation));
+	}
+
+	if (data->param_polygon_cos_theta) {
+		gs_effect_set_float(data->param_polygon_cos_theta,
+				    (float)cos(data->rotation));
+	}
+
+	if (data->param_polygon_radius) {
+		gs_effect_set_float(data->param_polygon_radius,
+				    data->radius);
+	}
+
+	if (data->param_polygon_num_sides) {
+		gs_effect_set_float(data->param_polygon_num_sides,
+				    data->num_sides);
+	}
+
+	if (data->param_polygon_global_position) {
+		if (data->shape_relative) {
+			gs_effect_set_vec2(data->param_polygon_global_position,
+					   &data->global_position);
+		} else {
+			gs_effect_set_vec2(data->param_polygon_global_position,
+					   &data->mask_center);
+		}
+	}
+
+	if (data->param_polygon_global_scale) {
+		gs_effect_set_float(data->param_polygon_global_scale,
+				    data->shape_relative ? scale_factor : 1.0f);
+	}
+
+	if (data->param_polygon_min_brightness) {
+		const float min_brightness = color_adj->adj_brightness
+						     ? color_adj->min_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_polygon_min_brightness,
+				    min_brightness);
+	}
+
+	if (data->param_polygon_max_brightness) {
+		const float max_brightness = color_adj->adj_brightness
+						     ? color_adj->max_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_polygon_max_brightness,
+				    max_brightness);
+	}
+
+	if (data->param_polygon_min_contrast) {
+		const float min_contrast = color_adj->adj_contrast
+						   ? color_adj->min_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_polygon_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_polygon_max_contrast) {
+		const float max_contrast = color_adj->adj_contrast
+						   ? color_adj->max_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_polygon_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_polygon_min_saturation) {
+		const float min_saturation = color_adj->adj_saturation
+						     ? color_adj->min_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_polygon_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_polygon_max_saturation) {
+		const float max_saturation = color_adj->adj_saturation
+						     ? color_adj->max_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_polygon_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_polygon_min_hue_shift) {
+		const float min_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
+		gs_effect_set_float(data->param_polygon_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_polygon_max_hue_shift) {
+		const float max_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
+		gs_effect_set_float(data->param_polygon_max_hue_shift,
+				    max_hue_shift);
+	}
+
+	if (data->param_polygon_uv_size) {
+		struct vec2 uv_size;
+		uv_size.x = (float)base->width;
+		uv_size.y = (float)base->height;
+		gs_effect_set_vec2(data->param_polygon_uv_size, &uv_size);
 	}
 
 	set_blending_parameters();
@@ -794,6 +1015,7 @@ static void load_shape_effect_files(mask_shape_data_t *data)
 {
 	load_rectangle_mask_effect(data);
 	load_circle_mask_effect(data);
+	load_polygon_mask_effect(data);
 }
 
 static void load_rectangle_mask_effect(mask_shape_data_t *data)
@@ -885,6 +1107,62 @@ static void load_circle_mask_effect(mask_shape_data_t *data)
 				data->param_circle_aspect_ratio = param;
 			} else if (strcmp(info.name, "global_scale") == 0) {
 				data->param_circle_global_scale = param;
+			}
+		}
+	}
+}
+
+static void load_polygon_mask_effect(mask_shape_data_t *data)
+{
+	const char *effect_file_path = "/shaders/polygon-mask.effect";
+
+	data->effect_polygon_mask = load_shader_effect(
+		data->effect_polygon_mask, effect_file_path);
+	if (data->effect_polygon_mask) {
+		size_t effect_count =
+			gs_effect_get_num_params(data->effect_polygon_mask);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				data->effect_polygon_mask, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "image") == 0) {
+				data->param_polygon_image = param;
+			} else if (strcmp(info.name, "uv_size") == 0) {
+				data->param_polygon_uv_size = param;
+			} else if (strcmp(info.name, "radius") == 0) {
+				data->param_polygon_radius = param;
+			} else if (strcmp(info.name, "num_sides") == 0) {
+				data->param_polygon_num_sides = param;
+			} else if (strcmp(info.name, "mask_position") == 0) {
+				data->param_polygon_mask_position = param;
+			} else if (strcmp(info.name, "global_position") == 0) {
+				data->param_polygon_global_position = param;
+			} else if (strcmp(info.name, "global_scale") == 0) {
+				data->param_polygon_global_scale = param;
+			} else if (strcmp(info.name, "zoom") == 0) {
+				data->param_polygon_zoom = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				data->param_polygon_sin_theta = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				data->param_polygon_cos_theta = param;
+			} else if (strcmp(info.name, "min_brightness") == 0) {
+				data->param_polygon_min_brightness = param;
+			} else if (strcmp(info.name, "max_brightness") == 0) {
+				data->param_polygon_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				data->param_polygon_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				data->param_polygon_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				data->param_polygon_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				data->param_polygon_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				data->param_polygon_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				data->param_polygon_max_hue_shift = param;
 			}
 		}
 	}

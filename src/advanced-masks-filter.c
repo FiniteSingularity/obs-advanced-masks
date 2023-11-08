@@ -149,8 +149,6 @@ static obs_properties_t *advanced_masks_properties(void *data)
 {
 	advanced_masks_data_t *filter = data;
 
-	obs_property_t *p = NULL;
-
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_set_param(props, filter, NULL);
 
@@ -215,6 +213,7 @@ static bool setting_mask_effect_modified(obs_properties_t *props,
 	}
 	setting_mask_type_modified(props, p, settings);
 	setting_shape_type_modified(props, p, settings);
+	setting_shape_relative_modified(props, p, settings);
 	return true;
 }
 

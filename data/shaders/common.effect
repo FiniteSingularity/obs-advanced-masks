@@ -4,6 +4,10 @@
 #define LUM_R 0.299f
 #define LUM_G 0.587f
 #define LUM_B 0.114f
+#define SIN30 0.5f
+#define COS30 0.8660254f
+#define PI  3.141592654f
+#define PI2 6.283185307f
 
 // Convert pre-multiplied rgba values
 // to linear rgba.
