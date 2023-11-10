@@ -1,0 +1,124 @@
+#include "common.effect"
+
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform float2 uv_size;
+uniform float2 mask_position;
+uniform float2 global_position;
+uniform float global_scale;
+uniform float sin_rot;
+uniform float cos_rot;
+uniform float radius;
+uniform float corner_radius;
+uniform float an;
+uniform float en;
+uniform float2 acs;
+uniform float2 ecs;
+uniform float zoom;
+uniform float feather_amount;
+
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+/*
+ * Original Regular Star SDF code by Inigo Quilez: https://iquilezles.org/articles/distfunctions2d/
+ * Converted to OBS HLSL by FiniteSingularity
+ */
+float SDF(float2 coord, float r)
+{
+	coord = -coord.yx; // Spike up at 0 rot
+	float at = atan2(coord.y, coord.x);
+	float an2 = 2.0 * an;
+	float bn = at - an2 * floor(at / an2) - an;
+	coord = length(coord) * float2(cos(bn), abs(sin(bn)));
+	coord -= r * acs;
+	coord += ecs * clamp(-dot(coord, ecs), 0.0, r * acs.y / ecs.y);
+	return length(coord) * sign(coord.x);
+}
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 alphaImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_rot - dist.y * sin_rot, dist.x * sin_rot + dist.y * cos_rot);
+	float d = SDF(sample_dist, radius) - corner_radius;
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
+	return float4(color.rgb, color.a * d);
+}
+
+float4 adjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_rot - dist.y * sin_rot, dist.x * sin_rot + dist.y * cos_rot);
+	float d = SDF(dist, radius) - corner_radius;
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color_adj_min = adjustments(
+		color,
+		min_brightness,
+		min_contrast,
+		min_saturation,
+		min_hue_shift
+	);
+	float4 color_adj_max = adjustments(
+		color,
+		max_brightness,
+		max_contrast,
+		max_saturation,
+		max_hue_shift
+	);
+	return (color_adj_min * (1.0 - d) + color_adj_max * d);
+}
+
+technique Alpha
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaImage(v_in);
+	}
+}
+
+technique Adjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsImage(v_in);
+	}
+}

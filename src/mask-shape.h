@@ -12,6 +12,10 @@
 #define SHAPE_ELLIPSE_LABEL "AdvancedMasks.Shape.Ellipse"
 #define SHAPE_POLYGON 4
 #define SHAPE_POLYGON_LABEL "AdvancedMasks.Shape.Polygon"
+#define SHAPE_STAR 5
+#define SHAPE_STAR_LABEL "AdvancedMasks.Shape.Star"
+#define SHAPE_HEART 6
+#define SHAPE_HEART_LABEL "AdvancedMasks.Shape.Heart"
 
 #define MASK_SCALE_PERCENT 1
 #define MASK_SCALE_PERCENT_LABEL "AdvancedMasks.ScaleType.Percent"
@@ -42,6 +46,8 @@ struct mask_shape_data {
 	gs_effect_t *effect_circle_mask;
 	gs_effect_t *effect_polygon_mask;
 	gs_effect_t *effect_ellipse_mask;
+	gs_effect_t *effect_star_mask;
+	gs_effect_t *effect_heart_mask;
 
 	// General Shape Parameters
 	uint32_t mask_shape_type;
@@ -74,6 +80,17 @@ struct mask_shape_data {
 
 	// Parameters for ellipse mask
 	struct vec2 ellipse;
+
+	// Parameters for star mask
+	float star_outer_radius;
+	float star_corner_radius;
+	float an;
+	float en;
+	struct vec2 acs;
+	struct vec2 ecs;
+
+	// Parameters for Heart mask
+	float heart_size;
 
 	// Shader file params
 	gs_eparam_t *param_rectangle_image;
@@ -160,6 +177,50 @@ struct mask_shape_data {
 	gs_eparam_t *param_ellipse_max_saturation;
 	gs_eparam_t *param_ellipse_min_hue_shift;
 	gs_eparam_t *param_ellipse_max_hue_shift;
+
+	gs_eparam_t *param_star_image;
+	gs_eparam_t *param_star_uv_size;
+	gs_eparam_t *param_star_mask_position;
+	gs_eparam_t *param_star_global_position;
+	gs_eparam_t *param_star_global_scale;
+	gs_eparam_t *param_star_sin_rot;
+	gs_eparam_t *param_star_cos_rot;
+	gs_eparam_t *param_star_radius;
+	gs_eparam_t *param_star_corner_radius;
+	gs_eparam_t *param_star_an;
+	gs_eparam_t *param_star_en;
+	gs_eparam_t *param_star_acs;
+	gs_eparam_t *param_star_ecs;
+	gs_eparam_t *param_star_zoom;
+	gs_eparam_t *param_star_feather_amount;
+	gs_eparam_t *param_star_min_brightness;
+	gs_eparam_t *param_star_max_brightness;
+	gs_eparam_t *param_star_min_contrast;
+	gs_eparam_t *param_star_max_contrast;
+	gs_eparam_t *param_star_min_saturation;
+	gs_eparam_t *param_star_max_saturation;
+	gs_eparam_t *param_star_min_hue_shift;
+	gs_eparam_t *param_star_max_hue_shift;
+
+	gs_eparam_t *param_heart_image;
+	gs_eparam_t *param_heart_uv_size;
+	gs_eparam_t *param_heart_mask_position;
+	gs_eparam_t *param_heart_global_position;
+	gs_eparam_t *param_heart_global_scale;
+	gs_eparam_t *param_heart_sin_rot;
+	gs_eparam_t *param_heart_cos_rot;
+	gs_eparam_t *param_heart_size;
+	gs_eparam_t *param_heart_zoom;
+	gs_eparam_t *param_heart_feather_amount;
+	gs_eparam_t *param_heart_corner_radius;
+	gs_eparam_t *param_heart_min_brightness;
+	gs_eparam_t *param_heart_max_brightness;
+	gs_eparam_t *param_heart_min_contrast;
+	gs_eparam_t *param_heart_max_contrast;
+	gs_eparam_t *param_heart_min_saturation;
+	gs_eparam_t *param_heart_max_saturation;
+	gs_eparam_t *param_heart_min_hue_shift;
+	gs_eparam_t *param_heart_max_hue_shift;
 };
 
 extern mask_shape_data_t *mask_shape_create();
@@ -186,6 +247,12 @@ static void render_polygon_mask(mask_shape_data_t *data,
 static void render_ellipse_mask(mask_shape_data_t *data,
 				base_filter_data_t *base,
 				color_adjustments_data_t *color_adj);
+static void render_star_mask(mask_shape_data_t *data,
+			     base_filter_data_t *base,
+			     color_adjustments_data_t *color_adj);
+static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
+			      color_adjustments_data_t *color_adj);
+
 static bool setting_feather_type_modified(obs_properties_t *props,
 					  obs_property_t *p,
 					  obs_data_t *settings);
@@ -206,3 +273,5 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data);
 static void load_circle_mask_effect(mask_shape_data_t *data);
 static void load_ellipse_mask_effect(mask_shape_data_t *data);
 static void load_polygon_mask_effect(mask_shape_data_t *data);
+static void load_star_mask_effect(mask_shape_data_t *data);
+static void load_heart_mask_effect(mask_shape_data_t *data);
