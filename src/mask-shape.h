@@ -25,6 +25,15 @@
 #define MASK_CORNER_CUSTOM 2
 #define MASK_CORNER_CUSTOM_LABEL "AdvancedMasks.CornerType.Custom"
 
+#define MASK_SHAPE_FEATHER_NONE 1
+#define MASK_SHAPE_FEATHER_NONE_LABEL "AdvancedMasks.Shape.Feather.None"
+#define MASK_SHAPE_FEATHER_INNER 2
+#define MASK_SHAPE_FEATHER_INNER_LABEL "AdvancedMasks.Shape.Feather.Inner"
+#define MASK_SHAPE_FEATHER_MIDDLE 3
+#define MASK_SHAPE_FEATHER_MIDDLE_LABEL "AdvancedMasks.Shape.Feather.Middle"
+#define MASK_SHAPE_FEATHER_OUTER 4
+#define MASK_SHAPE_FEATHER_OUTER_LABEL "AdvancedMasks.Shape.Feather.Outer"
+
 struct mask_shape_data;
 typedef struct mask_shape_data mask_shape_data_t;
 
@@ -42,6 +51,9 @@ struct mask_shape_data {
 	uint32_t scale_type;
 	uint32_t last_scale_type;
 	uint32_t corner_radius_type;
+	float feather_amount;
+	float feather_shift;
+	float shape_corner_radius;
 
 	// Parameters for rectangle mask
 	float rectangle_width;
@@ -56,6 +68,8 @@ struct mask_shape_data {
 	// Parameters for Hexagon mask
 	float rotation;
 	float num_sides;
+	float theta;
+	struct vec2 theta_s;
 
 	// Shader file params
 	gs_eparam_t *param_rectangle_image;
@@ -63,10 +77,14 @@ struct mask_shape_data {
 	gs_eparam_t *param_rectangle_mask_position;
 	gs_eparam_t *param_rectangle_width;
 	gs_eparam_t *param_rectangle_height;
+	gs_eparam_t *param_rectangle_sin_theta;
+	gs_eparam_t *param_rectangle_cos_theta;
 	gs_eparam_t *param_global_position;
 	gs_eparam_t *param_global_scale;
 	gs_eparam_t *param_corner_radius;
 	gs_eparam_t *param_max_corner_radius;
+	gs_eparam_t *param_rectangle_feather_shift;
+	gs_eparam_t *param_rectangle_feather_amount;
 	gs_eparam_t *param_rect_aspect_ratio;
 	gs_eparam_t *param_rectangle_aa_scale;
 	gs_eparam_t *param_rectangle_zoom;
@@ -80,27 +98,38 @@ struct mask_shape_data {
 	gs_eparam_t *param_rectangle_max_hue_shift;
 
 	gs_eparam_t *param_circle_image;
-	gs_eparam_t *param_circle_radius;
+	gs_eparam_t *param_circle_uv_size;
 	gs_eparam_t *param_circle_mask_position;
-	gs_eparam_t *param_circle_zoom;
 	gs_eparam_t *param_circle_global_position;
 	gs_eparam_t *param_circle_global_scale;
-	gs_eparam_t *param_circle_aspect_ratio;
+	gs_eparam_t *param_circle_radius;
+	gs_eparam_t *param_circle_zoom;
+	gs_eparam_t *param_circle_feather_amount;
+	gs_eparam_t *param_circle_min_brightness;
+	gs_eparam_t *param_circle_max_brightness;
+	gs_eparam_t *param_circle_min_contrast;
+	gs_eparam_t *param_circle_max_contrast;
+	gs_eparam_t *param_circle_min_saturation;
+	gs_eparam_t *param_circle_max_saturation;
+	gs_eparam_t *param_circle_min_hue_shift;
+	gs_eparam_t *param_circle_max_hue_shift;
 
 	// Shader file params
 	gs_eparam_t *param_polygon_image;
 	gs_eparam_t *param_polygon_uv_size;
 	gs_eparam_t *param_polygon_mask_position;
-	gs_eparam_t *param_polygon_sin_theta;
-	gs_eparam_t *param_polygon_cos_theta;
-	gs_eparam_t *param_polygon_radius;
-	gs_eparam_t *param_polygon_num_sides;
 	gs_eparam_t *param_polygon_global_position;
 	gs_eparam_t *param_polygon_global_scale;
-	gs_eparam_t *param_polygon_corner_radius;
-	gs_eparam_t *param_polygon_max_corner_radius;
-	gs_eparam_t *param_polygon_aa_scale;
 	gs_eparam_t *param_polygon_zoom;
+	gs_eparam_t *param_polygon_radius;
+	gs_eparam_t *param_polygon_corner_radius;
+	gs_eparam_t *param_polygon_num_sides;
+	gs_eparam_t *param_polygon_sin_rot;
+	gs_eparam_t *param_polygon_cos_rot;
+	gs_eparam_t *param_polygon_theta;
+	gs_eparam_t *param_polygon_theta_2;
+	gs_eparam_t *param_polygon_theta_s;
+	gs_eparam_t *param_polygon_feather_amount;
 	gs_eparam_t *param_polygon_min_brightness;
 	gs_eparam_t *param_polygon_max_brightness;
 	gs_eparam_t *param_polygon_min_contrast;
@@ -109,7 +138,6 @@ struct mask_shape_data {
 	gs_eparam_t *param_polygon_max_saturation;
 	gs_eparam_t *param_polygon_min_hue_shift;
 	gs_eparam_t *param_polygon_max_hue_shift;
-
 };
 
 extern mask_shape_data_t *mask_shape_create();
@@ -133,7 +161,9 @@ static void render_circle_mask(mask_shape_data_t *data,
 static void render_polygon_mask(mask_shape_data_t *data,
 				base_filter_data_t *base,
 				color_adjustments_data_t *color_adj);
-
+static bool setting_feather_type_modified(obs_properties_t *props,
+					  obs_property_t *p,
+					  obs_data_t *settings);
 extern bool setting_shape_type_modified(obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);

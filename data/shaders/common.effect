@@ -8,6 +8,7 @@
 #define COS30 0.8660254f
 #define PI  3.141592654f
 #define PI2 6.283185307f
+#define mod(x, y) (x - y * floor(x / y))
 
 // Convert pre-multiplied rgba values
 // to linear rgba.

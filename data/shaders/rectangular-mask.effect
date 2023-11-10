@@ -15,6 +15,10 @@ uniform float2 global_position;
 uniform float global_scale;
 uniform float max_corner_radius;
 uniform float4 corner_radius;
+uniform float feather_shift;
+uniform float feather_amount;
+uniform float sin_theta;
+uniform float cos_theta;
 uniform bool invert;
 
 uniform float min_brightness;
@@ -42,113 +46,42 @@ struct VertData
 	float2 uv : TEXCOORD0;
 };
 
-float circleAlpha(float2 uv, float r) {
-	float d = distance(uv, float2(0.0f, 0.0f));
-	float wd = d * aa_scale;
-	return smoothstep(r + wd, r - wd, d);
+float SDF(float2 coord, float2 dims, float4 radii)
+{
+	radii.xy = coord.x > 0.0f ? radii.xy : radii.zw;
+	radii.x = coord.y > 0.0f ? radii.x : radii.y;
+	float2 dist = abs(coord) - dims + radii.x;
+	return min(max(dist.x, dist.y), 0.0f) + length(max(dist, float2(0.0f, 0.0f))) - radii.x;
 }
 
-float4 applyRoundedCorners(float2 coord, float2 min_vals, float2 max_vals)
+VertData mainTransform(VertData v_in)
 {
-	//float2 scaled_uv = uv * aspect_ratio;
-	float2 min_vals_max = min_vals + max_corner_radius;
-	float2 max_vals_max = max_vals - max_corner_radius;
-	bool safe_zone = !(coord.x < min_vals_max.x || coord.y < min_vals_max.y || coord.x > max_vals_max.x || coord.y > max_vals_max.y);
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, coord / uv_size));
-	float alpha = color.a;
-	
-	if (safe_zone) {
-		return color;
-	}
-	float2 local = float2(0.0f, 0.0f);
-	float2 tl = min_vals + corner_radius[0];
-	float2 tr = float2(max_vals.x, min_vals.y) + float2(-corner_radius[1], corner_radius[1]);
-	float2 bl = float2(min_vals.x, max_vals.y) + float2(corner_radius[2], -corner_radius[2]);
-	float2 br = max_vals - corner_radius[3];
-	
-	if (coord.x < tl.x && coord.y < tl.y) {
-		local = (coord - tl);
-		alpha *= circleAlpha(local, corner_radius[0]);
-	} else if (coord.x > tr.x && coord.y < tr.y) {
-		local = (coord - tr);
-		alpha *= circleAlpha(local, corner_radius[1]);
-	} else if (coord.x < bl.x && coord.y > bl.y) {
-		local = (coord - bl);
-		alpha *= circleAlpha(local, corner_radius[2]);
-	} else if (coord.x > br.x && coord.y > br.y) {
-		local = (coord - br);
-		alpha *= circleAlpha(local, corner_radius[3]);
-	}
-
-	return float4(color.rgb, alpha);
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
 }
 
-float applyAdjustmentCorners(float2 coord, float2 min_vals, float2 max_vals)
+float4 alphaImage(VertData v_in) : TARGET
 {
-	//float2 scaled_uv = uv * aspect_ratio;
-	float2 min_vals_max = min_vals + max_corner_radius;
-	float2 max_vals_max = max_vals - max_corner_radius;
-	bool safe_zone = !(coord.x < min_vals_max.x || coord.y < min_vals_max.y || coord.x > max_vals_max.x || coord.y > max_vals_max.y);
-	if (safe_zone)
-	{
-		return 1.0;
-	}
-	float alpha = 1.0;
-	float2 local = float2(0.0f, 0.0f);
-	float2 tl = min_vals + corner_radius[0];
-	float2 tr = float2(max_vals.x, min_vals.y) + float2(-corner_radius[1], corner_radius[1]);
-	float2 bl = float2(min_vals.x, max_vals.y) + float2(corner_radius[2], -corner_radius[2]);
-	float2 br = max_vals - corner_radius[3];
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
+	float d = SDF(sample_dist, float2(width, height), corner_radius);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
 	
-	if (coord.x < tl.x && coord.y < tl.y)
-	{
-		local = (coord - tl);
-		alpha *= circleAlpha(local, corner_radius[0]);
-	}
-	else if (coord.x > tr.x && coord.y < tr.y)
-	{
-		local = (coord - tr);
-		alpha *= circleAlpha(local, corner_radius[1]);
-	}
-	else if (coord.x < bl.x && coord.y > bl.y)
-	{
-		local = (coord - bl);
-		alpha *= circleAlpha(local, corner_radius[2]);
-	}
-	else if (coord.x > br.x && coord.y > br.y)
-	{
-		local = (coord - br);
-		alpha *= circleAlpha(local, corner_radius[3]);
-	}
-
-	return alpha;
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
+	return float4(color.rgb, color.a * d);
 }
 
-float4 applyMask(float2 coord)
+float4 adjustmentsImage(VertData v_in) : TARGET
 {
+	float2 coord = v_in.uv * uv_size;
 	float2 dist = coord - mask_position;
-	coord = mask_position + (dist / global_scale / zoom);
-	float2 crop = float2(width, height) / 2.0 / zoom;
-
-	float2 min_vals = (mask_position - crop);
-	float2 max_vals = (mask_position + crop);
-
-	// Must expand out for OpenGL compatibility, rather than using the
-	// much more convenient `any`
-	bool dont_draw = coord.x < min_vals.x || coord.y < min_vals.y || coord.x > max_vals.x || coord.y > max_vals.y;
-	
-	return dont_draw ? float4(0.0, 0.0, 0.0, 0.0) : applyRoundedCorners(coord, min_vals, max_vals);
-}
-
-float4 applyAdjustments(float2 coord)
-{
-	float2 crop = float2(width, height) / 2.0 / zoom;
-	float2 min_vals = (mask_position - crop);
-	float2 max_vals = (mask_position + crop);
-
-	bool outside = coord.x < min_vals.x || coord.y < min_vals.y || coord.x > max_vals.x || coord.y > max_vals.y;
-	float scale = outside ? 0.0 : applyAdjustmentCorners(coord, min_vals, max_vals);
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, coord / uv_size));
+	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
+	float d = SDF(sample_dist, float2(width, height), corner_radius) + feather_shift;
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d) : saturate(-d);
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
 	float4 color_adj_min = adjustments(
 		color,
 		min_brightness,
@@ -163,27 +96,7 @@ float4 applyAdjustments(float2 coord)
 		max_saturation,
 		max_hue_shift
 	);
-	return (color_adj_min * (1.0 - scale) + color_adj_max * scale);
-}
-
-VertData mainTransform(VertData v_in)
-{
-	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
-	return v_in;
-}
-
-float4 alphaImage(VertData v_in) : TARGET
-{
-	float2 coord = v_in.uv * uv_size;
-	float2 shift = global_position - mask_position;
-	float2 coord_p = coord - shift;
-	return applyMask(coord_p);
-}
-
-float4 adjustmentsImage(VertData v_in) : TARGET
-{
-	float2 coord = v_in.uv * uv_size;
-	return applyAdjustments(coord);
+	return (color_adj_min * (1.0 - d) + color_adj_max *d );
 }
 
 technique Alpha
