@@ -231,6 +231,13 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 	data->rectangle_height =
 		(float)obs_data_get_double(settings, "rectangle_height") / 2.0f *
 			data->global_scale / 100.0f - data->feather_shift;
+
+	data->ellipse.x =
+		(float)obs_data_get_double(settings, "shape_ellipse_a") / 2.0f *
+			data->global_scale / 100.0f - data->feather_shift;
+	data->ellipse.y =
+		(float)obs_data_get_double(settings, "shape_ellipse_b") / 2.0f *
+			data->global_scale / 100.0f - data->feather_shift;
 }
 
 void mask_shape_defaults(obs_data_t* settings) {
