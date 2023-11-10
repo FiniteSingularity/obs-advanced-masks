@@ -195,9 +195,11 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 	data->ellipse.y =
 		(float)obs_data_get_double(settings, "shape_ellipse_b");
 
-	data->shape_corner_radius =
-		min((float)obs_data_get_double(settings, "shape_corner_radius"),
-		    data->radius);
+	float shape_corner_radius =
+		(float)obs_data_get_double(settings, "shape_corner_radius");
+	data->shape_corner_radius = shape_corner_radius < data->radius
+					    ? shape_corner_radius
+					    : data->radius;
 
 	data->feather_amount =
 		(uint32_t)obs_data_get_int(settings, "shape_feather_type") ==
