@@ -3,16 +3,22 @@
 uniform float4x4 ViewProj;
 
 uniform texture2d image;
-
+uniform float2 uv_size;
 uniform float2 mask_position;
-uniform float radius;
-uniform float zoom;
-
-uniform float2 aspect_ratio;
 uniform float2 global_position;
 uniform float global_scale;
+uniform float radius;
+uniform float zoom;
+uniform float feather_amount;
 
-// uniform float aa_scale;
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -22,33 +28,16 @@ sampler_state textureSampler{
     MaxLOD = 0;
 };
 
-float4 applyCircleCrop(float2 uv)
-{
-	return pmrgba_to_rgba(image.Sample(textureSampler, uv));
-}
-
-float4 applyMask(float2 uv)
-{
-	float2 dist = uv - mask_position;
-	uv = mask_position + (dist / global_scale / zoom);
-	float2 position_uv = mask_position;
-	float2 crop_uv = float2(radius, radius) / zoom;
-
-	float2 min_vals = (position_uv - crop_uv);
-	float2 max_vals = (position_uv + crop_uv);
-
-	// Must expand out for OpenGL compatibility, rather than using the
-	// much more convenient `any`
-	bool dont_draw = uv.x < min_vals.x || uv.y < min_vals.y || uv.x > max_vals.x || uv.y > max_vals.y;
-	
-	return dont_draw ? float4(0.0, 0.0, 0.0, 0.0) : applyCircleCrop(uv);
-}
-
 struct VertData
 {
 	float4 pos : POSITION;
 	float2 uv : TEXCOORD0;
 };
+
+float SDF(float2 coord, float radius)
+{
+	return length(coord) - radius;
+}
 
 VertData mainTransform(VertData v_in)
 {
@@ -56,18 +45,60 @@ VertData mainTransform(VertData v_in)
 	return v_in;
 }
 
-float4 circleMaskImage(VertData v_in) : TARGET
+float4 alphaImage(VertData v_in) : TARGET
 {
+	float2 coord = v_in.uv * uv_size;
 	float2 shift = global_position - mask_position;
-	float2 uv = v_in.uv - shift;
-	return applyMask(uv);
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float d = SDF(dist, radius);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
+	return float4(color.rgb, color.a * d);
 }
 
-technique CircleMask
+float4 adjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float d = SDF(dist, radius);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color_adj_min = adjustments(
+		color,
+		min_brightness,
+		min_contrast,
+		min_saturation,
+		min_hue_shift
+	);
+	float4 color_adj_max = adjustments(
+		color,
+		max_brightness,
+		max_contrast,
+		max_saturation,
+		max_hue_shift
+	);
+	return (color_adj_min * (1.0 - d) + color_adj_max * d);
+}
+
+technique Alpha
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
-		pixel_shader = circleMaskImage(v_in);
+		pixel_shader = alphaImage(v_in);
+	}
+}
+
+technique Adjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsImage(v_in);
 	}
 }

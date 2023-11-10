@@ -14,12 +14,16 @@ mask_shape_data_t *mask_shape_create()
 	data->param_rectangle_mask_position = NULL;
 	data->param_rectangle_width = NULL;
 	data->param_rectangle_height = NULL;
+	data->param_rectangle_sin_theta = NULL;
+	data->param_rectangle_cos_theta = NULL;
 	data->param_global_position = NULL;
 	data->param_global_scale = NULL;
 	data->param_corner_radius = NULL;
 	data->param_rect_aspect_ratio = NULL;
 	data->param_rectangle_aa_scale = NULL;
 	data->param_max_corner_radius = NULL;
+	data->param_rectangle_feather_amount = NULL;
+	data->param_rectangle_feather_shift = NULL;
 	data->param_rectangle_zoom = NULL;
 	data->param_rectangle_min_brightness = NULL;
 	data->param_rectangle_max_brightness = NULL;
@@ -30,27 +34,38 @@ mask_shape_data_t *mask_shape_create()
 	data->param_rectangle_min_hue_shift = NULL;
 	data->param_rectangle_max_hue_shift = NULL;
 
-	data->param_circle_global_position = NULL;
-	data->param_circle_mask_position = NULL;
 	data->param_circle_image = NULL;
+	data->param_circle_uv_size = NULL;
+	data->param_circle_mask_position = NULL;
+	data->param_circle_global_position = NULL;
+	data->param_circle_global_scale = NULL;
 	data->param_circle_radius = NULL;
 	data->param_circle_zoom = NULL;
-	data->param_circle_aspect_ratio = NULL;
-	data->param_circle_global_scale = NULL;
+	data->param_circle_feather_amount = NULL;
+	data->param_circle_min_brightness = NULL;
+	data->param_circle_max_brightness = NULL;
+	data->param_circle_min_contrast = NULL;
+	data->param_circle_max_contrast = NULL;
+	data->param_circle_min_saturation = NULL;
+	data->param_circle_max_saturation = NULL;
+	data->param_circle_min_hue_shift = NULL;
+	data->param_circle_max_hue_shift = NULL;
 
 	data->param_polygon_image = NULL;
 	data->param_polygon_uv_size = NULL;
 	data->param_polygon_mask_position = NULL;
-	data->param_polygon_sin_theta = NULL;
-	data->param_polygon_cos_theta = NULL;
+	data->param_polygon_sin_rot = NULL;
+	data->param_polygon_cos_rot = NULL;
+	data->param_polygon_theta = NULL;
+	data->param_polygon_theta_2 = NULL;
+	data->param_polygon_theta_s = NULL;
 	data->param_polygon_radius = NULL;
 	data->param_polygon_num_sides = NULL;
 	data->param_polygon_global_position = NULL;
 	data->param_polygon_global_scale = NULL;
 	data->param_polygon_corner_radius = NULL;
-	data->param_polygon_max_corner_radius = NULL;
-	data->param_polygon_aa_scale = NULL;
 	data->param_polygon_zoom = NULL;
+	data->param_polygon_feather_amount = NULL;
 	data->param_polygon_min_brightness = NULL;
 	data->param_polygon_max_brightness = NULL;
 	data->param_polygon_min_contrast = NULL;
@@ -99,15 +114,10 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 		base->mask_effect == MASK_EFFECT_ALPHA
 			? (float)obs_data_get_double(settings, "position_scale")
 			: 100.0f;
-
-	data->rectangle_width =
-		(float)obs_data_get_double(settings, "rectangle_width");
-	data->rectangle_height =
-		(float)obs_data_get_double(settings, "rectangle_height");
 	data->zoom =
 		base->mask_effect == MASK_EFFECT_ALPHA
 			? (float)obs_data_get_double(settings, "source_zoom")
-			: 100.0f;
+			: 100.0f; 
 
 	data->corner_radius_type =
 		(uint32_t)obs_data_get_int(settings, "rectangle_corner_type");
@@ -119,13 +129,14 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 	} else {
 		vec4_set(&data->rectangle_corner_radius,
 			 (float)obs_data_get_double(
-				 settings, "rectangle_corner_radius_tl"),
+				 settings, "rectangle_corner_radius_br"),
 			 (float)obs_data_get_double(
 				 settings, "rectangle_corner_radius_tr"),
 			 (float)obs_data_get_double(
 				 settings, "rectangle_corner_radius_bl"),
 			 (float)obs_data_get_double(
-				 settings, "rectangle_corner_radius_br"));
+				 settings, "rectangle_corner_radius_tl")
+			 );
 		float max_radius = -1.0;
 		for (uint32_t i = 0; i < 4; i++) {
 			if (data->rectangle_corner_radius.ptr[i] >
@@ -141,6 +152,9 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 	data->rotation = (float)(rotation * M_PI / 180.0f);
 
 	data->num_sides = (float)obs_data_get_int(settings, "shape_num_sides");
+	data->theta = M_PI / data->num_sides;
+	data->theta_s.x = (float)cos(data->theta);
+	data->theta_s.y = (float)sin(data->theta);
 
 	const float radius =
 		data->mask_shape_type == SHAPE_CIRCLE
@@ -148,7 +162,42 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 			: (float)obs_data_get_double(settings,
 						     "circle_radius") * (float)cos(M_PI / data->num_sides);
 
-	data->radius = radius;
+	data->radius = radius * data->global_scale / 100.0f;
+
+	data->shape_corner_radius =
+		min((float)obs_data_get_double(settings, "shape_corner_radius"),
+		    data->radius);
+
+	data->feather_amount =
+		(uint32_t)obs_data_get_int(settings, "shape_feather_type") ==
+				MASK_SHAPE_FEATHER_NONE
+			? 0.0f
+			: (float)obs_data_get_double(settings,
+						     "shape_feather_amount");
+
+	switch ((uint32_t)obs_data_get_int(settings, "shape_feather_type")) {
+	case MASK_SHAPE_FEATHER_INNER:
+		data->feather_shift = (float)data->feather_amount;
+		break;
+	case MASK_SHAPE_FEATHER_MIDDLE:
+		data->feather_shift = (float)data->feather_amount/2.0f;
+		break;
+	case MASK_SHAPE_FEATHER_OUTER:
+	case MASK_SHAPE_FEATHER_NONE:
+		data->feather_shift = 0.0f;
+	}
+	const float radius_shift =
+		data->mask_shape_type == SHAPE_POLYGON
+			? (data->feather_shift + data->shape_corner_radius)
+			: data->feather_shift;
+	data->radius -= radius_shift;
+
+	data->rectangle_width =
+		(float)obs_data_get_double(settings, "rectangle_width") / 2.0f *
+			data->global_scale / 100.0f - data->feather_shift;
+	data->rectangle_height =
+		(float)obs_data_get_double(settings, "rectangle_height") / 2.0f *
+			data->global_scale / 100.0f - data->feather_shift;
 }
 
 void mask_shape_defaults(obs_data_t* settings) {
@@ -165,6 +214,7 @@ void mask_shape_defaults(obs_data_t* settings) {
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
 	obs_data_set_default_bool(settings, "shape_relative", true);
 	obs_data_set_default_int(settings, "shape_num_sides", 6);
+	obs_data_set_default_double(settings, "shape_corner_radius", 0.0);
 }
 
 void shape_mask_top_properties(obs_properties_t *props)
@@ -247,6 +297,12 @@ void shape_mask_bot_properties(obs_properties_t *props,
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "shape_corner_radius",
+		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
+		1000.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
 		source_rect_mask_group, "source_zoom",
 		obs_module_text("AdvancedMasks.Shape.SourceZoom"), 1.0, 5000.0,
 		1.0);
@@ -256,6 +312,40 @@ void shape_mask_bot_properties(obs_properties_t *props,
 		props, "rectangle_source_group",
 		obs_module_text("AdvancedMasks.Shape.Rectangle.SourceGroup"),
 		OBS_GROUP_NORMAL, source_rect_mask_group);
+
+	obs_properties_t *shape_feather_group = obs_properties_create();
+
+	obs_property_t *feather_type = obs_properties_add_list(
+		shape_feather_group, "shape_feather_type",
+		obs_module_text("AdvancedMasks.Shape.Feather.Type"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_property_list_add_int(feather_type,
+		obs_module_text(MASK_SHAPE_FEATHER_NONE_LABEL),
+		MASK_SHAPE_FEATHER_NONE);
+	obs_property_list_add_int(
+		feather_type, obs_module_text(MASK_SHAPE_FEATHER_INNER_LABEL),
+		MASK_SHAPE_FEATHER_INNER);
+	obs_property_list_add_int(
+		feather_type, obs_module_text(MASK_SHAPE_FEATHER_MIDDLE_LABEL),
+		MASK_SHAPE_FEATHER_MIDDLE);
+	obs_property_list_add_int(
+		feather_type, obs_module_text(MASK_SHAPE_FEATHER_OUTER_LABEL),
+		MASK_SHAPE_FEATHER_OUTER);
+
+	obs_property_set_modified_callback(feather_type,
+					   setting_feather_type_modified);
+
+	p = obs_properties_add_float_slider(
+		shape_feather_group, "shape_feather_amount",
+		obs_module_text("AdvancedMasks.Shape.Feather.Amount"),
+		0.0, 500.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	obs_properties_add_group(
+		props, "shape_feather_group",
+		obs_module_text("AdvancedMasks.Shape.Feather.Group"),
+		OBS_GROUP_NORMAL, shape_feather_group);
 
 	obs_properties_t *corner_radius_group = obs_properties_create();
 
@@ -368,6 +458,25 @@ void shape_mask_bot_properties(obs_properties_t *props,
 		OBS_GROUP_NORMAL, scale_position_group);
 }
 
+static bool setting_feather_type_modified(obs_properties_t *props, obs_property_t *p,
+				 obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	int feather_type = (int)obs_data_get_int(settings, "shape_feather_type");
+	switch (feather_type) {
+	case MASK_SHAPE_FEATHER_NONE:
+		setting_visibility("shape_feather_amount", false, props);
+		break;
+	case MASK_SHAPE_FEATHER_INNER:
+	case MASK_SHAPE_FEATHER_MIDDLE:
+	case MASK_SHAPE_FEATHER_OUTER:
+		setting_visibility("shape_feather_amount", true, props);
+		break;
+	}
+
+	return true;
+}
+
 bool setting_shape_type_modified(obs_properties_t *props,
 					obs_property_t *p, obs_data_t *settings)
 {
@@ -381,6 +490,8 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_height", true, props);
 		setting_visibility("circle_radius", false, props);
 		setting_visibility("shape_num_sides", false, props);
+		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("shape_rotation", true, props);
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
 		break;
@@ -388,6 +499,8 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_width", false, props);
 		setting_visibility("rectangle_height", false, props);
 		setting_visibility("circle_radius", true, props);
+		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("shape_rotation", false, props);
 		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
@@ -397,6 +510,8 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_height", false, props);
 		setting_visibility("circle_radius", true, props);
 		setting_visibility("shape_num_sides", true, props);
+		setting_visibility("shape_corner_radius", true, props);
+		setting_visibility("shape_rotation", true, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 		break;
@@ -561,6 +676,24 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 				    data->rectangle_height);
 	}
 
+	if (data->param_rectangle_sin_theta) {
+		gs_effect_set_float(data->param_rectangle_sin_theta,
+				    (float)sin(data->rotation));
+	}
+
+	if (data->param_rectangle_cos_theta) {
+		gs_effect_set_float(data->param_rectangle_cos_theta,
+				    (float)cos(data->rotation));
+	}
+
+	if (data->param_rectangle_feather_amount) {
+		gs_effect_set_float(data->param_rectangle_feather_amount, data->feather_amount);
+	}
+
+	if (data->param_rectangle_feather_shift) {
+		gs_effect_set_float(data->param_rectangle_feather_shift, data->feather_shift);
+	}
+
 	if (data->param_global_position) {
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_global_position,
@@ -576,10 +709,11 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 	}
 
 	if (data->param_corner_radius) {
-		struct vec4 corner_radius;
+	/*	struct vec4 corner_radius;
 		vec4_divf(&corner_radius, &data->rectangle_corner_radius,
-			  scale_factor * (data->zoom / 100.0f));
-		gs_effect_set_vec4(data->param_corner_radius, &corner_radius);
+			  scale_factor * (data->zoom / 100.0f));*/
+		gs_effect_set_vec4(data->param_corner_radius,
+				   &data->rectangle_corner_radius);
 	}
 
 	if (data->param_max_corner_radius) {
@@ -718,16 +852,39 @@ static void render_polygon_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_polygon_mask_position,
 				   &data->mask_center);
 	}
-	if (data->param_polygon_sin_theta) {
-		gs_effect_set_float(data->param_polygon_sin_theta,
+	if (data->param_polygon_sin_rot) {
+		gs_effect_set_float(data->param_polygon_sin_rot,
 				    (float)sin(data->rotation));
 	}
 
-	if (data->param_polygon_cos_theta) {
-		gs_effect_set_float(data->param_polygon_cos_theta,
+	if (data->param_polygon_cos_rot) {
+		gs_effect_set_float(data->param_polygon_cos_rot,
 				    (float)cos(data->rotation));
 	}
 
+	if (data->param_polygon_theta) {
+		gs_effect_set_float(data->param_polygon_theta,
+				    data->theta);
+	}
+
+	if (data->param_polygon_theta_2) {
+		gs_effect_set_float(data->param_polygon_theta_2, 2.0f * data->theta);
+	}
+
+	if (data->param_polygon_theta_s) {
+		gs_effect_set_vec2(data->param_polygon_theta_s,
+				   &data->theta_s);
+	}
+
+	if (data->param_polygon_corner_radius) {
+		gs_effect_set_float(data->param_polygon_corner_radius,
+				    data->shape_corner_radius);
+	}
+
+	if (data->param_polygon_feather_amount) {
+		gs_effect_set_float(data->param_polygon_feather_amount,
+				    data->feather_amount);
+	}
 	if (data->param_polygon_radius) {
 		gs_effect_set_float(data->param_polygon_radius,
 				    data->radius);
@@ -845,7 +1002,7 @@ static void render_circle_mask(mask_shape_data_t *data,
 				  base_filter_data_t *base,
 				  color_adjustments_data_t *color_adj)
 {
-	gs_effect_t *effect = data->effect_rectangle_mask;
+	gs_effect_t *effect = data->effect_circle_mask;
 	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
 	if (!effect || !texture) {
 		return;
@@ -861,136 +1018,111 @@ static void render_circle_mask(mask_shape_data_t *data,
 			? data->global_scale / data->rectangle_width
 			: data->global_scale / data->rectangle_height;
 
-	if (data->param_rectangle_image) {
-		gs_effect_set_texture(data->param_rectangle_image, texture);
+	if (data->param_circle_image) {
+		gs_effect_set_texture(data->param_circle_image, texture);
 	}
 
-	if (data->param_rectangle_zoom) {
-		gs_effect_set_float(data->param_rectangle_zoom,
+	if (data->param_circle_zoom) {
+		gs_effect_set_float(data->param_circle_zoom,
 				    data->zoom / 100.0f);
 	}
-	if (data->param_rectangle_mask_position) {
-		gs_effect_set_vec2(data->param_rectangle_mask_position,
+	if (data->param_circle_mask_position) {
+		gs_effect_set_vec2(data->param_circle_mask_position,
 				   &data->mask_center);
 	}
 
-	if (data->param_rectangle_width) {
-		float width = 2.0f * data->radius;
-		gs_effect_set_float(data->param_rectangle_width, width);
-	}
-
-	if (data->param_rectangle_height) {
-		float height = 2.0f * data->radius;
-		gs_effect_set_float(data->param_rectangle_height, height);
-	}
-
-	if (data->param_global_position) {
+	if (data->param_circle_global_position) {
 		if (data->shape_relative) {
-			gs_effect_set_vec2(data->param_global_position,
+			gs_effect_set_vec2(data->param_circle_global_position,
 					   &data->global_position);
 		} else {
-			gs_effect_set_vec2(data->param_global_position,
+			gs_effect_set_vec2(data->param_circle_global_position,
 					   &data->mask_center);
 		}
 	}
 
-	if (data->param_global_scale) {
+	if (data->param_circle_global_scale) {
 
-		gs_effect_set_float(data->param_global_scale,
+		gs_effect_set_float(data->param_circle_global_scale,
 				    data->shape_relative ? scale_factor : 1.0f);
 	}
 
-	if (data->param_corner_radius) {
-		struct vec4 corner_radius;
-		float r = data->radius / (data->zoom / 100.0f);
-		vec4_set(&corner_radius, r, r, r, r);
-		gs_effect_set_vec4(data->param_corner_radius, &corner_radius);
+	if (data->param_circle_radius) {
+		gs_effect_set_float(data->param_circle_radius,
+				    data->radius);
 	}
 
-	if (data->param_max_corner_radius) {
-		float max_corner_radius = data->radius / (data->zoom / 100.0f);
-		gs_effect_set_float(data->param_max_corner_radius,
-				    max_corner_radius);
+	if (data->param_circle_zoom) {
+		gs_effect_set_float(data->param_circle_zoom,
+				    data->zoom / 100.0f);
 	}
 
-	if (data->param_rect_aspect_ratio) {
-		struct vec2 box_ar;
-		box_ar.x =
-			(float)base->width /
-			(float)fmin((double)base->width, (double)base->height);
-		box_ar.y =
-			(float)base->height /
-			(float)fmin((double)base->width, (double)base->height);
-
-		gs_effect_set_vec2(data->param_rect_aspect_ratio, &box_ar);
+	if (data->param_circle_feather_amount) {
+		gs_effect_set_float(data->param_circle_feather_amount,
+				    data->feather_amount);
 	}
 
-	if (data->param_rectangle_aa_scale) {
-		float aa_scale = 5.0f / (float)base->height;
-		gs_effect_set_float(data->param_rectangle_aa_scale, aa_scale);
-	}
-
-	if (data->param_rectangle_min_brightness) {
+	if (data->param_circle_min_brightness) {
 		const float min_brightness =
 			color_adj->adj_brightness ? color_adj->min_brightness : 0.0f;
-		gs_effect_set_float(data->param_rectangle_min_brightness,
+		gs_effect_set_float(data->param_circle_min_brightness,
 				    min_brightness);
 	}
 
-	if (data->param_rectangle_max_brightness) {
+	if (data->param_circle_max_brightness) {
 		const float max_brightness =
 			color_adj->adj_brightness ? color_adj->max_brightness : 0.0f;
-		gs_effect_set_float(data->param_rectangle_max_brightness,
+		gs_effect_set_float(data->param_circle_max_brightness,
 				    max_brightness);
 	}
 
-	if (data->param_rectangle_min_contrast) {
+	if (data->param_circle_min_contrast) {
 		const float min_contrast =
 			color_adj->adj_contrast ? color_adj->min_contrast : 0.0f;
-		gs_effect_set_float(data->param_rectangle_min_contrast,
+		gs_effect_set_float(data->param_circle_min_contrast,
 				    min_contrast);
 	}
 
-	if (data->param_rectangle_max_contrast) {
+	if (data->param_circle_max_contrast) {
 		const float max_contrast =
 			color_adj->adj_contrast ? color_adj->max_contrast : 0.0f;
-		gs_effect_set_float(data->param_rectangle_max_contrast,
+		gs_effect_set_float(data->param_circle_max_contrast,
 				    max_contrast);
 	}
 
-	if (data->param_rectangle_min_saturation) {
+	if (data->param_circle_min_saturation) {
 		const float min_saturation =
 			color_adj->adj_saturation ? color_adj->min_saturation : 1.0f;
-		gs_effect_set_float(data->param_rectangle_min_saturation,
+		gs_effect_set_float(data->param_circle_min_saturation,
 				    min_saturation);
 	}
 
-	if (data->param_rectangle_max_saturation) {
+	if (data->param_circle_max_saturation) {
 		const float max_saturation =
 			color_adj->adj_saturation ? color_adj->max_saturation : 1.0f;
-		gs_effect_set_float(data->param_rectangle_max_saturation,
+		gs_effect_set_float(data->param_circle_max_saturation,
 				    max_saturation);
 	}
 
-	if (data->param_rectangle_min_hue_shift) {
+	if (data->param_circle_min_hue_shift) {
 		const float min_hue_shift =
 			color_adj->adj_hue_shift ? color_adj->min_hue_shift : 0.0f;
-		gs_effect_set_float(data->param_rectangle_min_hue_shift,
+		gs_effect_set_float(data->param_circle_min_hue_shift,
 				    min_hue_shift);
 	}
 
-	if (data->param_rectangle_max_hue_shift) {
+	if (data->param_circle_max_hue_shift) {
 		const float max_hue_shift =
 			color_adj->adj_hue_shift ? color_adj->max_hue_shift : 1.0f;
-		gs_effect_set_float(data->param_rectangle_max_hue_shift,
+		gs_effect_set_float(data->param_circle_max_hue_shift,
 				    max_hue_shift);
 	}
 
-	if (data->param_rectangle_uv_size) {
+	if (data->param_circle_uv_size) {
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
 		uv_size.y = (float)base->height;
-		gs_effect_set_vec2(data->param_rectangle_uv_size, &uv_size);
+		gs_effect_set_vec2(data->param_circle_uv_size, &uv_size);
 	}
 
 	set_blending_parameters();
@@ -1043,6 +1175,14 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data)
 				data->param_rectangle_width = param;
 			} else if (strcmp(info.name, "height") == 0) {
 				data->param_rectangle_height = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				data->param_rectangle_sin_theta = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				data->param_rectangle_cos_theta = param;
+			} else if (strcmp(info.name, "feather_amount") == 0) {
+				data->param_rectangle_feather_amount = param;
+			} else if (strcmp(info.name, "feather_shift") == 0) {
+				data->param_rectangle_feather_shift = param;
 			} else if (strcmp(info.name, "global_position") == 0) {
 				data->param_global_position = param;
 			} else if (strcmp(info.name, "global_scale") == 0) {
@@ -1095,18 +1235,36 @@ static void load_circle_mask_effect(mask_shape_data_t *data)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "image") == 0) {
 				data->param_circle_image = param;
+			} else if (strcmp(info.name, "mask_position") == 0) {
+				data->param_circle_mask_position = param;
+			} else if (strcmp(info.name, "uv_size") == 0) {
+				data->param_circle_uv_size = param;
+			} else if (strcmp(info.name, "global_position") == 0) {
+				data->param_circle_global_position = param;
+			} else if (strcmp(info.name, "global_scale") == 0) {
+				data->param_circle_global_scale = param;
 			} else if (strcmp(info.name, "radius") == 0) {
 				data->param_circle_radius = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_circle_zoom = param;
-			} else if (strcmp(info.name, "mask_position") == 0) {
-				data->param_circle_mask_position = param;
-			} else if (strcmp(info.name, "global_position") == 0) {
-				data->param_circle_global_position = param;
-			} else if (strcmp(info.name, "aspect_ratio") == 0) {
-				data->param_circle_aspect_ratio = param;
-			} else if (strcmp(info.name, "global_scale") == 0) {
-				data->param_circle_global_scale = param;
+			} else if (strcmp(info.name, "feather_amount") == 0) {
+				data->param_circle_feather_amount = param;
+			} else if (strcmp(info.name, "min_brightness") == 0) {
+				data->param_circle_min_brightness = param;
+			} else if (strcmp(info.name, "max_brightness") == 0) {
+				data->param_circle_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				data->param_circle_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				data->param_circle_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				data->param_circle_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				data->param_circle_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				data->param_circle_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				data->param_circle_max_hue_shift = param;
 			}
 		}
 	}
@@ -1143,10 +1301,20 @@ static void load_polygon_mask_effect(mask_shape_data_t *data)
 				data->param_polygon_global_scale = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_polygon_zoom = param;
-			} else if (strcmp(info.name, "sin_theta") == 0) {
-				data->param_polygon_sin_theta = param;
-			} else if (strcmp(info.name, "cos_theta") == 0) {
-				data->param_polygon_cos_theta = param;
+			} else if (strcmp(info.name, "sin_rot") == 0) {
+				data->param_polygon_sin_rot = param;
+			} else if (strcmp(info.name, "cos_rot") == 0) {
+				data->param_polygon_cos_rot = param;
+			} else if (strcmp(info.name, "theta") == 0) {
+				data->param_polygon_theta = param;
+			} else if (strcmp(info.name, "theta_2") == 0) {
+				data->param_polygon_theta_2 = param;
+			} else if (strcmp(info.name, "theta_s") == 0) {
+				data->param_polygon_theta_s = param;
+			} else if (strcmp(info.name, "corner_radius") == 0) {
+				data->param_polygon_corner_radius = param;
+			} else if (strcmp(info.name, "feather_amount") == 0) {
+				data->param_polygon_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
 				data->param_polygon_min_brightness = param;
 			} else if (strcmp(info.name, "max_brightness") == 0) {
