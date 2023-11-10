@@ -41,6 +41,7 @@ struct mask_shape_data {
 	gs_effect_t *effect_rectangle_mask;
 	gs_effect_t *effect_circle_mask;
 	gs_effect_t *effect_polygon_mask;
+	gs_effect_t *effect_ellipse_mask;
 
 	// General Shape Parameters
 	uint32_t mask_shape_type;
@@ -70,6 +71,9 @@ struct mask_shape_data {
 	float num_sides;
 	float theta;
 	struct vec2 theta_s;
+
+	// Parameters for ellipse mask
+	struct vec2 ellipse;
 
 	// Shader file params
 	gs_eparam_t *param_rectangle_image;
@@ -114,7 +118,6 @@ struct mask_shape_data {
 	gs_eparam_t *param_circle_min_hue_shift;
 	gs_eparam_t *param_circle_max_hue_shift;
 
-	// Shader file params
 	gs_eparam_t *param_polygon_image;
 	gs_eparam_t *param_polygon_uv_size;
 	gs_eparam_t *param_polygon_mask_position;
@@ -138,6 +141,25 @@ struct mask_shape_data {
 	gs_eparam_t *param_polygon_max_saturation;
 	gs_eparam_t *param_polygon_min_hue_shift;
 	gs_eparam_t *param_polygon_max_hue_shift;
+
+	gs_eparam_t *param_ellipse_image;
+	gs_eparam_t *param_ellipse_uv_size;
+	gs_eparam_t *param_ellipse_mask_position;
+	gs_eparam_t *param_ellipse_global_position;
+	gs_eparam_t *param_ellipse_global_scale;
+	gs_eparam_t *param_ellipse_sin_rot;
+	gs_eparam_t *param_ellipse_cos_rot;
+	gs_eparam_t *param_ellipse_ellipse;
+	gs_eparam_t *param_ellipse_zoom;
+	gs_eparam_t *param_ellipse_feather_amount;
+	gs_eparam_t *param_ellipse_min_brightness;
+	gs_eparam_t *param_ellipse_max_brightness;
+	gs_eparam_t *param_ellipse_min_contrast;
+	gs_eparam_t *param_ellipse_max_contrast;
+	gs_eparam_t *param_ellipse_min_saturation;
+	gs_eparam_t *param_ellipse_max_saturation;
+	gs_eparam_t *param_ellipse_min_hue_shift;
+	gs_eparam_t *param_ellipse_max_hue_shift;
 };
 
 extern mask_shape_data_t *mask_shape_create();
@@ -161,6 +183,9 @@ static void render_circle_mask(mask_shape_data_t *data,
 static void render_polygon_mask(mask_shape_data_t *data,
 				base_filter_data_t *base,
 				color_adjustments_data_t *color_adj);
+static void render_ellipse_mask(mask_shape_data_t *data,
+				base_filter_data_t *base,
+				color_adjustments_data_t *color_adj);
 static bool setting_feather_type_modified(obs_properties_t *props,
 					  obs_property_t *p,
 					  obs_data_t *settings);
@@ -179,4 +204,5 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 static void load_shape_effect_files(mask_shape_data_t *data);
 static void load_rectangle_mask_effect(mask_shape_data_t *data);
 static void load_circle_mask_effect(mask_shape_data_t *data);
+static void load_ellipse_mask_effect(mask_shape_data_t *data);
 static void load_polygon_mask_effect(mask_shape_data_t *data);

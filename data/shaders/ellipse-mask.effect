@@ -4,22 +4,14 @@ uniform float4x4 ViewProj;
 
 uniform texture2d image;
 uniform float2 uv_size;
-
 uniform float2 mask_position;
-uniform float width;
-uniform float height;
-uniform float zoom;
-
-uniform float2 aspect_ratio;
 uniform float2 global_position;
 uniform float global_scale;
-uniform float max_corner_radius;
-uniform float4 corner_radius;
-uniform float feather_shift;
+uniform float sin_rot;
+uniform float cos_rot;
+uniform float2 ellipse;
+uniform float zoom;
 uniform float feather_amount;
-uniform float sin_theta;
-uniform float cos_theta;
-uniform bool invert;
 
 uniform float min_brightness;
 uniform float max_brightness;
@@ -29,8 +21,6 @@ uniform float min_saturation;
 uniform float max_saturation;
 uniform float min_hue_shift;
 uniform float max_hue_shift;
-
-uniform float aa_scale;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -47,15 +37,45 @@ struct VertData
 };
 
 /*
- * Original Rounded Box SDF code by Inigo Quilez: https://iquilezles.org/articles/distfunctions2d/
+ * Original Ellipse SDF code by Inigo Quilez: https://iquilezles.org/articles/distfunctions2d/
  * Converted to OBS HLSL by FiniteSingularity
  */
-float SDF(float2 coord, float2 dims, float4 radii)
+float SDF(float2 coord, float2 ab)
 {
-	radii.xy = coord.x > 0.0f ? radii.xy : radii.zw;
-	radii.x = coord.y > 0.0f ? radii.x : radii.y;
-	float2 dist = abs(coord) - dims + radii.x;
-	return min(max(dist.x, dist.y), 0.0f) + length(max(dist, float2(0.0f, 0.0f))) - radii.x;
+	coord = abs(coord);
+	if (coord.x > coord.y) {
+		coord = coord.yx;
+		ab = ab.yx;
+	}
+	float l = ab.y * ab.y - ab.x * ab.x;
+	float m = ab.x * coord.x / l;
+	float m2 = m * m;
+	float n = ab.y * coord.y / l;
+	float n2 = n * n;
+	float c = (m2 + n2 - 1.0f) / 3.0f;
+	float c3 = c * c * c;
+	float q = c3 + m2 * n2 * 2.0f;
+	float d = c3 + m2 * n2;
+	float g = m + m * n2;
+	float co;
+	if (d<0.0f) {
+		float h = acos(q / c3) / 3.0f;
+		float s = cos(h);
+		float t = sin(h) * sqrt(3.0f);
+		float rx = sqrt(-c * (s + t + 2.0f) + m2);
+		float ry = sqrt(-c * (s - t + 2.0f) + m2);
+		co = (ry + sign(l) * rx + abs(g) / (rx * ry) - m) / 2.0f;
+	} else {
+		float h = 2.0 * m * n * sqrt(d);
+		float s = sign(q + h) * pow(abs(q + h), 1.0f / 3.0f);
+		float u = sign(q - h) * pow(abs(q - h), 1.0f / 3.0f);
+		float rx = -s - u - c * 4.0f + 2.0f * m2;
+		float ry = (s - u) * sqrt(3.0f);
+		float rm = sqrt(rx * rx + ry * ry);
+		co = (ry / sqrt(rm - rx) + 2.0 * g / rm - m) / 2.0;
+	}
+	float2 r = ab * float2(co, sqrt(1.0 - co * co));
+	return length(r - coord) * sign(coord.y - r.y);
 }
 
 VertData mainTransform(VertData v_in)
@@ -70,8 +90,8 @@ float4 alphaImage(VertData v_in) : TARGET
 	float2 shift = global_position - mask_position;
 	float2 coord_p = coord - shift;
 	float2 dist = coord_p - mask_position;
-	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
-	float d = SDF(sample_dist, float2(width, height), corner_radius);
+	float2 sample_dist = float2(dist.x * cos_rot - dist.y * sin_rot, dist.x * sin_rot + dist.y * cos_rot);
+	float d = SDF(sample_dist, ellipse);
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
 	
 	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
@@ -81,10 +101,13 @@ float4 alphaImage(VertData v_in) : TARGET
 float4 adjustmentsImage(VertData v_in) : TARGET
 {
 	float2 coord = v_in.uv * uv_size;
-	float2 dist = coord - mask_position;
-	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
-	float d = SDF(sample_dist, float2(width, height), corner_radius) + feather_shift;
-	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d) : saturate(-d);
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_rot - dist.y * sin_rot, dist.x * sin_rot + dist.y * cos_rot);
+	float d = SDF(sample_dist, ellipse);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	
 	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
 	float4 color_adj_min = adjustments(
 		color,
@@ -100,7 +123,7 @@ float4 adjustmentsImage(VertData v_in) : TARGET
 		max_saturation,
 		max_hue_shift
 	);
-	return (color_adj_min * (1.0 - d) + color_adj_max *d );
+	return (color_adj_min * (1.0 - d) + color_adj_max * d);
 }
 
 technique Alpha

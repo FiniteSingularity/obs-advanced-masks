@@ -8,6 +8,7 @@ mask_shape_data_t *mask_shape_create()
 	data->effect_rectangle_mask = NULL;
 	data->effect_circle_mask = NULL;
 	data->effect_polygon_mask = NULL;
+	data->effect_ellipse_mask = NULL;
 
 	data->param_rectangle_image = NULL;
 	data->param_rectangle_uv_size = NULL;
@@ -75,6 +76,25 @@ mask_shape_data_t *mask_shape_create()
 	data->param_polygon_min_hue_shift = NULL;
 	data->param_polygon_max_hue_shift = NULL;
 
+	data->param_ellipse_image = NULL;
+	data->param_ellipse_uv_size = NULL;
+	data->param_ellipse_mask_position = NULL;
+	data->param_ellipse_global_position = NULL;
+	data->param_ellipse_global_scale = NULL;
+	data->param_ellipse_sin_rot = NULL;
+	data->param_ellipse_cos_rot = NULL;
+	data->param_ellipse_ellipse = NULL;
+	data->param_ellipse_zoom = NULL;
+	data->param_ellipse_feather_amount = NULL;
+	data->param_ellipse_min_brightness = NULL;
+	data->param_ellipse_max_brightness = NULL;
+	data->param_ellipse_min_contrast = NULL;
+	data->param_ellipse_max_contrast = NULL;
+	data->param_ellipse_min_saturation = NULL;
+	data->param_ellipse_max_saturation = NULL;
+	data->param_ellipse_min_hue_shift = NULL;
+	data->param_ellipse_max_hue_shift = NULL;
+
 	load_shape_effect_files(data);
 
 	return data;
@@ -88,6 +108,12 @@ void mask_shape_destroy(mask_shape_data_t *data)
 	}
 	if (data->effect_circle_mask) {
 		gs_effect_destroy(data->effect_circle_mask);
+	}
+	if (data->effect_ellipse_mask) {
+		gs_effect_destroy(data->effect_ellipse_mask);
+	}
+	if (data->effect_polygon_mask) {
+		gs_effect_destroy(data->effect_polygon_mask);
 	}
 
 	obs_leave_graphics();
@@ -164,6 +190,11 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 
 	data->radius = radius * data->global_scale / 100.0f;
 
+	data->ellipse.x =
+		(float)obs_data_get_double(settings, "shape_ellipse_a");
+	data->ellipse.y =
+		(float)obs_data_get_double(settings, "shape_ellipse_b");
+
 	data->shape_corner_radius =
 		min((float)obs_data_get_double(settings, "shape_corner_radius"),
 		    data->radius);
@@ -215,6 +246,8 @@ void mask_shape_defaults(obs_data_t* settings) {
 	obs_data_set_default_bool(settings, "shape_relative", true);
 	obs_data_set_default_int(settings, "shape_num_sides", 6);
 	obs_data_set_default_double(settings, "shape_corner_radius", 0.0);
+	obs_data_set_default_double(settings, "shape_ellipse_a", 400.0);
+	obs_data_set_default_double(settings, "shape_ellipse_b", 200.0);
 }
 
 void shape_mask_top_properties(obs_properties_t *props)
@@ -229,9 +262,9 @@ void shape_mask_top_properties(obs_properties_t *props)
 	obs_property_list_add_int(shape_type_list,
 				  obs_module_text(SHAPE_CIRCLE_LABEL),
 				  SHAPE_CIRCLE);
-	//obs_property_list_add_int(shape_type_list,
-	//			  obs_module_text(SHAPE_ELLIPSE_LABEL),
-	//			  SHAPE_ELLIPSE);
+	obs_property_list_add_int(shape_type_list,
+				  obs_module_text(SHAPE_ELLIPSE_LABEL),
+				  SHAPE_ELLIPSE);
 	obs_property_list_add_int(shape_type_list,
 				  obs_module_text(SHAPE_POLYGON_LABEL),
 				  SHAPE_POLYGON);
@@ -293,6 +326,18 @@ void shape_mask_bot_properties(obs_properties_t *props,
 	p = obs_properties_add_float_slider(
 		source_rect_mask_group, "circle_radius",
 		obs_module_text("AdvancedMasks.Shape.Circle.Radius"), 0.0,
+		6000.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "shape_ellipse_a",
+		obs_module_text("AdvancedMasks.Shape.Ellipse.Width"), 0.0,
+		6000.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "shape_ellipse_b",
+		obs_module_text("AdvancedMasks.Shape.Ellipse.Height"), 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
@@ -488,6 +533,8 @@ bool setting_shape_type_modified(obs_properties_t *props,
 	case SHAPE_RECTANGLE:
 		setting_visibility("rectangle_width", true, props);
 		setting_visibility("rectangle_height", true, props);
+		setting_visibility("shape_ellipse_a", false, props);
+		setting_visibility("shape_ellipse_b", false, props);
 		setting_visibility("circle_radius", false, props);
 		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("shape_corner_radius", false, props);
@@ -499,8 +546,22 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_width", false, props);
 		setting_visibility("rectangle_height", false, props);
 		setting_visibility("circle_radius", true, props);
+		setting_visibility("shape_ellipse_a", false, props);
+		setting_visibility("shape_ellipse_b", false, props);
 		setting_visibility("shape_corner_radius", false, props);
 		setting_visibility("shape_rotation", false, props);
+		setting_visibility("shape_num_sides", false, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+				   props);
+		break;
+	case SHAPE_ELLIPSE:
+		setting_visibility("rectangle_width", false, props);
+		setting_visibility("rectangle_height", false, props);
+		setting_visibility("circle_radius", false, props);
+		setting_visibility("shape_ellipse_a", true, props);
+		setting_visibility("shape_ellipse_b", true, props);
+		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("shape_rotation", true, props);
 		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
@@ -509,6 +570,8 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_width", false, props);
 		setting_visibility("rectangle_height", false, props);
 		setting_visibility("circle_radius", true, props);
+		setting_visibility("shape_ellipse_a", false, props);
+		setting_visibility("shape_ellipse_b", false, props);
 		setting_visibility("shape_num_sides", true, props);
 		setting_visibility("shape_corner_radius", true, props);
 		setting_visibility("shape_rotation", true, props);
@@ -629,6 +692,9 @@ void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		break;
 	case SHAPE_POLYGON:
 		render_polygon_mask(data, base, color_adj);
+		break;
+	case SHAPE_ELLIPSE:
+		render_ellipse_mask(data, base, color_adj);
 		break;
 	}
 }
@@ -1143,11 +1209,174 @@ static void render_circle_mask(mask_shape_data_t *data,
 	gs_blend_state_pop();
 }
 
+static void render_ellipse_mask(mask_shape_data_t *data,
+			       base_filter_data_t *base,
+			       color_adjustments_data_t *color_adj)
+{
+	gs_effect_t *effect = data->effect_ellipse_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	float scale_factor =
+		data->scale_type == MASK_SCALE_PERCENT
+			? data->global_scale / 100.0f
+		: data->scale_type == MASK_SCALE_WIDTH
+			? data->global_scale / data->rectangle_width
+			: data->global_scale / data->rectangle_height;
+
+	if (data->param_ellipse_image) {
+		gs_effect_set_texture(data->param_ellipse_image, texture);
+	}
+
+	if (data->param_ellipse_zoom) {
+		gs_effect_set_float(data->param_ellipse_zoom,
+				    data->zoom / 100.0f);
+	}
+	if (data->param_ellipse_mask_position) {
+		gs_effect_set_vec2(data->param_ellipse_mask_position,
+				   &data->mask_center);
+	}
+
+	if (data->param_ellipse_global_position) {
+		if (data->shape_relative) {
+			gs_effect_set_vec2(data->param_ellipse_global_position,
+					   &data->global_position);
+		} else {
+			gs_effect_set_vec2(data->param_ellipse_global_position,
+					   &data->mask_center);
+		}
+	}
+
+	if (data->param_ellipse_global_scale) {
+
+		gs_effect_set_float(data->param_ellipse_global_scale,
+				    data->shape_relative ? scale_factor : 1.0f);
+	}
+
+	if (data->param_ellipse_sin_rot) {
+		gs_effect_set_float(data->param_ellipse_sin_rot,
+				    (float)sin(data->rotation));
+	}
+
+	if (data->param_ellipse_cos_rot) {
+		gs_effect_set_float(data->param_ellipse_cos_rot,
+				    (float)cos(data->rotation));
+	}
+
+	if (data->param_ellipse_ellipse) {
+		gs_effect_set_vec2(data->param_ellipse_ellipse, &data->ellipse);
+	}
+
+	if (data->param_ellipse_zoom) {
+		gs_effect_set_float(data->param_ellipse_zoom,
+				    data->zoom / 100.0f);
+	}
+
+	if (data->param_ellipse_feather_amount) {
+		gs_effect_set_float(data->param_ellipse_feather_amount,
+				    data->feather_amount);
+	}
+
+	if (data->param_ellipse_min_brightness) {
+		const float min_brightness = color_adj->adj_brightness
+						     ? color_adj->min_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_ellipse_min_brightness,
+				    min_brightness);
+	}
+
+	if (data->param_ellipse_max_brightness) {
+		const float max_brightness = color_adj->adj_brightness
+						     ? color_adj->max_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_ellipse_max_brightness,
+				    max_brightness);
+	}
+
+	if (data->param_ellipse_min_contrast) {
+		const float min_contrast = color_adj->adj_contrast
+						   ? color_adj->min_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_ellipse_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_ellipse_max_contrast) {
+		const float max_contrast = color_adj->adj_contrast
+						   ? color_adj->max_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_ellipse_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_ellipse_min_saturation) {
+		const float min_saturation = color_adj->adj_saturation
+						     ? color_adj->min_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_ellipse_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_ellipse_max_saturation) {
+		const float max_saturation = color_adj->adj_saturation
+						     ? color_adj->max_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_ellipse_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_ellipse_min_hue_shift) {
+		const float min_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
+		gs_effect_set_float(data->param_ellipse_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_ellipse_max_hue_shift) {
+		const float max_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
+		gs_effect_set_float(data->param_ellipse_max_hue_shift,
+				    max_hue_shift);
+	}
+
+	if (data->param_ellipse_uv_size) {
+		struct vec2 uv_size;
+		uv_size.x = (float)base->width;
+		uv_size.y = (float)base->height;
+		gs_effect_set_vec2(data->param_ellipse_uv_size, &uv_size);
+	}
+
+	set_blending_parameters();
+
+	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
+					? "Alpha"
+					: "Adjustments";
+
+	if (gs_texrender_begin(base->output_texrender, base->width,
+			       base->height)) {
+		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique))
+			gs_draw_sprite(texture, 0, base->width, base->height);
+		gs_texrender_end(base->output_texrender);
+	}
+
+	gs_blend_state_pop();
+}
+
 static void load_shape_effect_files(mask_shape_data_t *data)
 {
 	load_rectangle_mask_effect(data);
 	load_circle_mask_effect(data);
 	load_polygon_mask_effect(data);
+	load_ellipse_mask_effect(data);
 }
 
 static void load_rectangle_mask_effect(mask_shape_data_t *data)
@@ -1265,6 +1494,62 @@ static void load_circle_mask_effect(mask_shape_data_t *data)
 				data->param_circle_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_circle_max_hue_shift = param;
+			}
+		}
+	}
+}
+
+static void load_ellipse_mask_effect(mask_shape_data_t *data)
+{
+	const char *effect_file_path = "/shaders/ellipse-mask.effect";
+
+	data->effect_ellipse_mask =
+		load_shader_effect(data->effect_ellipse_mask, effect_file_path);
+	if (data->effect_ellipse_mask) {
+		size_t effect_count =
+			gs_effect_get_num_params(data->effect_ellipse_mask);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				data->effect_ellipse_mask, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "image") == 0) {
+				data->param_ellipse_image = param;
+			} else if (strcmp(info.name, "mask_position") == 0) {
+				data->param_ellipse_mask_position = param;
+			} else if (strcmp(info.name, "uv_size") == 0) {
+				data->param_ellipse_uv_size = param;
+			} else if (strcmp(info.name, "global_position") == 0) {
+				data->param_ellipse_global_position = param;
+			} else if (strcmp(info.name, "global_scale") == 0) {
+				data->param_ellipse_global_scale = param;
+			} else if (strcmp(info.name, "sin_rot") == 0) {
+				data->param_ellipse_sin_rot = param;
+			} else if (strcmp(info.name, "cos_rot") == 0) {
+				data->param_ellipse_cos_rot = param;
+			} else if (strcmp(info.name, "ellipse") == 0) {
+				data->param_ellipse_ellipse = param;
+			} else if (strcmp(info.name, "zoom") == 0) {
+				data->param_ellipse_zoom = param;
+			} else if (strcmp(info.name, "feather_amount") == 0) {
+				data->param_ellipse_feather_amount = param;
+			} else if (strcmp(info.name, "min_brightness") == 0) {
+				data->param_ellipse_min_brightness = param;
+			} else if (strcmp(info.name, "max_brightness") == 0) {
+				data->param_ellipse_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				data->param_ellipse_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				data->param_ellipse_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				data->param_ellipse_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				data->param_ellipse_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				data->param_ellipse_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				data->param_ellipse_max_hue_shift = param;
 			}
 		}
 	}
