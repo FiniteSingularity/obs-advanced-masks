@@ -9,6 +9,8 @@ mask_shape_data_t *mask_shape_create()
 	data->effect_circle_mask = NULL;
 	data->effect_polygon_mask = NULL;
 	data->effect_ellipse_mask = NULL;
+	data->effect_star_mask = NULL;
+	data->effect_heart_mask = NULL;
 
 	data->param_rectangle_image = NULL;
 	data->param_rectangle_uv_size = NULL;
@@ -95,6 +97,50 @@ mask_shape_data_t *mask_shape_create()
 	data->param_ellipse_min_hue_shift = NULL;
 	data->param_ellipse_max_hue_shift = NULL;
 
+	data->param_star_image = NULL;
+	data->param_star_uv_size = NULL;
+	data->param_star_mask_position = NULL;
+	data->param_star_global_position = NULL;
+	data->param_star_global_scale = NULL;
+	data->param_star_sin_rot = NULL;
+	data->param_star_cos_rot = NULL;
+	data->param_star_radius = NULL;
+	data->param_star_corner_radius = NULL;
+	data->param_star_an = NULL;
+	data->param_star_en = NULL;
+	data->param_star_acs = NULL;
+	data->param_star_ecs = NULL;
+	data->param_star_zoom = NULL;
+	data->param_star_feather_amount = NULL;
+	data->param_star_min_brightness = NULL;
+	data->param_star_max_brightness = NULL;
+	data->param_star_min_contrast = NULL;
+	data->param_star_max_contrast = NULL;
+	data->param_star_min_saturation = NULL;
+	data->param_star_max_saturation = NULL;
+	data->param_star_min_hue_shift = NULL;
+	data->param_star_max_hue_shift = NULL;
+
+	data->param_heart_image = NULL;
+	data->param_heart_uv_size = NULL;
+	data->param_heart_mask_position = NULL;
+	data->param_heart_global_position = NULL;
+	data->param_heart_global_scale = NULL;
+	data->param_heart_sin_rot = NULL;
+	data->param_heart_cos_rot = NULL;
+	data->param_heart_size = NULL;
+	data->param_heart_zoom = NULL;
+	data->param_heart_corner_radius = NULL;
+	data->param_heart_feather_amount = NULL;
+	data->param_heart_min_brightness = NULL;
+	data->param_heart_max_brightness = NULL;
+	data->param_heart_min_contrast = NULL;
+	data->param_heart_max_contrast = NULL;
+	data->param_heart_min_saturation = NULL;
+	data->param_heart_max_saturation = NULL;
+	data->param_heart_min_hue_shift = NULL;
+	data->param_heart_max_hue_shift = NULL;
+
 	load_shape_effect_files(data);
 
 	return data;
@@ -114,6 +160,12 @@ void mask_shape_destroy(mask_shape_data_t *data)
 	}
 	if (data->effect_polygon_mask) {
 		gs_effect_destroy(data->effect_polygon_mask);
+	}
+	if (data->effect_star_mask) {
+		gs_effect_destroy(data->effect_star_mask);
+	}
+	if (data->effect_heart_mask) {
+		gs_effect_destroy(data->effect_heart_mask);
 	}
 
 	obs_leave_graphics();
@@ -238,6 +290,28 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base, obs_da
 	data->ellipse.y =
 		(float)obs_data_get_double(settings, "shape_ellipse_b") / 2.0f *
 			data->global_scale / 100.0f - data->feather_shift;
+
+	data->star_outer_radius = (float)obs_data_get_double(settings, "shape_star_outer_radius") *
+			data->global_scale / 100.0f - (data->feather_shift + data->star_corner_radius);
+	float star_inner_radius =
+		(float)obs_data_get_double(settings, "shape_star_inner_radius");
+	float points =
+		(float)obs_data_get_int(settings, "shape_star_num_points");
+	float ratio = 1.0f - star_inner_radius / 100.0f;
+	float m = 2.0f + ratio * (points - 2.0f);
+	data->an = M_PI / points;
+	data->en = M_PI / m;
+	data->acs.x = (float)cos(data->an);
+	data->acs.y = (float)sin(data->an);
+	data->ecs.x = (float)cos(data->en);
+	data->ecs.y = (float)sin(data->en);
+
+	data->star_corner_radius =
+		(float)obs_data_get_double(settings, "star_corner_radius");
+
+	float heart_size = (float)obs_data_get_double(settings, "heart_size");
+	data->heart_size = heart_size * data->global_scale / 100.0f -
+			   (data->feather_shift + data->star_corner_radius);
 }
 
 void mask_shape_defaults(obs_data_t* settings) {
@@ -257,6 +331,11 @@ void mask_shape_defaults(obs_data_t* settings) {
 	obs_data_set_default_double(settings, "shape_corner_radius", 0.0);
 	obs_data_set_default_double(settings, "shape_ellipse_a", 400.0);
 	obs_data_set_default_double(settings, "shape_ellipse_b", 200.0);
+	obs_data_set_default_int(settings, "shape_star_num_points", 5);
+	obs_data_set_default_double(settings, "shape_star_outer_radius", 200.0);
+	obs_data_set_default_double(settings, "shape_star_inner_radius", 50.0);
+	obs_data_set_default_double(settings, "star_corner_radius", 0.0);
+	obs_data_set_default_double(settings, "heart_size", 400.0);
 }
 
 void shape_mask_top_properties(obs_properties_t *props)
@@ -277,6 +356,12 @@ void shape_mask_top_properties(obs_properties_t *props)
 	obs_property_list_add_int(shape_type_list,
 				  obs_module_text(SHAPE_POLYGON_LABEL),
 				  SHAPE_POLYGON);
+	obs_property_list_add_int(shape_type_list,
+				  obs_module_text(SHAPE_STAR_LABEL),
+				  SHAPE_STAR);
+	obs_property_list_add_int(shape_type_list,
+				  obs_module_text(SHAPE_HEART_LABEL),
+				  SHAPE_HEART);
 
 	obs_property_set_modified_callback(shape_type_list,
 					   setting_shape_type_modified);
@@ -350,10 +435,38 @@ void shape_mask_bot_properties(obs_properties_t *props,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	p = obs_properties_add_int_slider(
+		source_rect_mask_group, "shape_star_num_points",
+		obs_module_text("AdvancedMasks.Shape.Star.NumPoints"), 3, 100, 1);
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "shape_star_outer_radius",
+		obs_module_text("AdvancedMasks.Shape.Star.OuterRadius"), 0.0,
+		2500.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "shape_star_inner_radius",
+		obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"), 0.0,
+		100.0, 0.1);
+	obs_property_float_set_suffix(p, "%");
+
 	p = obs_properties_add_float_slider(
 		source_rect_mask_group, "shape_corner_radius",
 		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
 		1000.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "star_corner_radius",
+		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
+		1000.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		source_rect_mask_group, "heart_size",
+		obs_module_text("AdvancedMasks.Shape.Heart.Size"), 0.0,
+		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
@@ -544,9 +657,14 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_height", true, props);
 		setting_visibility("shape_ellipse_a", false, props);
 		setting_visibility("shape_ellipse_b", false, props);
+		setting_visibility("shape_star_num_points", false, props);
+		setting_visibility("shape_star_outer_radius", false, props);
+		setting_visibility("shape_star_inner_radius", false, props);
 		setting_visibility("circle_radius", false, props);
 		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("star_corner_radius", false, props);
+		setting_visibility("heart_size", false, props);
 		setting_visibility("shape_rotation", true, props);
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
@@ -557,7 +675,12 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("circle_radius", true, props);
 		setting_visibility("shape_ellipse_a", false, props);
 		setting_visibility("shape_ellipse_b", false, props);
+		setting_visibility("shape_star_num_points", false, props);
+		setting_visibility("shape_star_outer_radius", false, props);
+		setting_visibility("shape_star_inner_radius", false, props);
 		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("star_corner_radius", false, props);
+		setting_visibility("heart_size", false, props);
 		setting_visibility("shape_rotation", false, props);
 		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
@@ -569,7 +692,12 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("circle_radius", false, props);
 		setting_visibility("shape_ellipse_a", true, props);
 		setting_visibility("shape_ellipse_b", true, props);
+		setting_visibility("shape_star_num_points", false, props);
+		setting_visibility("shape_star_outer_radius", false, props);
+		setting_visibility("shape_star_inner_radius", false, props);
 		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("star_corner_radius", false, props);
+		setting_visibility("heart_size", false, props);
 		setting_visibility("shape_rotation", true, props);
 		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
@@ -581,9 +709,48 @@ bool setting_shape_type_modified(obs_properties_t *props,
 		setting_visibility("circle_radius", true, props);
 		setting_visibility("shape_ellipse_a", false, props);
 		setting_visibility("shape_ellipse_b", false, props);
+		setting_visibility("shape_star_num_points", false, props);
+		setting_visibility("shape_star_outer_radius", false, props);
+		setting_visibility("shape_star_inner_radius", false, props);
 		setting_visibility("shape_num_sides", true, props);
 		setting_visibility("shape_corner_radius", true, props);
+		setting_visibility("star_corner_radius", false, props);
+		setting_visibility("heart_size", false, props);
 		setting_visibility("shape_rotation", true, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+				   props);
+		break;
+	case SHAPE_STAR:
+		setting_visibility("rectangle_width", false, props);
+		setting_visibility("rectangle_height", false, props);
+		setting_visibility("circle_radius", false, props);
+		setting_visibility("shape_ellipse_a", false, props);
+		setting_visibility("shape_ellipse_b", false, props);
+		setting_visibility("shape_star_num_points", true, props);
+		setting_visibility("shape_star_outer_radius", true, props);
+		setting_visibility("shape_star_inner_radius", true, props);
+		setting_visibility("shape_num_sides", false, props);
+		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("star_corner_radius", true, props);
+		setting_visibility("heart_size", false, props);
+		setting_visibility("shape_rotation", true, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+				   props);
+		break;
+	case SHAPE_HEART:
+		setting_visibility("rectangle_width", false, props);
+		setting_visibility("rectangle_height", false, props);
+		setting_visibility("circle_radius", false, props);
+		setting_visibility("shape_ellipse_a", false, props);
+		setting_visibility("shape_ellipse_b", false, props);
+		setting_visibility("shape_star_num_points", false, props);
+		setting_visibility("shape_star_outer_radius", false, props);
+		setting_visibility("shape_star_inner_radius", false, props);
+		setting_visibility("shape_corner_radius", false, props);
+		setting_visibility("star_corner_radius", true, props);
+		setting_visibility("heart_size", true, props);
+		setting_visibility("shape_rotation", true, props);
+		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 		break;
@@ -704,6 +871,12 @@ void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		break;
 	case SHAPE_ELLIPSE:
 		render_ellipse_mask(data, base, color_adj);
+		break;
+	case SHAPE_STAR:
+		render_star_mask(data, base, color_adj);
+		break;
+	case SHAPE_HEART:
+		render_heart_mask(data, base, color_adj);
 		break;
 	}
 }
@@ -1073,6 +1246,181 @@ static void render_polygon_mask(mask_shape_data_t *data,
 	gs_blend_state_pop();
 }
 
+static void render_star_mask(mask_shape_data_t *data,
+				base_filter_data_t *base,
+				color_adjustments_data_t *color_adj)
+{
+	gs_effect_t *effect = data->effect_star_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	float scale_factor =
+		data->scale_type == MASK_SCALE_PERCENT
+			? data->global_scale / 100.0f
+		: data->scale_type == MASK_SCALE_WIDTH
+			? data->global_scale / data->rectangle_width
+			: data->global_scale / data->rectangle_height;
+
+	if (data->param_star_image) {
+		gs_effect_set_texture(data->param_star_image, texture);
+	}
+
+	if (data->param_star_zoom) {
+		gs_effect_set_float(data->param_star_zoom,
+				    data->zoom / 100.0f);
+	}
+	if (data->param_star_mask_position) {
+		gs_effect_set_vec2(data->param_star_mask_position,
+				   &data->mask_center);
+	}
+	if (data->param_star_sin_rot) {
+		gs_effect_set_float(data->param_star_sin_rot,
+				    (float)sin(data->rotation));
+	}
+
+	if (data->param_star_cos_rot) {
+		gs_effect_set_float(data->param_star_cos_rot,
+				    (float)cos(data->rotation));
+	}
+
+	if (data->param_star_corner_radius) {
+		gs_effect_set_float(data->param_star_corner_radius,
+				    data->star_corner_radius);
+	}
+
+	if (data->param_star_an) {
+		gs_effect_set_float(data->param_star_an, data->an);
+	}
+
+	if (data->param_star_en) {
+		gs_effect_set_float(data->param_star_en, data->en);
+	}
+
+	if (data->param_star_acs) {
+		gs_effect_set_vec2(data->param_star_acs,
+				   &data->acs);
+	}
+
+	if (data->param_star_ecs) {
+		gs_effect_set_vec2(data->param_star_ecs, &data->ecs);
+	}
+
+	if (data->param_star_feather_amount) {
+		gs_effect_set_float(data->param_star_feather_amount,
+				    data->feather_amount);
+	}
+	if (data->param_star_radius) {
+		gs_effect_set_float(data->param_star_radius, data->star_outer_radius);
+	}
+
+	if (data->param_star_global_position) {
+		if (data->shape_relative) {
+			gs_effect_set_vec2(data->param_star_global_position,
+					   &data->global_position);
+		} else {
+			gs_effect_set_vec2(data->param_star_global_position,
+					   &data->mask_center);
+		}
+	}
+
+	if (data->param_star_global_scale) {
+		gs_effect_set_float(data->param_star_global_scale,
+				    data->shape_relative ? scale_factor : 1.0f);
+	}
+
+	if (data->param_star_min_brightness) {
+		const float min_brightness = color_adj->adj_brightness
+						     ? color_adj->min_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_star_min_brightness,
+				    min_brightness);
+	}
+
+	if (data->param_star_max_brightness) {
+		const float max_brightness = color_adj->adj_brightness
+						     ? color_adj->max_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_star_max_brightness,
+				    max_brightness);
+	}
+
+	if (data->param_star_min_contrast) {
+		const float min_contrast = color_adj->adj_contrast
+						   ? color_adj->min_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_star_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_star_max_contrast) {
+		const float max_contrast = color_adj->adj_contrast
+						   ? color_adj->max_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_star_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_star_min_saturation) {
+		const float min_saturation = color_adj->adj_saturation
+						     ? color_adj->min_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_star_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_star_max_saturation) {
+		const float max_saturation = color_adj->adj_saturation
+						     ? color_adj->max_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_star_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_star_min_hue_shift) {
+		const float min_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
+		gs_effect_set_float(data->param_star_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_star_max_hue_shift) {
+		const float max_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
+		gs_effect_set_float(data->param_star_max_hue_shift,
+				    max_hue_shift);
+	}
+
+	if (data->param_star_uv_size) {
+		struct vec2 uv_size;
+		uv_size.x = (float)base->width;
+		uv_size.y = (float)base->height;
+		gs_effect_set_vec2(data->param_star_uv_size, &uv_size);
+	}
+
+	set_blending_parameters();
+	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
+					? "Alpha"
+					: "Adjustments";
+
+	if (gs_texrender_begin(base->output_texrender, base->width,
+			       base->height)) {
+		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique))
+			gs_draw_sprite(texture, 0, base->width, base->height);
+		gs_texrender_end(base->output_texrender);
+	}
+
+	gs_blend_state_pop();
+}
+
 static void render_circle_mask(mask_shape_data_t *data,
 				  base_filter_data_t *base,
 				  color_adjustments_data_t *color_adj)
@@ -1198,6 +1546,173 @@ static void render_circle_mask(mask_shape_data_t *data,
 		uv_size.x = (float)base->width;
 		uv_size.y = (float)base->height;
 		gs_effect_set_vec2(data->param_circle_uv_size, &uv_size);
+	}
+
+	set_blending_parameters();
+
+	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
+					? "Alpha"
+					: "Adjustments";
+
+	if (gs_texrender_begin(base->output_texrender, base->width,
+			       base->height)) {
+		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique))
+			gs_draw_sprite(texture, 0, base->width, base->height);
+		gs_texrender_end(base->output_texrender);
+	}
+
+	gs_blend_state_pop();
+}
+
+static void render_heart_mask(mask_shape_data_t *data,
+			      base_filter_data_t *base,
+			      color_adjustments_data_t *color_adj)
+{
+	gs_effect_t *effect = data->effect_heart_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	float scale_factor =
+		data->scale_type == MASK_SCALE_PERCENT
+			? data->global_scale / 100.0f
+		: data->scale_type == MASK_SCALE_WIDTH
+			? data->global_scale / data->rectangle_width
+			: data->global_scale / data->rectangle_height;
+
+	if (data->param_heart_image) {
+		gs_effect_set_texture(data->param_heart_image, texture);
+	}
+
+	if (data->param_heart_zoom) {
+		gs_effect_set_float(data->param_heart_zoom,
+				    data->zoom / 100.0f);
+	}
+	if (data->param_heart_mask_position) {
+		gs_effect_set_vec2(data->param_heart_mask_position,
+				   &data->mask_center);
+	}
+
+	if (data->param_heart_global_position) {
+		if (data->shape_relative) {
+			gs_effect_set_vec2(data->param_heart_global_position,
+					   &data->global_position);
+		} else {
+			gs_effect_set_vec2(data->param_heart_global_position,
+					   &data->mask_center);
+		}
+	}
+
+	if (data->param_heart_global_scale) {
+
+		gs_effect_set_float(data->param_heart_global_scale,
+				    data->shape_relative ? scale_factor : 1.0f);
+	}
+
+	if (data->param_heart_size) {
+		gs_effect_set_float(data->param_heart_size, data->heart_size);
+	}
+
+	if (data->param_heart_zoom) {
+		gs_effect_set_float(data->param_heart_zoom,
+				    data->zoom / 100.0f);
+	}
+
+	if (data->param_heart_sin_rot) {
+		gs_effect_set_float(data->param_heart_sin_rot,
+				    (float)sin(data->rotation));
+	}
+
+	if (data->param_heart_cos_rot) {
+		gs_effect_set_float(data->param_heart_cos_rot,
+				    (float)cos(data->rotation));
+	}
+
+	if (data->param_heart_corner_radius) {
+		gs_effect_set_float(data->param_heart_corner_radius,
+				    data->star_corner_radius);
+	}
+
+	if (data->param_heart_feather_amount) {
+		gs_effect_set_float(data->param_heart_feather_amount,
+				    data->feather_amount);
+	}
+
+	if (data->param_heart_min_brightness) {
+		const float min_brightness = color_adj->adj_brightness
+						     ? color_adj->min_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_heart_min_brightness,
+				    min_brightness);
+	}
+
+	if (data->param_heart_max_brightness) {
+		const float max_brightness = color_adj->adj_brightness
+						     ? color_adj->max_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_heart_max_brightness,
+				    max_brightness);
+	}
+
+	if (data->param_heart_min_contrast) {
+		const float min_contrast = color_adj->adj_contrast
+						   ? color_adj->min_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_heart_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_heart_max_contrast) {
+		const float max_contrast = color_adj->adj_contrast
+						   ? color_adj->max_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_heart_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_heart_min_saturation) {
+		const float min_saturation = color_adj->adj_saturation
+						     ? color_adj->min_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_heart_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_heart_max_saturation) {
+		const float max_saturation = color_adj->adj_saturation
+						     ? color_adj->max_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_heart_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_heart_min_hue_shift) {
+		const float min_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
+		gs_effect_set_float(data->param_heart_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_heart_max_hue_shift) {
+		const float max_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
+		gs_effect_set_float(data->param_heart_max_hue_shift,
+				    max_hue_shift);
+	}
+
+	if (data->param_heart_uv_size) {
+		struct vec2 uv_size;
+		uv_size.x = (float)base->width;
+		uv_size.y = (float)base->height;
+		gs_effect_set_vec2(data->param_heart_uv_size, &uv_size);
 	}
 
 	set_blending_parameters();
@@ -1386,6 +1901,8 @@ static void load_shape_effect_files(mask_shape_data_t *data)
 	load_circle_mask_effect(data);
 	load_polygon_mask_effect(data);
 	load_ellipse_mask_effect(data);
+	load_star_mask_effect(data);
+	load_heart_mask_effect(data);
 }
 
 static void load_rectangle_mask_effect(mask_shape_data_t *data)
@@ -1564,6 +2081,72 @@ static void load_ellipse_mask_effect(mask_shape_data_t *data)
 	}
 }
 
+static void load_star_mask_effect(mask_shape_data_t *data)
+{
+	const char *effect_file_path = "/shaders/star-mask.effect";
+
+	data->effect_star_mask =
+		load_shader_effect(data->effect_star_mask, effect_file_path);
+	if (data->effect_star_mask) {
+		size_t effect_count =
+			gs_effect_get_num_params(data->effect_star_mask);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				data->effect_star_mask, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "image") == 0) {
+				data->param_star_image = param;
+			} else if (strcmp(info.name, "mask_position") == 0) {
+				data->param_star_mask_position = param;
+			} else if (strcmp(info.name, "uv_size") == 0) {
+				data->param_star_uv_size = param;
+			} else if (strcmp(info.name, "global_position") == 0) {
+				data->param_star_global_position = param;
+			} else if (strcmp(info.name, "global_scale") == 0) {
+				data->param_star_global_scale = param;
+			} else if (strcmp(info.name, "sin_rot") == 0) {
+				data->param_star_sin_rot = param;
+			} else if (strcmp(info.name, "cos_rot") == 0) {
+				data->param_star_cos_rot = param;
+			} else if (strcmp(info.name, "radius") == 0) {
+				data->param_star_radius = param;
+			} else if (strcmp(info.name, "corner_radius") == 0) {
+				data->param_star_corner_radius = param;
+			} else if (strcmp(info.name, "an") == 0) {
+				data->param_star_an = param;
+			} else if (strcmp(info.name, "en") == 0) {
+				data->param_star_en = param;
+			} else if (strcmp(info.name, "acs") == 0) {
+				data->param_star_acs = param;
+			} else if (strcmp(info.name, "ecs") == 0) {
+				data->param_star_ecs = param;
+			} else if (strcmp(info.name, "zoom") == 0) {
+				data->param_star_zoom = param;
+			} else if (strcmp(info.name, "feather_amount") == 0) {
+				data->param_star_feather_amount = param;
+			} else if (strcmp(info.name, "min_brightness") == 0) {
+				data->param_star_min_brightness = param;
+			} else if (strcmp(info.name, "max_brightness") == 0) {
+				data->param_star_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				data->param_star_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				data->param_star_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				data->param_star_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				data->param_star_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				data->param_star_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				data->param_star_max_hue_shift = param;
+			}
+		}
+	}
+}
+
 static void load_polygon_mask_effect(mask_shape_data_t *data)
 {
 	const char *effect_file_path = "/shaders/polygon-mask.effect";
@@ -1625,6 +2208,64 @@ static void load_polygon_mask_effect(mask_shape_data_t *data)
 				data->param_polygon_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_polygon_max_hue_shift = param;
+			}
+		}
+	}
+}
+
+static void load_heart_mask_effect(mask_shape_data_t *data)
+{
+	const char *effect_file_path = "/shaders/heart-mask.effect";
+
+	data->effect_heart_mask =
+		load_shader_effect(data->effect_heart_mask, effect_file_path);
+	if (data->effect_heart_mask) {
+		size_t effect_count =
+			gs_effect_get_num_params(data->effect_heart_mask);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				data->effect_heart_mask, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "image") == 0) {
+				data->param_heart_image = param;
+			} else if (strcmp(info.name, "mask_position") == 0) {
+				data->param_heart_mask_position = param;
+			} else if (strcmp(info.name, "uv_size") == 0) {
+				data->param_heart_uv_size = param;
+			} else if (strcmp(info.name, "global_position") == 0) {
+				data->param_heart_global_position = param;
+			} else if (strcmp(info.name, "global_scale") == 0) {
+				data->param_heart_global_scale = param;
+			} else if (strcmp(info.name, "size") == 0) {
+				data->param_heart_size = param;
+			} else if (strcmp(info.name, "sin_rot") == 0) {
+				data->param_heart_sin_rot = param;
+			} else if (strcmp(info.name, "cos_rot") == 0) {
+				data->param_heart_cos_rot = param;
+			} else if (strcmp(info.name, "corner_radius") == 0) {
+				data->param_heart_corner_radius = param;
+			} else if (strcmp(info.name, "zoom") == 0) {
+				data->param_heart_zoom = param;
+			} else if (strcmp(info.name, "feather_amount") == 0) {
+				data->param_heart_feather_amount = param;
+			} else if (strcmp(info.name, "min_brightness") == 0) {
+				data->param_heart_min_brightness = param;
+			} else if (strcmp(info.name, "max_brightness") == 0) {
+				data->param_heart_max_brightness = param;
+			} else if (strcmp(info.name, "min_contrast") == 0) {
+				data->param_heart_min_contrast = param;
+			} else if (strcmp(info.name, "max_contrast") == 0) {
+				data->param_heart_max_contrast = param;
+			} else if (strcmp(info.name, "min_saturation") == 0) {
+				data->param_heart_min_saturation = param;
+			} else if (strcmp(info.name, "max_saturation") == 0) {
+				data->param_heart_max_saturation = param;
+			} else if (strcmp(info.name, "min_hue_shift") == 0) {
+				data->param_heart_min_hue_shift = param;
+			} else if (strcmp(info.name, "max_hue_shift") == 0) {
+				data->param_heart_max_hue_shift = param;
 			}
 		}
 	}

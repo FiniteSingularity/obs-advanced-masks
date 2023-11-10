@@ -1,0 +1,123 @@
+#include "common.effect"
+#define VERT_SHIFT 0.551777f
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform float2 uv_size;
+uniform float2 mask_position;
+uniform float2 global_position;
+uniform float global_scale;
+uniform float size;
+uniform float zoom;
+uniform float feather_amount;
+uniform float sin_rot;
+uniform float cos_rot;
+uniform float corner_radius;
+
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+float dot2(float2 v)
+{
+	return dot(v, v);
+}
+
+float SDF(float2 coord)
+{
+	coord.x = abs(coord.x);
+	coord.y = -coord.y + VERT_SHIFT * size;
+
+	if (coord.y + coord.x > size)
+	{
+		return sqrt(dot2(coord - float2(0.25f*size, 0.75f*size))) - size * sqrt(2.0f) / 4.0f;
+	}
+		
+	return sqrt(min(dot2(coord - float2(0.00f, size)),
+                        dot2(coord - 0.5 * max(coord.x + coord.y, 0.0f)))) * sign(coord.x - coord.y);
+}
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 alphaImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_rot - dist.y * sin_rot, dist.x * sin_rot + dist.y * cos_rot);
+	float d = SDF(sample_dist) - corner_radius;
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
+	return float4(color.rgb, color.a * d);
+}
+
+float4 adjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_rot - dist.y * sin_rot, dist.x * sin_rot + dist.y * cos_rot);
+	float d = SDF(sample_dist) - corner_radius;
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	
+	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color_adj_min = adjustments(
+		color,
+		min_brightness,
+		min_contrast,
+		min_saturation,
+		min_hue_shift
+	);
+	float4 color_adj_max = adjustments(
+		color,
+		max_brightness,
+		max_contrast,
+		max_saturation,
+		max_hue_shift
+	);
+	return (color_adj_min * (1.0 - d) + color_adj_max * d);
+}
+
+technique Alpha
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaImage(v_in);
+	}
+}
+
+technique Adjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsImage(v_in);
+	}
+}
