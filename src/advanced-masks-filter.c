@@ -142,6 +142,10 @@ static void render_mask(advanced_masks_data_t *filter)
 		render_source_mask(filter->source_data, filter->base,
 				   filter->color_adj_data);
 		break;
+	case MASK_TYPE_IMAGE:
+		render_image_mask(filter->source_data, filter->base,
+				   filter->color_adj_data);
+		break;
 	case MASK_TYPE_GRADIENT:
 		render_gradient_mask(filter->gradient_data, filter->base,
 				     filter->color_adj_data);
@@ -179,9 +183,9 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_list_add_int(mask_type_list,
 				  obs_module_text(MASK_TYPE_SOURCE_LABEL),
 				  MASK_TYPE_SOURCE);
-	//obs_property_list_add_int(mask_type_list,
-	//			  obs_module_text(MASK_TYPE_IMAGE_LABEL),
-	//			  MASK_TYPE_IMAGE);
+	obs_property_list_add_int(mask_type_list,
+				  obs_module_text(MASK_TYPE_IMAGE_LABEL),
+				  MASK_TYPE_IMAGE);
 	obs_property_list_add_int(mask_type_list,
 				  obs_module_text(MASK_TYPE_GRADIENT_LABEL),
 				  MASK_TYPE_GRADIENT);
@@ -231,6 +235,7 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 	switch (mask_type) {
 	case MASK_TYPE_SHAPE:
 		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", false, props);
 		setting_visibility("mask_source_group", false, props);
 		setting_visibility("source_mask_compression_group", false,
 				   props);
@@ -239,12 +244,14 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_source_group", true, props);
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
+		setting_visibility("shape_feather_group", true, props);
 		setting_visibility("scale_position_group",
 				   effect_type == MASK_EFFECT_ALPHA, props);
 		setting_visibility("mask_gradient_group", false, props);
 		return true;
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);
+		setting_visibility("mask_source_image", false, props);
 		setting_visibility("mask_source_group", true, props);
 		setting_visibility("source_mask_compression_group", true,
 				   props);
@@ -253,17 +260,36 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
+		setting_visibility("shape_feather_group", false, props);
+		setting_visibility("scale_position_group", false, props);
+		setting_mask_source_filter_modified(props, p, settings);
+		setting_visibility("mask_gradient_group", false, props);
+		return true;
+	case MASK_TYPE_IMAGE:
+		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", true, props);
+		setting_visibility("mask_source_group", true, props);
+		setting_visibility("source_mask_compression_group", true,
+				   props);
+		setting_visibility("shape_type", false, props);
+		setting_visibility("shape_relative", false, props);
+		setting_visibility("rectangle_source_group", false, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+				   props);
+		setting_visibility("shape_feather_group", false, props);
 		setting_visibility("scale_position_group", false, props);
 		setting_mask_source_filter_modified(props, p, settings);
 		setting_visibility("mask_gradient_group", false, props);
 		return true;
 	case MASK_TYPE_GRADIENT:
 		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", false, props);
 		setting_visibility("mask_source_group", false, props);
 		setting_visibility("source_mask_compression_group", false,
 				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_feather_group", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
