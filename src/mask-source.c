@@ -46,6 +46,11 @@ void mask_source_destroy(mask_source_data_t *data)
 	if (data->mask_source_source) {
 		obs_weak_source_release(data->mask_source_source);
 	}
+
+	if (data->mask_image) {
+		gs_image_file_free(data->mask_image);
+		bfree(data->mask_image);
+	}
 	obs_leave_graphics();
 
 	bfree(data);
@@ -67,6 +72,22 @@ void mask_source_update(mask_source_data_t *data, obs_data_t *settings)
 		obs_source_release(mask_source);
 	} else {
 		data->mask_source_source = NULL;
+	}
+
+	const char *mask_image_file =
+		obs_data_get_string(settings, "mask_source_image");
+	if (data->mask_image == NULL) {
+		data->mask_image = bzalloc(sizeof(gs_image_file_t));
+	} else {
+		obs_enter_graphics();
+		gs_image_file_free(data->mask_image);
+		obs_leave_graphics();
+	}
+	if (strlen(mask_image_file)) {
+		gs_image_file_init(data->mask_image, mask_image_file);
+		obs_enter_graphics();
+		gs_image_file_init_texture(data->mask_image);
+		obs_leave_graphics();
 	}
 
 	data->source_mask_filter_type = (uint32_t)obs_data_get_int(
@@ -124,6 +145,11 @@ void source_mask_top_properties(obs_properties_t *props)
 		mask_source, obs_module_text("AdvancedMasks.Common.None"), "");
 	obs_enum_sources(add_source_to_list, mask_source);
 	obs_enum_scenes(add_source_to_list, mask_source);
+
+	obs_properties_add_path(
+		props, "mask_source_image",
+		obs_module_text("AdvancedMasks.SourceMask.File"), OBS_PATH_FILE,
+		"Textures (*.bmp *.tga *.png *.jpeg *.jpg *.gif);;", NULL);
 }
 
 void source_mask_bot_properties(obs_properties_t *props)
@@ -471,6 +497,152 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 		gs_texrender_end(base->output_texrender);
 	}
 	gs_texrender_destroy(mask_source_render);
+	gs_blend_state_pop();
+}
+
+void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
+		       color_adjustments_data_t *color_adj)
+{
+	gs_effect_t *effect = data->effect_source_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	if (data->param_source_mask_image) {
+		gs_effect_set_texture(data->param_source_mask_image, texture);
+	}
+
+	if (data->param_source_mask_invert) {
+		gs_effect_set_bool(data->param_source_mask_invert,
+				   data->source_invert);
+	}
+
+	if (data->param_source_channel_multipliers) {
+		gs_effect_set_vec4(data->param_source_channel_multipliers,
+				   &data->channel_multipliers);
+	}
+
+	if (data->param_source_multiplier) {
+		gs_effect_set_float(data->param_source_multiplier,
+				    data->multiplier);
+	}
+
+	if (data->param_source_threshold_value) {
+		gs_effect_set_float(data->param_source_threshold_value,
+				    data->threshold_value);
+	}
+
+	if (data->param_source_range_min) {
+		gs_effect_set_float(data->param_source_range_min,
+				    data->range_min);
+	}
+
+	if (data->param_source_range_max) {
+		gs_effect_set_float(data->param_source_range_max,
+				    data->range_max);
+	}
+
+	if (data->param_source_min_brightness) {
+		const float min_brightness = color_adj->adj_brightness
+						     ? color_adj->min_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_source_min_brightness,
+				    min_brightness);
+	}
+
+	if (data->param_source_max_brightness) {
+		const float max_brightness = color_adj->adj_brightness
+						     ? color_adj->max_brightness
+						     : 0.0f;
+		gs_effect_set_float(data->param_source_max_brightness,
+				    max_brightness);
+	}
+
+	if (data->param_source_min_contrast) {
+		const float min_contrast = color_adj->adj_contrast
+						   ? color_adj->min_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_source_min_contrast,
+				    min_contrast);
+	}
+
+	if (data->param_source_max_contrast) {
+		const float max_contrast = color_adj->adj_contrast
+						   ? color_adj->max_contrast
+						   : 0.0f;
+		gs_effect_set_float(data->param_source_max_contrast,
+				    max_contrast);
+	}
+
+	if (data->param_source_min_saturation) {
+		const float min_saturation = color_adj->adj_saturation
+						     ? color_adj->min_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_source_min_saturation,
+				    min_saturation);
+	}
+
+	if (data->param_source_max_saturation) {
+		const float max_saturation = color_adj->adj_saturation
+						     ? color_adj->max_saturation
+						     : 1.0f;
+		gs_effect_set_float(data->param_source_max_saturation,
+				    max_saturation);
+	}
+
+	if (data->param_source_min_hue_shift) {
+		const float min_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
+		gs_effect_set_float(data->param_source_min_hue_shift,
+				    min_hue_shift);
+	}
+
+	if (data->param_source_max_hue_shift) {
+		const float max_hue_shift = color_adj->adj_hue_shift
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
+		gs_effect_set_float(data->param_source_max_hue_shift,
+				    max_hue_shift);
+	}
+
+	gs_texture_t *source_texture = NULL;
+	if (data->mask_image) {
+		source_texture = data->mask_image->texture;
+	}
+	
+
+	if (data->param_source_mask_source_image && source_texture) {
+		gs_effect_set_texture(data->param_source_mask_source_image,
+				      source_texture);
+	}
+
+	set_blending_parameters();
+
+	char technique[32];
+	strcpy(technique, base->mask_effect == MASK_EFFECT_ADJUSTMENT
+				  ? "Adjustments"
+				  : "Alpha");
+	char *techniqueType =
+		data->compression_type == MASK_SOURCE_COMPRESSION_THRESHOLD
+			? "Threshold"
+		: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
+			? "Range"
+			: "";
+	strcat(technique, techniqueType);
+
+	if (gs_texrender_begin(base->output_texrender, base->width,
+			       base->height)) {
+		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique))
+			gs_draw_sprite(texture, 0, base->width, base->height);
+		gs_texrender_end(base->output_texrender);
+	}
 	gs_blend_state_pop();
 }
 

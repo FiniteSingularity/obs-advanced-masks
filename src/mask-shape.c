@@ -11,7 +11,7 @@ mask_shape_data_t *mask_shape_create()
 	data->effect_ellipse_mask = NULL;
 	data->effect_star_mask = NULL;
 	data->effect_heart_mask = NULL;
-
+	
 	data->param_rectangle_image = NULL;
 	data->param_rectangle_uv_size = NULL;
 	data->param_rectangle_mask_position = NULL;
@@ -777,6 +777,9 @@ bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
 				 obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
+	if ((uint32_t)obs_data_get_int(settings, "mask_type") != MASK_TYPE_SHAPE) {
+		return false;
+	}
 	bool relative = obs_data_get_bool(settings, "shape_relative");
 	uint32_t mask_effect = (uint32_t)obs_data_get_int(settings, "mask_effect");
 	if (relative && mask_effect == MASK_EFFECT_ALPHA) {
@@ -793,6 +796,10 @@ static bool setting_corner_type_modified(obs_properties_t *props,
 					 obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
+	if ((uint32_t)obs_data_get_int(settings, "mask_type") !=
+	    MASK_TYPE_SHAPE) {
+		return false;
+	}
 	int corner_type =
 		(int)obs_data_get_int(settings, "rectangle_corner_type");
 	switch (corner_type) {
@@ -818,6 +825,10 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 					obs_property_t *p, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
+	if ((uint32_t)obs_data_get_int(settings, "mask_type") !=
+	    MASK_TYPE_SHAPE) {
+		return false;
+	}
 	mask_shape_data_t *filter = data;
 	uint32_t type = (uint32_t)obs_data_get_int(settings, "scale_type");
 	uint32_t last_type = filter->last_scale_type;

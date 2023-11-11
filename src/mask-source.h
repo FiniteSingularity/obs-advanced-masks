@@ -1,6 +1,7 @@
 #pragma once
 
 #include <obs-module.h>
+#include <graphics/image-file.h>
 #include "base-filter.h"
 #include "color-adjustments.h"
 
@@ -26,6 +27,8 @@ typedef struct mask_source_data mask_source_data_t;
 struct mask_source_data {
 	gs_texrender_t *source_mask_texrender;
 	gs_effect_t *effect_source_mask;
+
+	gs_image_file_t *mask_image;
 
 	uint32_t source_mask_filter_type;
 	obs_weak_source_t *mask_source_source;
@@ -66,6 +69,9 @@ extern void source_mask_bot_properties(obs_properties_t *props);
 extern void render_source_mask(mask_source_data_t *data,
 			       base_filter_data_t *base,
 			       color_adjustments_data_t *color_adj);
+extern void render_image_mask(mask_source_data_t *data,
+			      base_filter_data_t *base,
+			      color_adjustments_data_t *color_adj);
 
 static bool setting_mask_source_compression_modified(obs_properties_t *props,
 						     obs_property_t *p,
