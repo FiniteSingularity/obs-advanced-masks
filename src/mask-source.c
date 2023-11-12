@@ -5,12 +5,12 @@ mask_source_data_t *mask_source_create()
 {
 	mask_source_data_t *data = bzalloc(sizeof(mask_source_data_t));
 
+	data->mask_image_path = bzalloc(255 * sizeof(char));
+	strcpy(data->mask_image_path, "");
 	data->source_mask_texrender =
 		create_or_reset_texrender(data->source_mask_texrender);
 	data->effect_source_mask = NULL;
-
 	data->mask_source_source = NULL;
-
 	data->param_source_mask_image = NULL;
 	data->param_source_mask_source_image = NULL;
 	data->param_source_mask_invert = NULL;
@@ -52,7 +52,7 @@ void mask_source_destroy(mask_source_data_t *data)
 		bfree(data->mask_image);
 	}
 	obs_leave_graphics();
-
+	bfree(data->mask_image_path);
 	bfree(data);
 }
 
@@ -76,19 +76,23 @@ void mask_source_update(mask_source_data_t *data, obs_data_t *settings)
 
 	const char *mask_image_file =
 		obs_data_get_string(settings, "mask_source_image");
-	if (data->mask_image == NULL) {
-		data->mask_image = bzalloc(sizeof(gs_image_file_t));
-	} else {
-		obs_enter_graphics();
-		gs_image_file_free(data->mask_image);
-		obs_leave_graphics();
+	if (strcmp(mask_image_file, data->mask_image_path) != 0) {
+		strcpy(data->mask_image_path, mask_image_file);
+		if (data->mask_image == NULL) {
+			data->mask_image = bzalloc(sizeof(gs_image_file_t));
+		} else {
+			obs_enter_graphics();
+			gs_image_file_free(data->mask_image);
+			obs_leave_graphics();
+		}
+		if (strlen(mask_image_file)) {
+			gs_image_file_init(data->mask_image, mask_image_file);
+			obs_enter_graphics();
+			gs_image_file_init_texture(data->mask_image);
+			obs_leave_graphics();
+		}
 	}
-	if (strlen(mask_image_file)) {
-		gs_image_file_init(data->mask_image, mask_image_file);
-		obs_enter_graphics();
-		gs_image_file_init_texture(data->mask_image);
-		obs_leave_graphics();
-	}
+
 
 	data->source_mask_filter_type = (uint32_t)obs_data_get_int(
 		settings, "mask_source_mask_properties_list");

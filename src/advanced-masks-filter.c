@@ -170,8 +170,8 @@ static obs_properties_t *advanced_masks_properties(void *data)
 				  obs_module_text(MASK_EFFECT_ADJUSTMENT_LABEL),
 				  MASK_EFFECT_ADJUSTMENT);
 
-	obs_property_set_modified_callback(mask_effect_list,
-					   setting_mask_effect_modified);
+	obs_property_set_modified_callback2(mask_effect_list,
+					   setting_mask_effect_modified, data);
 
 	obs_property_t *mask_type_list = obs_properties_add_list(
 		props, "mask_type", obs_module_text("AdvancedMasks.Type"),
@@ -189,8 +189,8 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_list_add_int(mask_type_list,
 				  obs_module_text(MASK_TYPE_GRADIENT_LABEL),
 				  MASK_TYPE_GRADIENT);
-	obs_property_set_modified_callback(mask_type_list,
-					   setting_mask_type_modified);
+	obs_property_set_modified_callback2(mask_type_list,
+					   setting_mask_type_modified, data);
 
 	source_mask_top_properties(props);
 	shape_mask_top_properties(props);
@@ -207,7 +207,8 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	return props;
 }
 
-static bool setting_mask_effect_modified(obs_properties_t *props,
+static bool setting_mask_effect_modified(void *data,
+					 obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings)
 {
@@ -220,13 +221,11 @@ static bool setting_mask_effect_modified(obs_properties_t *props,
 		setting_visibility("mask_adjustments_group", false, props);
 		break;
 	}
-	setting_mask_type_modified(props, p, settings);
-	setting_shape_type_modified(props, p, settings);
-	setting_shape_relative_modified(props, p, settings);
+	setting_mask_type_modified(data, props, p, settings);
 	return true;
 }
 
-static bool setting_mask_type_modified(obs_properties_t *props,
+static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				       obs_property_t *p, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
@@ -248,6 +247,7 @@ static bool setting_mask_type_modified(obs_properties_t *props,
 		setting_visibility("scale_position_group",
 				   effect_type == MASK_EFFECT_ALPHA, props);
 		setting_visibility("mask_gradient_group", false, props);
+		set_shape_settings_visibility(data, props, p, settings);
 		return true;
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);

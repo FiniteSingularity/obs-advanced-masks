@@ -267,6 +267,9 @@ static bool setting_corner_type_modified(obs_properties_t *props,
 static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
+extern bool set_shape_settings_visibility(void *data, obs_properties_t *props,
+					  obs_property_t *p,
+					  obs_data_t *settings);
 
 static void load_shape_effect_files(mask_shape_data_t *data);
 static void load_rectangle_mask_effect(mask_shape_data_t *data);
@@ -275,3 +278,10 @@ static void load_ellipse_mask_effect(mask_shape_data_t *data);
 static void load_polygon_mask_effect(mask_shape_data_t *data);
 static void load_star_mask_effect(mask_shape_data_t *data);
 static void load_heart_mask_effect(mask_shape_data_t *data);
+
+static void shape_properties(obs_properties_t *props);
+static void rectangle_corner_radius_properties(obs_properties_t *props);
+static void feather_properties(obs_properties_t *props);
+static void scale_position_properties(obs_properties_t *props,
+				      obs_source_t *context,
+				      mask_shape_data_t *data);

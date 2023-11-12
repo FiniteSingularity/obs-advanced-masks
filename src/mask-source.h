@@ -40,6 +40,7 @@ struct mask_source_data {
 	float threshold_value;
 	float range_min;
 	float range_max;
+	char *mask_image_path;
 
 	// shader params
 	gs_eparam_t *param_source_mask_image;
