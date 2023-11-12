@@ -20,7 +20,7 @@ static void draw_output(advanced_masks_data_t *filter);
 static void advanced_masks_render_filter(advanced_masks_data_t *filter);
 static void render_mask(advanced_masks_data_t *filter);
 
-static bool setting_mask_effect_modified(obs_properties_t *props,
+static bool setting_mask_effect_modified(void *data, obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings);
 
@@ -28,5 +28,5 @@ static bool setting_mask_adjustment_modified(obs_properties_t *props,
 					     obs_property_t *p,
 					     obs_data_t *settings);
 
-static bool setting_mask_type_modified(obs_properties_t *props,
+static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				       obs_property_t *p, obs_data_t *settings);
