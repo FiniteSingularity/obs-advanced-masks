@@ -324,7 +324,6 @@ bool setting_mask_source_filter_modified(obs_properties_t *props,
 
 
 static void set_render_params(mask_source_data_t *data,
-			      base_filter_data_t *base,
 			      color_adjustments_data_t *color_adj,
 			      gs_texture_t *texture)
 {
@@ -439,7 +438,7 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 	base->output_texrender =
 		create_or_reset_texrender(base->output_texrender);
 
-	set_render_params(data, base, color_adj, texture);
+	set_render_params(data, color_adj, texture);
 
 	gs_texrender_t *mask_source_render = NULL;
 	obs_source_t *source =
@@ -528,7 +527,7 @@ void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
 	base->output_texrender =
 		create_or_reset_texrender(base->output_texrender);
 
-	set_render_params(data, base, color_adj, texture);
+	set_render_params(data, color_adj, texture);
 
 	gs_texture_t *source_texture = NULL;
 	if (data->mask_image) {
