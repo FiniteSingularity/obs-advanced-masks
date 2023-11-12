@@ -9,7 +9,7 @@ else()
   cmake_minimum_required(VERSION 3.18)
 endif()
 
-project(obs-advanced-masks VERSION 0.0.5)
+project(obs-advanced-masks VERSION 0.0.6)
 set(PROJECT_FULL_NAME "Advanced Masks")
 
 # Set new UUIDs when you start to create a new plugin.
