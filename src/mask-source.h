@@ -73,6 +73,9 @@ extern void render_source_mask(mask_source_data_t *data,
 extern void render_image_mask(mask_source_data_t *data,
 			      base_filter_data_t *base,
 			      color_adjustments_data_t *color_adj);
+static void set_render_params(mask_source_data_t *data,
+			      color_adjustments_data_t *color_adj,
+			      gs_texture_t *texture);
 
 static bool setting_mask_source_compression_modified(obs_properties_t *props,
 						     obs_property_t *p,
