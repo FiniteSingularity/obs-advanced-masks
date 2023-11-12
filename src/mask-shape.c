@@ -648,8 +648,12 @@ bool setting_shape_type_modified(obs_properties_t *props,
 					obs_property_t *p, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
-	int shape_type = (int)obs_data_get_int(settings, "shape_type");
-	int effect_type = (int)obs_data_get_int(settings, "mask_effect");
+	uint32_t mask_type = (uint32_t)obs_data_get_int(settings, "mask_type");
+	if (mask_type != MASK_TYPE_SHAPE) {
+		return false;
+	}
+	uint32_t shape_type = (uint32_t)obs_data_get_int(settings, "shape_type");
+	uint32_t effect_type = (uint32_t)obs_data_get_int(settings, "mask_effect");
 	bool relative = obs_data_get_bool(settings, "shape_relative");
 	switch (shape_type) {
 	case SHAPE_RECTANGLE:
