@@ -318,18 +318,12 @@ bool setting_mask_source_filter_modified(obs_properties_t *props,
 	return true;
 }
 
-void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
-			color_adjustments_data_t *color_adj)
+
+static void set_render_params(mask_source_data_t *data,
+			      base_filter_data_t *base,
+			      color_adjustments_data_t *color_adj,
+			      gs_texture_t *texture)
 {
-	gs_effect_t *effect = data->effect_source_mask;
-	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
-	if (!effect || !texture) {
-		return;
-	}
-
-	base->output_texrender =
-		create_or_reset_texrender(base->output_texrender);
-
 	if (data->param_source_mask_image) {
 		gs_effect_set_texture(data->param_source_mask_image, texture);
 	}
@@ -427,6 +421,21 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 		gs_effect_set_float(data->param_source_max_hue_shift,
 				    max_hue_shift);
 	}
+}
+
+void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
+			color_adjustments_data_t *color_adj)
+{
+	gs_effect_t *effect = data->effect_source_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	set_render_params(data, base, color_adj, texture);
 
 	gs_texrender_t *mask_source_render = NULL;
 	obs_source_t *source =
@@ -434,6 +443,9 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 			? obs_weak_source_get_source(data->mask_source_source)
 			: NULL;
 	if (!source) {
+		gs_texrender_t *tmp = base->output_texrender;
+		base->output_texrender = base->input_texrender;
+		base->input_texrender = tmp;
 		return;
 	}
 
@@ -512,103 +524,7 @@ void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
 	base->output_texrender =
 		create_or_reset_texrender(base->output_texrender);
 
-	if (data->param_source_mask_image) {
-		gs_effect_set_texture(data->param_source_mask_image, texture);
-	}
-
-	if (data->param_source_mask_invert) {
-		gs_effect_set_bool(data->param_source_mask_invert,
-				   data->source_invert);
-	}
-
-	if (data->param_source_channel_multipliers) {
-		gs_effect_set_vec4(data->param_source_channel_multipliers,
-				   &data->channel_multipliers);
-	}
-
-	if (data->param_source_multiplier) {
-		gs_effect_set_float(data->param_source_multiplier,
-				    data->multiplier);
-	}
-
-	if (data->param_source_threshold_value) {
-		gs_effect_set_float(data->param_source_threshold_value,
-				    data->threshold_value);
-	}
-
-	if (data->param_source_range_min) {
-		gs_effect_set_float(data->param_source_range_min,
-				    data->range_min);
-	}
-
-	if (data->param_source_range_max) {
-		gs_effect_set_float(data->param_source_range_max,
-				    data->range_max);
-	}
-
-	if (data->param_source_min_brightness) {
-		const float min_brightness = color_adj->adj_brightness
-						     ? color_adj->min_brightness
-						     : 0.0f;
-		gs_effect_set_float(data->param_source_min_brightness,
-				    min_brightness);
-	}
-
-	if (data->param_source_max_brightness) {
-		const float max_brightness = color_adj->adj_brightness
-						     ? color_adj->max_brightness
-						     : 0.0f;
-		gs_effect_set_float(data->param_source_max_brightness,
-				    max_brightness);
-	}
-
-	if (data->param_source_min_contrast) {
-		const float min_contrast = color_adj->adj_contrast
-						   ? color_adj->min_contrast
-						   : 0.0f;
-		gs_effect_set_float(data->param_source_min_contrast,
-				    min_contrast);
-	}
-
-	if (data->param_source_max_contrast) {
-		const float max_contrast = color_adj->adj_contrast
-						   ? color_adj->max_contrast
-						   : 0.0f;
-		gs_effect_set_float(data->param_source_max_contrast,
-				    max_contrast);
-	}
-
-	if (data->param_source_min_saturation) {
-		const float min_saturation = color_adj->adj_saturation
-						     ? color_adj->min_saturation
-						     : 1.0f;
-		gs_effect_set_float(data->param_source_min_saturation,
-				    min_saturation);
-	}
-
-	if (data->param_source_max_saturation) {
-		const float max_saturation = color_adj->adj_saturation
-						     ? color_adj->max_saturation
-						     : 1.0f;
-		gs_effect_set_float(data->param_source_max_saturation,
-				    max_saturation);
-	}
-
-	if (data->param_source_min_hue_shift) {
-		const float min_hue_shift = color_adj->adj_hue_shift
-						    ? color_adj->min_hue_shift
-						    : 0.0f;
-		gs_effect_set_float(data->param_source_min_hue_shift,
-				    min_hue_shift);
-	}
-
-	if (data->param_source_max_hue_shift) {
-		const float max_hue_shift = color_adj->adj_hue_shift
-						    ? color_adj->max_hue_shift
-						    : 1.0f;
-		gs_effect_set_float(data->param_source_max_hue_shift,
-				    max_hue_shift);
-	}
+	set_render_params(data, base, color_adj, texture);
 
 	gs_texture_t *source_texture = NULL;
 	if (data->mask_image) {
@@ -619,6 +535,11 @@ void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
 	if (data->param_source_mask_source_image && source_texture) {
 		gs_effect_set_texture(data->param_source_mask_source_image,
 				      source_texture);
+	} else {
+		gs_texrender_t *tmp = base->output_texrender;
+		base->output_texrender = base->input_texrender;
+		base->input_texrender = tmp;
+		return;
 	}
 
 	set_blending_parameters();
