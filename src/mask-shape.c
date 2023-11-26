@@ -19,6 +19,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_rectangle_height = NULL;
 	data->param_rectangle_sin_theta = NULL;
 	data->param_rectangle_cos_theta = NULL;
+	data->param_rectangle_alpha_zero = NULL;
 	data->param_global_position = NULL;
 	data->param_global_scale = NULL;
 	data->param_corner_radius = NULL;
@@ -44,6 +45,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_circle_global_scale = NULL;
 	data->param_circle_radius = NULL;
 	data->param_circle_zoom = NULL;
+	data->param_circle_alpha_zero = NULL;
 	data->param_circle_feather_amount = NULL;
 	data->param_circle_min_brightness = NULL;
 	data->param_circle_max_brightness = NULL;
@@ -68,6 +70,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_polygon_global_scale = NULL;
 	data->param_polygon_corner_radius = NULL;
 	data->param_polygon_zoom = NULL;
+	data->param_polygon_alpha_zero = NULL;
 	data->param_polygon_feather_amount = NULL;
 	data->param_polygon_min_brightness = NULL;
 	data->param_polygon_max_brightness = NULL;
@@ -87,6 +90,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_ellipse_cos_rot = NULL;
 	data->param_ellipse_ellipse = NULL;
 	data->param_ellipse_zoom = NULL;
+	data->param_ellipse_alpha_zero = NULL;
 	data->param_ellipse_feather_amount = NULL;
 	data->param_ellipse_min_brightness = NULL;
 	data->param_ellipse_max_brightness = NULL;
@@ -104,6 +108,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_star_global_scale = NULL;
 	data->param_star_sin_rot = NULL;
 	data->param_star_cos_rot = NULL;
+	data->param_star_alpha_zero = NULL;
 	data->param_star_radius = NULL;
 	data->param_star_corner_radius = NULL;
 	data->param_star_an = NULL;
@@ -128,6 +133,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_heart_global_scale = NULL;
 	data->param_heart_sin_rot = NULL;
 	data->param_heart_cos_rot = NULL;
+	data->param_heart_alpha_zero = NULL;
 	data->param_heart_size = NULL;
 	data->param_heart_zoom = NULL;
 	data->param_heart_corner_radius = NULL;
@@ -180,7 +186,7 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		(uint32_t)obs_data_get_int(settings, "shape_type");
 
 	data->shape_relative = obs_data_get_bool(settings, "shape_relative");
-
+	data->frame_check = obs_data_get_bool(settings, "shape_frame_check");
 	data->mask_center.x =
 		(float)obs_data_get_double(settings, "shape_center_x");
 	data->mask_center.y =
@@ -1032,6 +1038,11 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 				    data->rectangle_width);
 	}
 
+	if (data->param_rectangle_alpha_zero) {
+		gs_effect_set_float(data->param_rectangle_alpha_zero,
+				    data->frame_check ? 0.2f : 0.0f);
+	}
+
 	if (data->param_rectangle_height) {
 		gs_effect_set_float(data->param_rectangle_height,
 				    data->rectangle_height);
@@ -1234,6 +1245,11 @@ static void render_polygon_mask(mask_shape_data_t *data,
 				    (float)cos(data->rotation));
 	}
 
+	if (data->param_polygon_alpha_zero) {
+		gs_effect_set_float(data->param_polygon_alpha_zero,
+				    data->frame_check ? 0.2f : 0.0f);
+	}
+
 	if (data->param_polygon_theta) {
 		gs_effect_set_float(data->param_polygon_theta, data->theta);
 	}
@@ -1408,6 +1424,11 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 				    (float)cos(data->rotation));
 	}
 
+	if (data->param_star_alpha_zero) {
+		gs_effect_set_float(data->param_star_alpha_zero,
+				    data->frame_check ? 0.2f : 0.0f);
+	}
+
 	if (data->param_star_corner_radius) {
 		gs_effect_set_float(data->param_star_corner_radius,
 				    data->star_corner_radius);
@@ -1569,6 +1590,12 @@ static void render_circle_mask(mask_shape_data_t *data,
 		gs_effect_set_float(data->param_circle_zoom,
 				    data->zoom / 100.0f);
 	}
+
+	if (data->param_circle_alpha_zero) {
+		gs_effect_set_float(data->param_circle_alpha_zero,
+				    data->frame_check ? 0.2f : 0.0f);
+	}
+
 	if (data->param_circle_mask_position) {
 		gs_effect_set_vec2(data->param_circle_mask_position,
 				   &data->mask_center);
@@ -1720,6 +1747,12 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		gs_effect_set_float(data->param_heart_zoom,
 				    data->zoom / 100.0f);
 	}
+
+	if (data->param_heart_alpha_zero) {
+		gs_effect_set_float(data->param_heart_alpha_zero,
+				    data->frame_check ? 0.2f : 0.0f);
+	}
+
 	if (data->param_heart_mask_position) {
 		gs_effect_set_vec2(data->param_heart_mask_position,
 				   &data->mask_center);
@@ -1918,6 +1951,11 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 				    (float)cos(data->rotation));
 	}
 
+	if (data->param_ellipse_alpha_zero) {
+		gs_effect_set_float(data->param_ellipse_alpha_zero,
+				    data->frame_check ? 0.2f : 0.0f);
+	}
+
 	if (data->param_ellipse_ellipse) {
 		gs_effect_set_vec2(data->param_ellipse_ellipse, &data->ellipse);
 	}
@@ -2060,6 +2098,8 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data)
 				data->param_rectangle_sin_theta = param;
 			} else if (strcmp(info.name, "cos_theta") == 0) {
 				data->param_rectangle_cos_theta = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_rectangle_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_rectangle_feather_amount = param;
 			} else if (strcmp(info.name, "feather_shift") == 0) {
@@ -2070,8 +2110,7 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data)
 				data->param_global_scale = param;
 			} else if (strcmp(info.name, "corner_radius") == 0) {
 				data->param_corner_radius = param;
-			} else if (strcmp(info.name, "max_corner_radius") ==
-				   0) {
+			} else if (strcmp(info.name, "max_corner_radius") == 0) {
 				data->param_max_corner_radius = param;
 			} else if (strcmp(info.name, "aspect_ratio") == 0) {
 				data->param_rect_aspect_ratio = param;
@@ -2129,6 +2168,8 @@ static void load_circle_mask_effect(mask_shape_data_t *data)
 				data->param_circle_radius = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_circle_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_circle_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_circle_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
@@ -2185,6 +2226,8 @@ static void load_ellipse_mask_effect(mask_shape_data_t *data)
 				data->param_ellipse_ellipse = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_ellipse_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_ellipse_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_ellipse_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
@@ -2251,6 +2294,8 @@ static void load_star_mask_effect(mask_shape_data_t *data)
 				data->param_star_ecs = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_star_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_star_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_star_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
@@ -2309,6 +2354,8 @@ static void load_polygon_mask_effect(mask_shape_data_t *data)
 				data->param_polygon_sin_rot = param;
 			} else if (strcmp(info.name, "cos_rot") == 0) {
 				data->param_polygon_cos_rot = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_polygon_alpha_zero = param;
 			} else if (strcmp(info.name, "theta") == 0) {
 				data->param_polygon_theta = param;
 			} else if (strcmp(info.name, "theta_2") == 0) {
@@ -2375,6 +2422,8 @@ static void load_heart_mask_effect(mask_shape_data_t *data)
 				data->param_heart_corner_radius = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_heart_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_heart_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_heart_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {

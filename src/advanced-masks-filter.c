@@ -24,8 +24,6 @@ static const char *advanced_masks_name(void *unused)
 
 static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 {
-	// This function should initialize all pointers in the data
-	// structure.
 	advanced_masks_data_t *filter = bzalloc(sizeof(advanced_masks_data_t));
 
 	filter->context = source;
