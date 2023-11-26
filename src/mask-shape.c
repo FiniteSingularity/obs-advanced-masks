@@ -324,6 +324,7 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 void mask_shape_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "shape_type", SHAPE_RECTANGLE);
+	obs_data_set_default_bool(settings, "shape_frame_check", false);
 	obs_data_set_default_double(settings, "shape_center_x", 960.0);
 	obs_data_set_default_double(settings, "shape_center_y", 540.0);
 	obs_data_set_default_double(settings, "shape_rotation", 0.0);
@@ -335,7 +336,7 @@ void mask_shape_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "mask_source_filter_multiplier",
 				    1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
-	obs_data_set_default_bool(settings, "shape_relative", true);
+	obs_data_set_default_bool(settings, "shape_relative", false);
 	obs_data_set_default_int(settings, "shape_num_sides", 6);
 	obs_data_set_default_double(settings, "shape_corner_radius", 0.0);
 	obs_data_set_default_double(settings, "shape_ellipse_a", 800.0);
@@ -381,14 +382,16 @@ void shape_mask_top_properties(obs_properties_t *props)
 
 	obs_property_set_modified_callback(shape_relative,
 					   setting_shape_relative_modified);
+
+	obs_property_t *frame_check = obs_properties_add_bool(
+		props, "shape_frame_check",
+		obs_module_text("AdvancedMasks.Shape.FrameCheck"));
 }
 
 void shape_mask_bot_properties(obs_properties_t *props, obs_source_t *context,
 			       mask_shape_data_t *data)
 {
 	shape_properties(props);
-
-	feather_properties(props);
 	scale_position_properties(props, context, data);
 }
 
@@ -397,100 +400,108 @@ static void shape_properties(obs_properties_t *props)
 	obs_properties_t *source_rect_mask_group = obs_properties_create();
 	obs_property_t *p;
 
+	obs_properties_t *mask_geometry_group = obs_properties_create();
+
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_center_x",
+		mask_geometry_group, "shape_center_x",
 		obs_module_text("AdvancedMasks.Shape.Center.X"), -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_center_y",
+		mask_geometry_group, "shape_center_y",
 		obs_module_text("AdvancedMasks.Shape.Center.Y"), -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_rotation",
+		mask_geometry_group, "shape_rotation",
 		obs_module_text("AdvancedMasks.Shape.Rotation"), -360.0, 360.0,
 		1.0);
 	obs_property_float_set_suffix(p, "deg");
 
 	p = obs_properties_add_int_slider(
-		source_rect_mask_group, "shape_num_sides",
+		mask_geometry_group, "shape_num_sides",
 		obs_module_text("AdvancedMasks.Shape.NumSides"), 3, 100, 1);
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "rectangle_width",
+		mask_geometry_group, "rectangle_width",
 		obs_module_text("AdvancedMasks.Shape.Rectangle.Width"), -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "rectangle_height",
+		mask_geometry_group, "rectangle_height",
 		obs_module_text("AdvancedMasks.Shape.Rectangle.Height"),
 		-2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "circle_radius",
+		mask_geometry_group, "circle_radius",
 		obs_module_text("AdvancedMasks.Shape.Circle.Radius"), 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_ellipse_a",
+		mask_geometry_group, "shape_ellipse_a",
 		obs_module_text("AdvancedMasks.Shape.Ellipse.Width"), 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_ellipse_b",
+		mask_geometry_group, "shape_ellipse_b",
 		obs_module_text("AdvancedMasks.Shape.Ellipse.Height"), 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_int_slider(
-		source_rect_mask_group, "shape_star_num_points",
+		mask_geometry_group, "shape_star_num_points",
 		obs_module_text("AdvancedMasks.Shape.Star.NumPoints"), 3, 100,
 		1);
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_star_outer_radius",
+		mask_geometry_group, "shape_star_outer_radius",
 		obs_module_text("AdvancedMasks.Shape.Star.OuterRadius"), 0.0,
 		2500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_star_inner_radius",
+		mask_geometry_group, "shape_star_inner_radius",
 		obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"), 0.0,
 		100.0, 0.1);
 	obs_property_float_set_suffix(p, "%");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_corner_radius",
+		mask_geometry_group, "shape_corner_radius",
 		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
 		1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "star_corner_radius",
+		mask_geometry_group, "star_corner_radius",
 		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
 		1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "heart_size",
+		mask_geometry_group, "heart_size",
 		obs_module_text("AdvancedMasks.Shape.Heart.Size"), 0.0, 6000.0,
 		1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "source_zoom",
+		mask_geometry_group, "source_zoom",
 		obs_module_text("AdvancedMasks.Shape.SourceZoom"), 1.0, 5000.0,
 		1.0);
 	obs_property_float_set_suffix(p, "%");
 
+	obs_properties_add_group(
+		source_rect_mask_group, "mask_geometry_group",
+		obs_module_text("AdvancedMasks.Shape.MaskGeometry"),
+		OBS_GROUP_NORMAL, mask_geometry_group);
+
 	rectangle_corner_radius_properties(source_rect_mask_group);
+	feather_properties(source_rect_mask_group);
 
 	obs_properties_add_group(
 		props, "rectangle_source_group",

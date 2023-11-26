@@ -240,6 +240,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", true, props);
 		setting_visibility("shape_relative", true, props);
+		setting_visibility("shape_frame_check", true, props);
 		setting_visibility("rectangle_source_group", true, props);
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
@@ -257,6 +258,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
@@ -273,6 +275,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
@@ -289,6 +292,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
 		setting_visibility("shape_feather_group", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
