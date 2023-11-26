@@ -401,97 +401,123 @@ static void shape_properties(obs_properties_t *props)
 	obs_property_t *p;
 
 	obs_properties_t *mask_geometry_group = obs_properties_create();
+	char label[255];
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.X"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_center_x",
-		obs_module_text("AdvancedMasks.Shape.Center.X"), -2000.0,
+		label, -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.Y"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_center_y",
-		obs_module_text("AdvancedMasks.Shape.Center.Y"), -2000.0,
+		label, -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Rotation"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_rotation",
-		obs_module_text("AdvancedMasks.Shape.Rotation"), -360.0, 360.0,
+		label, -360.0, 360.0,
 		1.0);
 	obs_property_float_set_suffix(p, "deg");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.NumSides"));
 	p = obs_properties_add_int_slider(
 		mask_geometry_group, "shape_num_sides",
-		obs_module_text("AdvancedMasks.Shape.NumSides"), 3, 100, 1);
+		label, 3, 100, 1);
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Rectangle.Width"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "rectangle_width",
-		obs_module_text("AdvancedMasks.Shape.Rectangle.Width"), -2000.0,
+		label, -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Rectangle.Height"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "rectangle_height",
-		obs_module_text("AdvancedMasks.Shape.Rectangle.Height"),
+		label,
 		-2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Circle.Radius"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "circle_radius",
-		obs_module_text("AdvancedMasks.Shape.Circle.Radius"), 0.0,
+		label, 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Ellipse.Width"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_ellipse_a",
-		obs_module_text("AdvancedMasks.Shape.Ellipse.Width"), 0.0,
+		label, 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Ellipse.Height"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_ellipse_b",
-		obs_module_text("AdvancedMasks.Shape.Ellipse.Height"), 0.0,
+		label, 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Star.NumPoints"));
 	p = obs_properties_add_int_slider(
 		mask_geometry_group, "shape_star_num_points",
-		obs_module_text("AdvancedMasks.Shape.Star.NumPoints"), 3, 100,
+		label, 3, 100,
 		1);
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Star.OuterRadius"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_star_outer_radius",
-		obs_module_text("AdvancedMasks.Shape.Star.OuterRadius"), 0.0,
+		label, 0.0,
 		2500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_star_inner_radius",
-		obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"), 0.0,
+		label, 0.0,
 		100.0, 0.1);
 	obs_property_float_set_suffix(p, "%");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.CornerRadius"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_corner_radius",
-		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
+		label, 0.0,
 		1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.CornerRadius"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "star_corner_radius",
-		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
+		label, 0.0,
 		1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Heart.Size"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "heart_size",
-		obs_module_text("AdvancedMasks.Shape.Heart.Size"), 0.0, 6000.0,
+		label, 0.0, 6000.0,
 		1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.SourceZoom"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "source_zoom",
-		obs_module_text("AdvancedMasks.Shape.SourceZoom"), 1.0, 5000.0,
+		label, 1.0, 5000.0,
 		1.0);
 	obs_property_float_set_suffix(p, "%");
 
@@ -514,10 +540,11 @@ static void feather_properties(obs_properties_t *props)
 	obs_property_t *p;
 	obs_properties_t *shape_feather_group = obs_properties_create();
 
+	char label[255];
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Feather.Type"));
 	obs_property_t *feather_type = obs_properties_add_list(
 		shape_feather_group, "shape_feather_type",
-		obs_module_text("AdvancedMasks.Shape.Feather.Type"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+		label, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(
 		feather_type, obs_module_text(MASK_SHAPE_FEATHER_NONE_LABEL),
@@ -535,10 +562,10 @@ static void feather_properties(obs_properties_t *props)
 	obs_property_set_modified_callback(feather_type,
 					   setting_feather_type_modified);
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Feather.Amount"));
 	p = obs_properties_add_float_slider(
 		shape_feather_group, "shape_feather_amount",
-		obs_module_text("AdvancedMasks.Shape.Feather.Amount"), 0.0,
-		500.0, 1.0);
+		label, 0.0, 500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
@@ -552,10 +579,11 @@ static void rectangle_corner_radius_properties(obs_properties_t *props)
 	obs_property_t *p;
 	obs_properties_t *corner_radius_group = obs_properties_create();
 
+	char label[255];
+	label_indent(label, obs_module_text(""));
 	obs_property_t *corner_type_list = obs_properties_add_list(
 		corner_radius_group, "rectangle_corner_type",
-		obs_module_text("AdvancedMasks.CornerType"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+		label, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(corner_type_list,
 				  obs_module_text(MASK_CORNER_UNIFORM_LABEL),
@@ -567,38 +595,46 @@ static void rectangle_corner_radius_properties(obs_properties_t *props)
 	obs_property_set_modified_callback(corner_type_list,
 					   setting_corner_type_modified);
 
+	label_indent(label, obs_module_text(""));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius",
-		obs_module_text("AdvancedMasks.Shape.Rectangle.CornerRadius"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopLeft"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_tl",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopLeft"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopRight"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_tr",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopRight"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomLeft"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_bl",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomLeft"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomRight"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_br",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomRight"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
