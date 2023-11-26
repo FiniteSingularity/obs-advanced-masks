@@ -10,6 +10,12 @@ gs_texrender_t *create_or_reset_texrender(gs_texrender_t *render)
 	return render;
 }
 
+void label_indent(char *label, const char *label_text)
+{
+	strcpy(label, "\t");
+	strcat(label, label_text);
+}
+
 void set_blending_parameters()
 {
 	gs_blend_state_push();
