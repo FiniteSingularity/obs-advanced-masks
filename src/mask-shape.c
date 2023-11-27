@@ -387,7 +387,7 @@ void shape_mask_top_properties(obs_properties_t *props)
 	obs_property_set_modified_callback(shape_relative,
 					   setting_shape_relative_modified);
 
-	obs_property_t *frame_check = obs_properties_add_bool(
+	obs_properties_add_bool(
 		props, "shape_frame_check",
 		obs_module_text("AdvancedMasks.Shape.FrameCheck"));
 }
@@ -402,6 +402,7 @@ void shape_mask_bot_properties(obs_properties_t *props, obs_source_t *context,
 static void shape_properties(obs_properties_t *props, obs_source_t *context,
 			     mask_shape_data_t *data)
 {
+	UNUSED_PARAMETER(data);
 	obs_properties_t *source_rect_mask_group = obs_properties_create();
 	obs_property_t *p;
 
@@ -724,6 +725,8 @@ bool set_shape_settings_visibility(void *data, obs_properties_t *props,
 static bool recenter_button_clicked(obs_properties_t *props,
 				    obs_property_t *property, void *data)
 {
+	UNUSED_PARAMETER(props);
+	UNUSED_PARAMETER(property);
 	obs_source_t *source = (obs_source_t *)data;
 	obs_data_t *settings = obs_source_get_settings(source);
 	double width = (double)obs_source_get_width(source);
