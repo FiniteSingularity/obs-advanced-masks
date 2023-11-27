@@ -173,7 +173,6 @@ void mask_shape_destroy(mask_shape_data_t *data)
 	if (data->effect_heart_mask) {
 		gs_effect_destroy(data->effect_heart_mask);
 	}
-
 	obs_leave_graphics();
 
 	bfree(data);
@@ -331,16 +330,15 @@ void mask_shape_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "shape_type", SHAPE_RECTANGLE);
 	obs_data_set_default_bool(settings, "shape_frame_check", false);
-	obs_data_set_default_double(settings, "shape_center_x", 960.0);
-	obs_data_set_default_double(settings, "shape_center_y", 540.0);
+	obs_data_set_default_double(settings, "shape_center_x", -1.e9);
+	obs_data_set_default_double(settings, "shape_center_y", -1.e9);
 	obs_data_set_default_double(settings, "shape_rotation", 0.0);
 	obs_data_set_default_double(settings, "rectangle_width", 800.0);
 	obs_data_set_default_double(settings, "rectangle_height", 600.0);
-	obs_data_set_default_double(settings, "position_x", 960.0);
-	obs_data_set_default_double(settings, "position_y", 540.0);
+	obs_data_set_default_double(settings, "position_x", -1.e9);
+	obs_data_set_default_double(settings, "position_y", -1.e9);
 	obs_data_set_default_double(settings, "position_scale", 100.0);
-	obs_data_set_default_double(settings, "mask_source_filter_multiplier",
-				    1.0);
+	obs_data_set_default_double(settings, "mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
 	obs_data_set_default_bool(settings, "shape_relative", false);
 	obs_data_set_default_int(settings, "shape_num_sides", 6);
@@ -397,11 +395,12 @@ void shape_mask_top_properties(obs_properties_t *props)
 void shape_mask_bot_properties(obs_properties_t *props, obs_source_t *context,
 			       mask_shape_data_t *data)
 {
-	shape_properties(props);
+	shape_properties(props, context, data);
 	scale_position_properties(props, context, data);
 }
 
-static void shape_properties(obs_properties_t *props)
+static void shape_properties(obs_properties_t *props, obs_source_t *context,
+			     mask_shape_data_t *data)
 {
 	obs_properties_t *source_rect_mask_group = obs_properties_create();
 	obs_property_t *p;
@@ -412,22 +411,24 @@ static void shape_properties(obs_properties_t *props)
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.X"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_center_x",
-		label, -2000.0,
-		6000.0, 1.0);
+		label, -2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.Y"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_center_y",
-		label, -2000.0,
-		6000.0, 1.0);
+		label, -2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
+
+
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.RecenterButton"));
+	p = obs_properties_add_button2(mask_geometry_group, "recenter_mask_button", label,
+				       recenter_button_clicked, context);
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Rotation"));
 	p = obs_properties_add_float_slider(
 		mask_geometry_group, "shape_rotation",
-		label, -360.0, 360.0,
-		1.0);
+		label, -360.0, 360.0, 1.0);
 	obs_property_float_set_suffix(p, "deg");
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.NumSides"));
@@ -586,7 +587,7 @@ static void rectangle_corner_radius_properties(obs_properties_t *props)
 	obs_properties_t *corner_radius_group = obs_properties_create();
 
 	char label[255];
-	label_indent(label, obs_module_text(""));
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Rectangle.CornerRadius"));
 	obs_property_t *corner_type_list = obs_properties_add_list(
 		corner_radius_group, "rectangle_corner_type",
 		label, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
@@ -717,6 +718,20 @@ bool set_shape_settings_visibility(void *data, obs_properties_t *props,
 	setting_shape_relative_modified(props, p, settings);
 	setting_corner_type_modified(props, p, settings);
 	setting_scale_type_modified(data, props, p, settings);
+	return true;
+}
+
+static bool recenter_button_clicked(obs_properties_t *props,
+				    obs_property_t *property, void *data)
+{
+	obs_source_t *source = (obs_source_t *)data;
+	obs_data_t *settings = obs_source_get_settings(source);
+	double width = (double)obs_source_get_width(source);
+	double height = (double)obs_source_get_height(source);
+	obs_data_set_double(settings, "shape_center_x", width/2.0);
+	obs_data_set_double(settings, "shape_center_y", height / 2.0);
+	obs_source_update(source, settings);
+	obs_data_release(settings);
 	return true;
 }
 
@@ -1040,7 +1055,7 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 
 	if (data->param_rectangle_alpha_zero) {
 		gs_effect_set_float(data->param_rectangle_alpha_zero,
-				    data->frame_check ? 0.2f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 	}
 
 	if (data->param_rectangle_height) {
@@ -1247,7 +1262,7 @@ static void render_polygon_mask(mask_shape_data_t *data,
 
 	if (data->param_polygon_alpha_zero) {
 		gs_effect_set_float(data->param_polygon_alpha_zero,
-				    data->frame_check ? 0.2f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 	}
 
 	if (data->param_polygon_theta) {
@@ -1426,7 +1441,7 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 
 	if (data->param_star_alpha_zero) {
 		gs_effect_set_float(data->param_star_alpha_zero,
-				    data->frame_check ? 0.2f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 	}
 
 	if (data->param_star_corner_radius) {
@@ -1593,7 +1608,7 @@ static void render_circle_mask(mask_shape_data_t *data,
 
 	if (data->param_circle_alpha_zero) {
 		gs_effect_set_float(data->param_circle_alpha_zero,
-				    data->frame_check ? 0.2f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 	}
 
 	if (data->param_circle_mask_position) {
@@ -1750,7 +1765,7 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 
 	if (data->param_heart_alpha_zero) {
 		gs_effect_set_float(data->param_heart_alpha_zero,
-				    data->frame_check ? 0.2f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 	}
 
 	if (data->param_heart_mask_position) {
@@ -1953,7 +1968,7 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 
 	if (data->param_ellipse_alpha_zero) {
 		gs_effect_set_float(data->param_ellipse_alpha_zero,
-				    data->frame_check ? 0.2f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 	}
 
 	if (data->param_ellipse_ellipse) {

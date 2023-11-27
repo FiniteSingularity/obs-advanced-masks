@@ -259,7 +259,8 @@ static void render_star_mask(mask_shape_data_t *data,
 			     color_adjustments_data_t *color_adj);
 static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 			      color_adjustments_data_t *color_adj);
-
+static bool recenter_button_clicked(obs_properties_t *props,
+				    obs_property_t *property, void *data);
 static bool setting_feather_type_modified(obs_properties_t *props,
 					  obs_property_t *p,
 					  obs_data_t *settings);
@@ -286,7 +287,8 @@ static void load_polygon_mask_effect(mask_shape_data_t *data);
 static void load_star_mask_effect(mask_shape_data_t *data);
 static void load_heart_mask_effect(mask_shape_data_t *data);
 
-static void shape_properties(obs_properties_t *props);
+static void shape_properties(obs_properties_t *props, obs_source_t *context,
+			     mask_shape_data_t *data);
 static void rectangle_corner_radius_properties(obs_properties_t *props);
 static void feather_properties(obs_properties_t *props);
 static void scale_position_properties(obs_properties_t *props,
