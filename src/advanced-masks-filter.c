@@ -19,13 +19,12 @@ struct obs_source_info advanced_masks_filter = {
 static const char *advanced_masks_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
-	return obs_module_text("AdvancedMasks");
+	//return obs_module_text("AdvancedMasks");
+	return "Advanced Masks";
 }
 
 static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 {
-	// This function should initialize all pointers in the data
-	// structure.
 	advanced_masks_data_t *filter = bzalloc(sizeof(advanced_masks_data_t));
 
 	filter->context = source;
@@ -53,6 +52,10 @@ static void advanced_masks_destroy(void *data)
 	// This function should clear up all memory the plugin uses.
 	advanced_masks_data_t *filter = data;
 
+	mask_source_destroy(filter->source_data);
+	mask_shape_destroy(filter->shape_data);
+	mask_gradient_destroy(filter->gradient_data);
+
 	obs_enter_graphics();
 	if (filter->base->input_texrender) {
 		gs_texrender_destroy(filter->base->input_texrender);
@@ -61,10 +64,6 @@ static void advanced_masks_destroy(void *data)
 		gs_texrender_destroy(filter->base->output_texrender);
 	}
 	obs_leave_graphics();
-
-	mask_source_destroy(filter->source_data);
-	mask_shape_destroy(filter->shape_data);
-	mask_gradient_destroy(filter->gradient_data);
 
 	bfree(filter->base);
 	bfree(filter->color_adj_data);
@@ -88,7 +87,19 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	// Called after UI is updated, should assign new UI values to
 	// data structure pointers/values/etc..
 	advanced_masks_data_t *filter = data;
-
+	if (filter->base->width > 0 && (float)obs_data_get_double(settings, "shape_center_x") < -1.e8) {
+		double width = (double)obs_source_get_width(filter->context);
+		double height = (double)obs_source_get_height(filter->context);
+		obs_data_set_double(settings, "shape_center_x", width / 2.0);
+		obs_data_set_double(settings, "position_x", width / 2.0);
+		obs_data_set_double(settings, "shape_center_y", height / 2.0);
+		obs_data_set_double(settings, "position_y", height / 2.0);
+	}
+	if (filter->base->width > 0 &&
+	    (float)obs_data_get_double(settings, "mask_gradient_position") < -1.e8) {
+		double width = (double)obs_source_get_width(filter->context);
+		obs_data_set_double(settings, "mask_gradient_position", width / 2.0);
+	}
 	filter->base->mask_effect =
 		(uint32_t)obs_data_get_int(settings, "mask_effect");
 	filter->base->mask_type =
@@ -240,6 +251,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", true, props);
 		setting_visibility("shape_relative", true, props);
+		setting_visibility("shape_frame_check",
+				   effect_type == MASK_EFFECT_ALPHA, props);
 		setting_visibility("rectangle_source_group", true, props);
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
@@ -257,6 +270,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
@@ -273,6 +287,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
@@ -289,6 +304,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("shape_type", false, props);
 		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
 		setting_visibility("shape_feather_group", false, props);
 		setting_visibility("rectangle_source_group", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,

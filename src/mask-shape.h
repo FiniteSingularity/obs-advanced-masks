@@ -55,6 +55,7 @@ struct mask_shape_data {
 	struct vec2 global_position;
 	float global_scale;
 	bool shape_relative;
+	bool frame_check;
 	uint32_t scale_type;
 	uint32_t last_scale_type;
 	uint32_t corner_radius_type;
@@ -103,6 +104,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_global_position;
 	gs_eparam_t *param_global_scale;
 	gs_eparam_t *param_corner_radius;
+	gs_eparam_t *param_rectangle_alpha_zero;
 	gs_eparam_t *param_max_corner_radius;
 	gs_eparam_t *param_rectangle_feather_shift;
 	gs_eparam_t *param_rectangle_feather_amount;
@@ -125,6 +127,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_circle_global_scale;
 	gs_eparam_t *param_circle_radius;
 	gs_eparam_t *param_circle_zoom;
+	gs_eparam_t *param_circle_alpha_zero;
 	gs_eparam_t *param_circle_feather_amount;
 	gs_eparam_t *param_circle_min_brightness;
 	gs_eparam_t *param_circle_max_brightness;
@@ -146,6 +149,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_polygon_num_sides;
 	gs_eparam_t *param_polygon_sin_rot;
 	gs_eparam_t *param_polygon_cos_rot;
+	gs_eparam_t *param_polygon_alpha_zero;
 	gs_eparam_t *param_polygon_theta;
 	gs_eparam_t *param_polygon_theta_2;
 	gs_eparam_t *param_polygon_theta_s;
@@ -168,6 +172,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_ellipse_cos_rot;
 	gs_eparam_t *param_ellipse_ellipse;
 	gs_eparam_t *param_ellipse_zoom;
+	gs_eparam_t *param_ellipse_alpha_zero;
 	gs_eparam_t *param_ellipse_feather_amount;
 	gs_eparam_t *param_ellipse_min_brightness;
 	gs_eparam_t *param_ellipse_max_brightness;
@@ -192,6 +197,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_star_acs;
 	gs_eparam_t *param_star_ecs;
 	gs_eparam_t *param_star_zoom;
+	gs_eparam_t *param_star_alpha_zero;
 	gs_eparam_t *param_star_feather_amount;
 	gs_eparam_t *param_star_min_brightness;
 	gs_eparam_t *param_star_max_brightness;
@@ -211,6 +217,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_heart_cos_rot;
 	gs_eparam_t *param_heart_size;
 	gs_eparam_t *param_heart_zoom;
+	gs_eparam_t *param_heart_alpha_zero;
 	gs_eparam_t *param_heart_feather_amount;
 	gs_eparam_t *param_heart_corner_radius;
 	gs_eparam_t *param_heart_min_brightness;
@@ -252,7 +259,8 @@ static void render_star_mask(mask_shape_data_t *data,
 			     color_adjustments_data_t *color_adj);
 static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 			      color_adjustments_data_t *color_adj);
-
+static bool recenter_button_clicked(obs_properties_t *props,
+				    obs_property_t *property, void *data);
 static bool setting_feather_type_modified(obs_properties_t *props,
 					  obs_property_t *p,
 					  obs_data_t *settings);
@@ -279,7 +287,8 @@ static void load_polygon_mask_effect(mask_shape_data_t *data);
 static void load_star_mask_effect(mask_shape_data_t *data);
 static void load_heart_mask_effect(mask_shape_data_t *data);
 
-static void shape_properties(obs_properties_t *props);
+static void shape_properties(obs_properties_t *props, obs_source_t *context,
+			     mask_shape_data_t *data);
 static void rectangle_corner_radius_properties(obs_properties_t *props);
 static void feather_properties(obs_properties_t *props);
 static void scale_position_properties(obs_properties_t *props,

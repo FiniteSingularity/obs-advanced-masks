@@ -17,6 +17,7 @@ uniform float theta;
 uniform float theta_2;
 uniform float2 theta_s;
 uniform float feather_amount;
+uniform float alpha_zero;
 
 uniform float min_brightness;
 uniform float max_brightness;
@@ -68,7 +69,7 @@ float4 alphaImage(VertData v_in) : TARGET
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
 	
 	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
-	return float4(color.rgb, color.a * d);
+	return float4(color.rgb, color.a * max(d, alpha_zero));
 }
 
 float4 adjustmentsImage(VertData v_in) : TARGET

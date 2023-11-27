@@ -39,6 +39,7 @@ void mask_gradient_destroy(mask_gradient_data_t *data)
 void mask_gradient_update(mask_gradient_data_t *data,
 		       obs_data_t *settings)
 {
+
 	data->gradient_position =
 		(float)obs_data_get_double(settings, "mask_gradient_position");
 	data->gradient_width =
@@ -53,6 +54,10 @@ void mask_gradient_update(mask_gradient_data_t *data,
 
 void mask_gradient_defaults(obs_data_t *settings) {
 	obs_data_set_default_bool(settings, "gradient_invert", false);
+	obs_data_set_default_double(settings, "mask_gradient_position", -1.e9);
+	obs_data_set_default_double(settings, "mask_gradient_width", 500.0);
+	obs_data_set_default_double(settings, "mask_gradient_rotation", 0.0);
+	obs_data_set_default_bool(settings, "mask_gradient_debug", false);
 }
 
 void gradient_mask_properties(obs_properties_t *props)

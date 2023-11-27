@@ -19,6 +19,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_rectangle_height = NULL;
 	data->param_rectangle_sin_theta = NULL;
 	data->param_rectangle_cos_theta = NULL;
+	data->param_rectangle_alpha_zero = NULL;
 	data->param_global_position = NULL;
 	data->param_global_scale = NULL;
 	data->param_corner_radius = NULL;
@@ -44,6 +45,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_circle_global_scale = NULL;
 	data->param_circle_radius = NULL;
 	data->param_circle_zoom = NULL;
+	data->param_circle_alpha_zero = NULL;
 	data->param_circle_feather_amount = NULL;
 	data->param_circle_min_brightness = NULL;
 	data->param_circle_max_brightness = NULL;
@@ -68,6 +70,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_polygon_global_scale = NULL;
 	data->param_polygon_corner_radius = NULL;
 	data->param_polygon_zoom = NULL;
+	data->param_polygon_alpha_zero = NULL;
 	data->param_polygon_feather_amount = NULL;
 	data->param_polygon_min_brightness = NULL;
 	data->param_polygon_max_brightness = NULL;
@@ -87,6 +90,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_ellipse_cos_rot = NULL;
 	data->param_ellipse_ellipse = NULL;
 	data->param_ellipse_zoom = NULL;
+	data->param_ellipse_alpha_zero = NULL;
 	data->param_ellipse_feather_amount = NULL;
 	data->param_ellipse_min_brightness = NULL;
 	data->param_ellipse_max_brightness = NULL;
@@ -104,6 +108,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_star_global_scale = NULL;
 	data->param_star_sin_rot = NULL;
 	data->param_star_cos_rot = NULL;
+	data->param_star_alpha_zero = NULL;
 	data->param_star_radius = NULL;
 	data->param_star_corner_radius = NULL;
 	data->param_star_an = NULL;
@@ -128,6 +133,7 @@ mask_shape_data_t *mask_shape_create()
 	data->param_heart_global_scale = NULL;
 	data->param_heart_sin_rot = NULL;
 	data->param_heart_cos_rot = NULL;
+	data->param_heart_alpha_zero = NULL;
 	data->param_heart_size = NULL;
 	data->param_heart_zoom = NULL;
 	data->param_heart_corner_radius = NULL;
@@ -167,7 +173,6 @@ void mask_shape_destroy(mask_shape_data_t *data)
 	if (data->effect_heart_mask) {
 		gs_effect_destroy(data->effect_heart_mask);
 	}
-
 	obs_leave_graphics();
 
 	bfree(data);
@@ -180,7 +185,7 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		(uint32_t)obs_data_get_int(settings, "shape_type");
 
 	data->shape_relative = obs_data_get_bool(settings, "shape_relative");
-
+	data->frame_check = obs_data_get_bool(settings, "shape_frame_check");
 	data->mask_center.x =
 		(float)obs_data_get_double(settings, "shape_center_x");
 	data->mask_center.y =
@@ -324,18 +329,18 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 void mask_shape_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "shape_type", SHAPE_RECTANGLE);
-	obs_data_set_default_double(settings, "shape_center_x", 960.0);
-	obs_data_set_default_double(settings, "shape_center_y", 540.0);
+	obs_data_set_default_bool(settings, "shape_frame_check", false);
+	obs_data_set_default_double(settings, "shape_center_x", -1.e9);
+	obs_data_set_default_double(settings, "shape_center_y", -1.e9);
 	obs_data_set_default_double(settings, "shape_rotation", 0.0);
 	obs_data_set_default_double(settings, "rectangle_width", 800.0);
 	obs_data_set_default_double(settings, "rectangle_height", 600.0);
-	obs_data_set_default_double(settings, "position_x", 960.0);
-	obs_data_set_default_double(settings, "position_y", 540.0);
+	obs_data_set_default_double(settings, "position_x", -1.e9);
+	obs_data_set_default_double(settings, "position_y", -1.e9);
 	obs_data_set_default_double(settings, "position_scale", 100.0);
-	obs_data_set_default_double(settings, "mask_source_filter_multiplier",
-				    1.0);
+	obs_data_set_default_double(settings, "mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
-	obs_data_set_default_bool(settings, "shape_relative", true);
+	obs_data_set_default_bool(settings, "shape_relative", false);
 	obs_data_set_default_int(settings, "shape_num_sides", 6);
 	obs_data_set_default_double(settings, "shape_corner_radius", 0.0);
 	obs_data_set_default_double(settings, "shape_ellipse_a", 800.0);
@@ -381,116 +386,156 @@ void shape_mask_top_properties(obs_properties_t *props)
 
 	obs_property_set_modified_callback(shape_relative,
 					   setting_shape_relative_modified);
+
+	obs_properties_add_bool(
+		props, "shape_frame_check",
+		obs_module_text("AdvancedMasks.Shape.FrameCheck"));
 }
 
 void shape_mask_bot_properties(obs_properties_t *props, obs_source_t *context,
 			       mask_shape_data_t *data)
 {
-	shape_properties(props);
-
-	feather_properties(props);
+	shape_properties(props, context, data);
 	scale_position_properties(props, context, data);
 }
 
-static void shape_properties(obs_properties_t *props)
+static void shape_properties(obs_properties_t *props, obs_source_t *context,
+			     mask_shape_data_t *data)
 {
+	UNUSED_PARAMETER(data);
 	obs_properties_t *source_rect_mask_group = obs_properties_create();
 	obs_property_t *p;
 
+	obs_properties_t *mask_geometry_group = obs_properties_create();
+	char label[255];
+
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.X"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_center_x",
-		obs_module_text("AdvancedMasks.Shape.Center.X"), -2000.0,
-		6000.0, 1.0);
+		mask_geometry_group, "shape_center_x",
+		label, -2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.Y"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_center_y",
-		obs_module_text("AdvancedMasks.Shape.Center.Y"), -2000.0,
-		6000.0, 1.0);
+		mask_geometry_group, "shape_center_y",
+		label, -2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.RecenterButton"));
+	p = obs_properties_add_button2(mask_geometry_group, "recenter_mask_button", label,
+				       recenter_button_clicked, context);
+
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Rotation"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_rotation",
-		obs_module_text("AdvancedMasks.Shape.Rotation"), -360.0, 360.0,
-		1.0);
+		mask_geometry_group, "shape_rotation",
+		label, -360.0, 360.0, 1.0);
 	obs_property_float_set_suffix(p, "deg");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.NumSides"));
 	p = obs_properties_add_int_slider(
-		source_rect_mask_group, "shape_num_sides",
-		obs_module_text("AdvancedMasks.Shape.NumSides"), 3, 100, 1);
+		mask_geometry_group, "shape_num_sides",
+		label, 3, 100, 1);
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Rectangle.Width"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "rectangle_width",
-		obs_module_text("AdvancedMasks.Shape.Rectangle.Width"), -2000.0,
+		mask_geometry_group, "rectangle_width",
+		label, -2000.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Rectangle.Height"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "rectangle_height",
-		obs_module_text("AdvancedMasks.Shape.Rectangle.Height"),
+		mask_geometry_group, "rectangle_height",
+		label,
 		-2000.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Circle.Radius"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "circle_radius",
-		obs_module_text("AdvancedMasks.Shape.Circle.Radius"), 0.0,
+		mask_geometry_group, "circle_radius",
+		label, 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Ellipse.Width"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_ellipse_a",
-		obs_module_text("AdvancedMasks.Shape.Ellipse.Width"), 0.0,
+		mask_geometry_group, "shape_ellipse_a",
+		label, 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Ellipse.Height"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_ellipse_b",
-		obs_module_text("AdvancedMasks.Shape.Ellipse.Height"), 0.0,
+		mask_geometry_group, "shape_ellipse_b",
+		label, 0.0,
 		6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Star.NumPoints"));
 	p = obs_properties_add_int_slider(
-		source_rect_mask_group, "shape_star_num_points",
-		obs_module_text("AdvancedMasks.Shape.Star.NumPoints"), 3, 100,
+		mask_geometry_group, "shape_star_num_points",
+		label, 3, 100,
 		1);
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Star.OuterRadius"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_star_outer_radius",
-		obs_module_text("AdvancedMasks.Shape.Star.OuterRadius"), 0.0,
+		mask_geometry_group, "shape_star_outer_radius",
+		label, 0.0,
 		2500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_star_inner_radius",
-		obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"), 0.0,
+		mask_geometry_group, "shape_star_inner_radius",
+		label, 0.0,
 		100.0, 0.1);
 	obs_property_float_set_suffix(p, "%");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.CornerRadius"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "shape_corner_radius",
-		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
+		mask_geometry_group, "shape_corner_radius",
+		label, 0.0,
 		1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.CornerRadius"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "star_corner_radius",
-		obs_module_text("AdvancedMasks.Shape.CornerRadius"), 0.0,
+		mask_geometry_group, "star_corner_radius",
+		label, 0.0,
 		1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Heart.Size"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "heart_size",
-		obs_module_text("AdvancedMasks.Shape.Heart.Size"), 0.0, 6000.0,
+		mask_geometry_group, "heart_size",
+		label, 0.0, 6000.0,
 		1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.SourceZoom"));
 	p = obs_properties_add_float_slider(
-		source_rect_mask_group, "source_zoom",
-		obs_module_text("AdvancedMasks.Shape.SourceZoom"), 1.0, 5000.0,
+		mask_geometry_group, "source_zoom",
+		label, 1.0, 5000.0,
 		1.0);
 	obs_property_float_set_suffix(p, "%");
 
+	obs_properties_add_group(
+		source_rect_mask_group, "mask_geometry_group",
+		obs_module_text("AdvancedMasks.Shape.MaskGeometry"),
+		OBS_GROUP_NORMAL, mask_geometry_group);
+
 	rectangle_corner_radius_properties(source_rect_mask_group);
+	feather_properties(source_rect_mask_group);
 
 	obs_properties_add_group(
 		props, "rectangle_source_group",
@@ -503,10 +548,11 @@ static void feather_properties(obs_properties_t *props)
 	obs_property_t *p;
 	obs_properties_t *shape_feather_group = obs_properties_create();
 
+	char label[255];
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Feather.Type"));
 	obs_property_t *feather_type = obs_properties_add_list(
 		shape_feather_group, "shape_feather_type",
-		obs_module_text("AdvancedMasks.Shape.Feather.Type"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+		label, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(
 		feather_type, obs_module_text(MASK_SHAPE_FEATHER_NONE_LABEL),
@@ -524,10 +570,10 @@ static void feather_properties(obs_properties_t *props)
 	obs_property_set_modified_callback(feather_type,
 					   setting_feather_type_modified);
 
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Feather.Amount"));
 	p = obs_properties_add_float_slider(
 		shape_feather_group, "shape_feather_amount",
-		obs_module_text("AdvancedMasks.Shape.Feather.Amount"), 0.0,
-		500.0, 1.0);
+		label, 0.0, 500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
@@ -541,10 +587,11 @@ static void rectangle_corner_radius_properties(obs_properties_t *props)
 	obs_property_t *p;
 	obs_properties_t *corner_radius_group = obs_properties_create();
 
+	char label[255];
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Rectangle.CornerRadius"));
 	obs_property_t *corner_type_list = obs_properties_add_list(
 		corner_radius_group, "rectangle_corner_type",
-		obs_module_text("AdvancedMasks.CornerType"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+		label, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(corner_type_list,
 				  obs_module_text(MASK_CORNER_UNIFORM_LABEL),
@@ -556,38 +603,46 @@ static void rectangle_corner_radius_properties(obs_properties_t *props)
 	obs_property_set_modified_callback(corner_type_list,
 					   setting_corner_type_modified);
 
+	label_indent(label, obs_module_text(""));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius",
-		obs_module_text("AdvancedMasks.Shape.Rectangle.CornerRadius"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopLeft"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_tl",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopLeft"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopRight"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_tr",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopRight"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomLeft"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_bl",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomLeft"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
+	label_indent(
+		label,
+		obs_module_text(
+			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomRight"));
 	p = obs_properties_add_float_slider(
 		corner_radius_group, "rectangle_corner_radius_br",
-		obs_module_text(
-			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomRight"),
-		0.0, 1000.0, 1.0);
+		label, 0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
@@ -664,6 +719,22 @@ bool set_shape_settings_visibility(void *data, obs_properties_t *props,
 	setting_shape_relative_modified(props, p, settings);
 	setting_corner_type_modified(props, p, settings);
 	setting_scale_type_modified(data, props, p, settings);
+	return true;
+}
+
+static bool recenter_button_clicked(obs_properties_t *props,
+				    obs_property_t *property, void *data)
+{
+	UNUSED_PARAMETER(props);
+	UNUSED_PARAMETER(property);
+	obs_source_t *source = (obs_source_t *)data;
+	obs_data_t *settings = obs_source_get_settings(source);
+	double width = (double)obs_source_get_width(source);
+	double height = (double)obs_source_get_height(source);
+	obs_data_set_double(settings, "shape_center_x", width/2.0);
+	obs_data_set_double(settings, "shape_center_y", height / 2.0);
+	obs_source_update(source, settings);
+	obs_data_release(settings);
 	return true;
 }
 
@@ -985,6 +1056,11 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 				    data->rectangle_width);
 	}
 
+	if (data->param_rectangle_alpha_zero) {
+		gs_effect_set_float(data->param_rectangle_alpha_zero,
+				    data->frame_check ? 0.3f : 0.0f);
+	}
+
 	if (data->param_rectangle_height) {
 		gs_effect_set_float(data->param_rectangle_height,
 				    data->rectangle_height);
@@ -1187,6 +1263,11 @@ static void render_polygon_mask(mask_shape_data_t *data,
 				    (float)cos(data->rotation));
 	}
 
+	if (data->param_polygon_alpha_zero) {
+		gs_effect_set_float(data->param_polygon_alpha_zero,
+				    data->frame_check ? 0.3f : 0.0f);
+	}
+
 	if (data->param_polygon_theta) {
 		gs_effect_set_float(data->param_polygon_theta, data->theta);
 	}
@@ -1361,6 +1442,11 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 				    (float)cos(data->rotation));
 	}
 
+	if (data->param_star_alpha_zero) {
+		gs_effect_set_float(data->param_star_alpha_zero,
+				    data->frame_check ? 0.3f : 0.0f);
+	}
+
 	if (data->param_star_corner_radius) {
 		gs_effect_set_float(data->param_star_corner_radius,
 				    data->star_corner_radius);
@@ -1522,6 +1608,12 @@ static void render_circle_mask(mask_shape_data_t *data,
 		gs_effect_set_float(data->param_circle_zoom,
 				    data->zoom / 100.0f);
 	}
+
+	if (data->param_circle_alpha_zero) {
+		gs_effect_set_float(data->param_circle_alpha_zero,
+				    data->frame_check ? 0.3f : 0.0f);
+	}
+
 	if (data->param_circle_mask_position) {
 		gs_effect_set_vec2(data->param_circle_mask_position,
 				   &data->mask_center);
@@ -1673,6 +1765,12 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		gs_effect_set_float(data->param_heart_zoom,
 				    data->zoom / 100.0f);
 	}
+
+	if (data->param_heart_alpha_zero) {
+		gs_effect_set_float(data->param_heart_alpha_zero,
+				    data->frame_check ? 0.3f : 0.0f);
+	}
+
 	if (data->param_heart_mask_position) {
 		gs_effect_set_vec2(data->param_heart_mask_position,
 				   &data->mask_center);
@@ -1871,6 +1969,11 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 				    (float)cos(data->rotation));
 	}
 
+	if (data->param_ellipse_alpha_zero) {
+		gs_effect_set_float(data->param_ellipse_alpha_zero,
+				    data->frame_check ? 0.3f : 0.0f);
+	}
+
 	if (data->param_ellipse_ellipse) {
 		gs_effect_set_vec2(data->param_ellipse_ellipse, &data->ellipse);
 	}
@@ -2013,6 +2116,8 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data)
 				data->param_rectangle_sin_theta = param;
 			} else if (strcmp(info.name, "cos_theta") == 0) {
 				data->param_rectangle_cos_theta = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_rectangle_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_rectangle_feather_amount = param;
 			} else if (strcmp(info.name, "feather_shift") == 0) {
@@ -2023,8 +2128,7 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data)
 				data->param_global_scale = param;
 			} else if (strcmp(info.name, "corner_radius") == 0) {
 				data->param_corner_radius = param;
-			} else if (strcmp(info.name, "max_corner_radius") ==
-				   0) {
+			} else if (strcmp(info.name, "max_corner_radius") == 0) {
 				data->param_max_corner_radius = param;
 			} else if (strcmp(info.name, "aspect_ratio") == 0) {
 				data->param_rect_aspect_ratio = param;
@@ -2082,6 +2186,8 @@ static void load_circle_mask_effect(mask_shape_data_t *data)
 				data->param_circle_radius = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_circle_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_circle_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_circle_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
@@ -2138,6 +2244,8 @@ static void load_ellipse_mask_effect(mask_shape_data_t *data)
 				data->param_ellipse_ellipse = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_ellipse_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_ellipse_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_ellipse_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
@@ -2204,6 +2312,8 @@ static void load_star_mask_effect(mask_shape_data_t *data)
 				data->param_star_ecs = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_star_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_star_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_star_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
@@ -2262,6 +2372,8 @@ static void load_polygon_mask_effect(mask_shape_data_t *data)
 				data->param_polygon_sin_rot = param;
 			} else if (strcmp(info.name, "cos_rot") == 0) {
 				data->param_polygon_cos_rot = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_polygon_alpha_zero = param;
 			} else if (strcmp(info.name, "theta") == 0) {
 				data->param_polygon_theta = param;
 			} else if (strcmp(info.name, "theta_2") == 0) {
@@ -2328,6 +2440,8 @@ static void load_heart_mask_effect(mask_shape_data_t *data)
 				data->param_heart_corner_radius = param;
 			} else if (strcmp(info.name, "zoom") == 0) {
 				data->param_heart_zoom = param;
+			} else if (strcmp(info.name, "alpha_zero") == 0) {
+				data->param_heart_alpha_zero = param;
 			} else if (strcmp(info.name, "feather_amount") == 0) {
 				data->param_heart_feather_amount = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
