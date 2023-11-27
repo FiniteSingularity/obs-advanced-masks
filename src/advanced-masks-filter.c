@@ -95,6 +95,11 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 		obs_data_set_double(settings, "shape_center_y", height / 2.0);
 		obs_data_set_double(settings, "position_y", height / 2.0);
 	}
+	if (filter->base->width > 0 &&
+	    (float)obs_data_get_double(settings, "mask_gradient_position") < -1.e8) {
+		double width = (double)obs_source_get_width(filter->context);
+		obs_data_set_double(settings, "mask_gradient_position", width / 2.0);
+	}
 	filter->base->mask_effect =
 		(uint32_t)obs_data_get_int(settings, "mask_effect");
 	filter->base->mask_type =
