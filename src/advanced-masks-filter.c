@@ -20,7 +20,7 @@ static const char *advanced_masks_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 	//return obs_module_text("AdvancedMasks");
-	return "Advanced Masks";
+	return "Advanced Mask";
 }
 
 static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
@@ -242,6 +242,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 	UNUSED_PARAMETER(p);
 	int mask_type = (int)obs_data_get_int(settings, "mask_type");
 	int effect_type = (int)obs_data_get_int(settings, "mask_effect");
+	advanced_masks_data_t *filter = data;
+
 	switch (mask_type) {
 	case MASK_TYPE_SHAPE:
 		setting_visibility("mask_source", false, props);
@@ -260,7 +262,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("scale_position_group",
 				   effect_type == MASK_EFFECT_ALPHA, props);
 		setting_visibility("mask_gradient_group", false, props);
-		set_shape_settings_visibility(data, props, p, settings);
+		set_shape_settings_visibility(filter->shape_data, props, p, settings);
 		return true;
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);

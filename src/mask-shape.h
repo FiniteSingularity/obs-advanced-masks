@@ -294,3 +294,5 @@ static void feather_properties(obs_properties_t *props);
 static void scale_position_properties(obs_properties_t *props,
 				      obs_source_t *context,
 				      mask_shape_data_t *data);
+static float mask_width(obs_data_t *settings);
+static float mask_height(obs_data_t *settings);
