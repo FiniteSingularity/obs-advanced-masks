@@ -181,6 +181,7 @@ void mask_shape_destroy(mask_shape_data_t *data)
 static float mask_width(obs_data_t * settings)
 {
 	uint32_t scale_type = (uint32_t)obs_data_get_int(settings, "scale_type");
+	float num_sides = (float)obs_data_get_int(settings, "shape_num_sides");
 	switch ((uint32_t)obs_data_get_int(settings, "shape_type")) {
 	case SHAPE_RECTANGLE:
 		return (float)obs_data_get_double(settings, "rectangle_width");
@@ -189,7 +190,6 @@ static float mask_width(obs_data_t * settings)
 	case SHAPE_ELLIPSE:
 		return (float)obs_data_get_double(settings, "shape_ellipse_a") * 2.0f;
 	case SHAPE_POLYGON:
-		float num_sides = (float)obs_data_get_int(settings, "shape_num_sides");
 		return (float)obs_data_get_double(settings, "circle_radius") *
 		       (float)cos(M_PI / num_sides) * 2.0f;
 	case SHAPE_STAR:
