@@ -1265,9 +1265,12 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 	}
 
 	set_blending_parameters();
-	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
-					? "Alpha"
-					: "Adjustments";
+	const char *technique =
+		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
+			? "Alpha"
+		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
+			? "AlphaFrameCheck"
+			: "Adjustments";
 
 	if (gs_texrender_begin(base->output_texrender, base->width,
 			       base->height)) {
@@ -1441,9 +1444,12 @@ static void render_polygon_mask(mask_shape_data_t *data,
 	}
 
 	set_blending_parameters();
-	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
-					? "Alpha"
-					: "Adjustments";
+	const char *technique =
+		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
+			? "Alpha"
+		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
+			? "AlphaFrameCheck"
+			: "Adjustments";
 
 	if (gs_texrender_begin(base->output_texrender, base->width,
 			       base->height)) {
@@ -1614,9 +1620,12 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 	}
 
 	set_blending_parameters();
-	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
-					? "Alpha"
-					: "Adjustments";
+	const char *technique =
+		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
+			? "Alpha"
+		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
+			? "AlphaFrameCheck"
+			: "Adjustments";
 
 	if (gs_texrender_begin(base->output_texrender, base->width,
 			       base->height)) {
@@ -1767,9 +1776,12 @@ static void render_circle_mask(mask_shape_data_t *data,
 
 	set_blending_parameters();
 
-	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
-					? "Alpha"
-					: "Adjustments";
+	const char *technique =
+		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
+			? "Alpha"
+		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
+			? "AlphaFrameCheck"
+			: "Adjustments";
 
 	if (gs_texrender_begin(base->output_texrender, base->width,
 			       base->height)) {
@@ -1934,9 +1946,12 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 
 	set_blending_parameters();
 
-	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
-					? "Alpha"
-					: "Adjustments";
+	const char *technique =
+		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
+			? "Alpha"
+		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
+			? "AlphaFrameCheck"
+			: "Adjustments";
 
 	if (gs_texrender_begin(base->output_texrender, base->width,
 			       base->height)) {
@@ -2096,9 +2111,12 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 
 	set_blending_parameters();
 
-	const char *technique = base->mask_effect == MASK_EFFECT_ALPHA
-					? "Alpha"
-					: "Adjustments";
+	const char *technique =
+		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
+			? "Alpha"
+		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
+			? "AlphaFrameCheck"
+			: "Adjustments";
 
 	if (gs_texrender_begin(base->output_texrender, base->width,
 			       base->height)) {
