@@ -433,13 +433,6 @@ void shape_mask_top_properties(obs_properties_t *props)
 	obs_property_set_modified_callback(shape_type_list,
 					   setting_shape_type_modified);
 
-	obs_property_t *shape_relative = obs_properties_add_bool(
-		props, "shape_relative",
-		obs_module_text("AdvancedMasks.Shape.Relative"));
-
-	obs_property_set_modified_callback(shape_relative,
-					   setting_shape_relative_modified);
-
 	obs_properties_add_bool(
 		props, "shape_frame_check",
 		obs_module_text("AdvancedMasks.Shape.FrameCheck"));
@@ -449,6 +442,12 @@ void shape_mask_bot_properties(obs_properties_t *props, obs_source_t *context,
 			       mask_shape_data_t *data)
 {
 	shape_properties(props, context, data);
+	obs_property_t *shape_relative = obs_properties_add_bool(
+		props, "shape_relative",
+		obs_module_text("AdvancedMasks.Shape.Relative"));
+
+	obs_property_set_modified_callback(shape_relative,
+					   setting_shape_relative_modified);
 	scale_position_properties(props, context, data);
 }
 
