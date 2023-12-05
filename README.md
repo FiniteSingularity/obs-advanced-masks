@@ -47,33 +47,55 @@ A color adjustment mask modifies specific colors or color ranges within an OBS s
 Intro to the different mask algorithms.
 
 ### Shape Masks
-Shape masks allow you to specify a parameterized shape which defines the masked area.
+Shape Masks in Advanced Masks offer users a selection of [parameterized shapes](#available-shapes) that can be applied to adjust the alpha channel or color correction of sources within scenes. Users can select, customize, and apply these shapes to create targeted transparency and adjustment effects.
 
-Something about canvas placement and Scene View Transformation option.
+Shape masks also have a selectable [Scene View Transformation](#scene-view-tranformation) option which allows the user to fine tune the masked source's canvas position and scaling directly within the filter. This gives the ability to use plug-ins such as [Exeldro's Move](https://obsproject.com/forum/resources/move.913/) to animate mask changes, while retaining the proper aspect ratio.
 
-Something about ability to zoom source when masking with a shape.
+#### Usage
+##### 1. Applying the Shape Mask
+- Select the source you want to apply the shape mask to.
+- Go to the Filters section for that source and click the `+` icon to add a new filter.
+- Choose "Advanced Masks" from the filter list.
 
-#### Rectangle
+##### 2. Configuring Shape Mask Settings
+- Within the Advanced Masks settings, select shape as the Mask Type.
+- Choose the desired shape from the shape dropdown menu
+- Adjust the shape's parameters (e.g., size, corner radius) to customize the mask.
+
+##### 3. Fine-tuning Mask Properties
+- Experiment with different shapes and their parameters to achieve the desired transparency effect.
+- Preview the scene and make necessary adjustments to attain the intended result.
+
+#### Available Shapes
+##### Rectangle
+![Rectangle Mask Interface](.github/assets/images/rectangle.png)
+
 The rectangular mask is a customizable mask used to frame an OBS Source with a rectangular shape featuring rounded corners. This mask offers the flexibility to adjust the width, height, rotation, and, corner radius, allowing users to modify the curvature of each corner independently. Users can optionally set and modify the corner radius, enabling them to create rectangular shapes with varying degrees of roundedness, from sharp edges to completely rounded corners, based on their preferences or design requirements.
 
-#### Circle
+##### Circle
+![Circle Mask Interface](.github/assets/images/circle.png)
+
 The circular mask is used to frame an OBS Source within a perfect circle. This mask allows users to specify the desired radius, enabling them to create circular masks of varying sizes, from small circles to larger ones, offering flexibility in how the content within the circle is displayed or highlighted.
 
-#### Elliptical
+##### Elliptical
+![Ellipse Mask Interface](.github/assets/images/ellipse.png)
+
 The ellipse mask is used to frame an OBS Source within an ellipse, offering flexibility in its dimensions and orientation. Users can define the width and height of the ellipse independently, allowing for an elliptical shape that can be taller, wider, or more elongated based on their specifications. Additionally, users have the option to adjust the rotation of the ellipse, enabling them to orient it at various angles within the scene. This level of control allows for the creation of elliptical masks of different proportions and orientations to suit specific design or visual requirements.
 
-#### Regular Polygon
+##### Regular Polygon
+![Regular Polygon Interface](.github/assets/images/regular-polygon.png)
+
 The regular polygon mask allows users to frame an OBS source within a polygonal shape with distinct characteristics. Users can specify:
 
 1. Number of Sides: Determines the polygon's shape, allowing for triangles, squares, pentagons, hexagons, and more, based on the chosen number of sides.
-1. Polygon Radius: Defines the size or extent of the polygon, determining how large or small the shape appears within the Scene.
-1. Corner Radius: Adds the option to round off the polygon's corners, softening the edges and creating a smoother appearance.
-1. Rotation: Enables users to orient the polygon at different angles within the OBS scene, offering diverse orientations for creative framing.
+2. Polygon Radius: Defines the size or extent of the polygon, determining how large or small the shape appears within the Scene.
+3. Corner Radius: Adds the option to round off the polygon's corners, softening the edges and creating a smoother appearance.
+4. Rotation: Enables users to orient the polygon at different angles within the OBS scene, offering diverse orientations for creative framing.
 
 This level of customization provides users with the ability to create regular polygonal masks of various shapes, sizes, corner styles, and orientations, allowing for versatile geometric framing tailored to specific visual preferences or design requirements.
 
-#### Star
-
+##### Star
+![Star Interface](.github/assets/images/star.png)
 The star mask offers users a versatile tool for framing OBS Sources within a star-shaped pattern, with the ability to specify various parameters:
 
 1. Number of Spikes: Allows users to define the number of points or spikes on the star, determining its overall shape, such as five-pointed, six-pointed, or multi-pointed stars.
@@ -83,8 +105,58 @@ The star mask offers users a versatile tool for framing OBS Sources within a sta
 
 This comprehensive set of customizable parameters empowers users to create star-shaped masks with varying numbers of spikes, sizes, corner styles, and orientations, offering flexibility for creative framing and visual effects according to specific preferences or design requirements.
 
-#### Heart
+##### Heart
+![Heart Interface](.github/assets/images/heart.png)
 The heart-shaped mask grants users the ability to encase OBS sources within the iconic outline of a heart. Users can precisely define two fundamental parameters: size and orientation. The size parameter allows users to scale the heart shape, making it larger or smaller within the OBS Scene. Meanwhile, the orientation feature empowers users to rotate the heart mask, providing the flexibility to position the heart shape at diverse angles. These adjustable parameters facilitate the creation of heart-shaped masks in various sizes and orientations, presenting a recognizable and customizable visual element for framing content with the symbolic and universally understood shape of a heart. *Special thanks to GPT for this fantastically over the top description of a heart mask*
 
+#### Scene View Tranformation
+The Scene View Transformation feature allows users to adjust a masked source's position and scale within its parent scene while maintaining its original size and aspect ratio. This functionality is particularly useful for precise positioning, scaling, and animating masked sources.
+
+> **Note**
+> Simultaneously using the built in OBS source transformation along with the Scene View Transformation option may lead to unexpected behavior. It's recommended to avoid applying transformations directly on a source in an OBS scene when that source utilizes Scene View Transformation to ensure consistent and expected results in adjusting masked sources within the scene.
+
+Additionally, this feature pairs well with the Move Value filter, enhancing the ability to animate shape masks effectively. By combining the Scene View Transformation option with the Move Value filter, users can smoothly control the movement and animation of shape masks, preserving accurate sizing and proportions within the scene.
+
+### Source Masks
+The Source Mask feature in the Advanced Masks OBS plugin empowers users to dynamically create masks from separate OBS sources. By utilizing color and alpha channels, this functionality allows for versatile and precise masking within your scenes. This guide aims to walk intermediate to advanced OBS users through the implementation, customization, and practical application of the Source Mask feature.
+![Source Mask Interface](.github/assets/images/source-mask.png)
+
+Source Masks in Advanced Masks facilitate the creation of complex shapes or selective overlays by using one source as a mask for another. This offers a wide array of creative possibilities, such as blending scenes, highlighting specific areas, or creating intricate visual effects.
+
+#### Usage
+##### 1. Setting Up Sources
+- Add the sources you intend to use for masking.
+- Ensure the sources are positioned as desired within your scene.
+##### 2. Applying the Source Mask
+- Select the source you wish to apply the mask to.
+- Navigate to the Filters section for that source and click the + icon to add a new filter.
+- Choose "Advanced Masks" from the filter list.
+##### 3. Configuring Source Mask Settings
+- Within the Advanced Masks settings, select "Source Mask" for the Mask Type field.
+- Choose the source you want to use as the mask from the Source dropdown menu.
+- Use the Channel Parameters to determine how the masking source is applied.  Options include using the Alpha mask only, the source's luminance values, the source's greyscale values, or a custom combination of color channels.
+
+### Image Masks
+Image masks are identical to source masks, but use a static image file (`.png`, `.jpg`, etc.) instead of an OBS source.
+
+### Gradient Masks
+Gradient Masks in Advanced Masks offer users the ability to create smooth transitions and controlled fades within scenes. By defining gradient sizes and orientations, users can manipulate the alpha channel or color correction, allowing gradual opacity and color adjustments in their sources.
+
+![Gradient Mask Interface](.github/assets/images/gradient-mask.png)
+
+#### Usage
+##### 1. Applying the Gradient Mask
+- Select the source to which you want to apply the gradient mask.
+- Navigate to the Filters section for that source and click the `+` icon to add a new filter.
+- Choose "Advanced Mask" from the filter list.
+
+##### 2. Configuring Gradient Mask Settings
+- Within the Advanced Mask settings, select "Gradient" in the Mask Type dropdown.
+- Adjust the gradient size to define the range of the mask's influence on transparency/adjustment.
+- Define the orientation of the gradient to control how the transparency/adjustment changes across the source.
+
+##### 3. Fine-tuning Mask Properties
+- Experiment with gradient sizes and orientations to achieve the desired transparency effect.
+- Preview the scene and make necessary adjustments to achieve your intended result.
 
 Thank you for exploring OBS Advanced Masks! Your feedback and contributions are highly appreciated as we continue to improve and expand this project.
