@@ -30,9 +30,9 @@ OBS Advanced Masks is an open-source project designed to expand the masking func
 
 - 🎭 Advanced Masks provides both [Alpha Masking](#alpha-masking) and [Adjustment Masking](#adjustment-masking) and supports Windows, MacOS, and Linux.
 - 🟠 Shape masks allow for dynamically generated [Rectangle](#rectangle), [Circle](#circle), [Elliptical](#elliptical), [Regular Polygon](#regular-polygon), [Star](#star), and [Heart](#heart) shaped masks, with many adjustable parameters.
-- 🎥 Source masks allow an existing OBS source to be used as a mask, using any combination of the red, green, blue, or alpha channels from said source.
-- 🖼️ Image masks include all of the same functionality as Source Masks, but applied via a static image (.png, .jpeg, etc).
-- 🌈 Gradient masks allow a fading mask using a user-specified gradient.
+- 🎥 [Source Masks](#source-masks) allow an existing OBS source to be used as a mask, using any combination of the red, green, blue, or alpha channels from said source.
+- 🖼️ [Image Masks](#image-masks) include all of the same functionality as Source Masks, but applied via a static image (.png, .jpeg, etc).
+- 🌈 [Gradient Masks](#gradient-masks) allow a fading mask using a user-specified gradient.
 
 ## Mask Types
 Advanced Masks provides both [Alpha Masking](#alpha-masking) and [Adjustment Masking](#adjustment-masking) and supports Windows, MacOS, and Linux.
@@ -137,7 +137,7 @@ Source Masks in Advanced Masks facilitate the creation of complex shapes or sele
 - Use the Channel Parameters to determine how the masking source is applied.  Options include using the Alpha mask only, the source's luminance values, the source's greyscale values, or a custom combination of color channels.
 
 ### Image Masks
-Image masks are identical to source masks, but use a static image file (`.png`, `.jpg`, etc.) instead of an OBS source.
+Image masks are identical in functionality to [source masks](#source-masks), but use a static image file (`.png`, `.jpg`, etc.) instead of an OBS source.
 
 ### Gradient Masks
 Gradient Masks in Advanced Masks offer users the ability to create smooth transitions and controlled fades within scenes. By defining gradient sizes and orientations, users can manipulate the alpha channel or color correction, allowing gradual opacity and color adjustments in their sources.
