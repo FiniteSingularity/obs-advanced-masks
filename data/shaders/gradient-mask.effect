@@ -51,7 +51,7 @@ float4 mainAlphaImage(VertData v_in) : TARGET
 	);
 	
 	float alpha = saturate((coord_p.x - position + width / 2.0f) / width);
-	float4 col = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 col = image.Sample(textureSampler, v_in.uv);
 	return float4(col.rgb, col.a * (invert ? 1.0f - alpha : alpha));
 }
 
@@ -70,7 +70,7 @@ float4 mainAdjustmentsImage(VertData v_in) : TARGET
 	
 	float scale = saturate((coord_p.x - position + width / 2.0f) / width);
 	scale = invert ? 1.0f - scale : scale;
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	
 	color = adjustments(
 		color,
@@ -98,7 +98,7 @@ float4 debugAlphaImage(VertData v_in) : TARGET
 	
 	float alpha = saturate((coord_p.x - position + width / 2.0f) / width);
 	
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	if (coord_p.x - position > -(width / 2.0f + 2.0f) && coord_p.x - position < -(width / 2.0f))
 	{
 		return float4(0.0f, 1.0f, 0.0f, 1.0f);
@@ -131,7 +131,7 @@ float4 debugAdjustmentsImage(VertData v_in) : TARGET
 
 	float scale = saturate((coord_p.x - position + width / 2.0f) / width);
 	scale = invert ? 1.0f - scale : scale;
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	if (coord_p.x - position > -(width / 2.0f + 2.0f) && coord_p.x - position < -(width / 2.0f))
 	{
 		return float4(0.0f, 1.0f, 0.0f, 1.0f);

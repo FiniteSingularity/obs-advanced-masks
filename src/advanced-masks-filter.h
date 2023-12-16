@@ -30,3 +30,4 @@ static bool setting_mask_adjustment_modified(obs_properties_t *props,
 
 static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				       obs_property_t *p, obs_data_t *settings);
+static void load_output_effect(advanced_masks_data_t *filter);

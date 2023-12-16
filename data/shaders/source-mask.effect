@@ -43,18 +43,18 @@ VertData mainTransform(VertData v_in)
 
 float4 alphaImage(VertData v_in) : TARGET
 {
-	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
 }
 
 float4 adjustmentsImage(VertData v_in) : TARGET
 {
-	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
 	float scale = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	scale = invert ? 1.0 - scale : scale;
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	color = adjustments(
 		color,
 		lerp(min_brightness, max_brightness, scale),
@@ -67,20 +67,20 @@ float4 adjustmentsImage(VertData v_in) : TARGET
 
 float4 alphaThresholdImage(VertData v_in) : TARGET
 {
-	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	alpha = step(threshold_value, alpha);
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
 }
 
 float4 adjustmentsThresholdImage(VertData v_in) : TARGET
 {
-	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
 	float scale = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	scale = step(threshold_value, scale);
 	scale = invert ? 1.0 - scale : scale;
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	color = adjustments(
 		color,
 		lerp(min_brightness, max_brightness, scale),
@@ -93,20 +93,20 @@ float4 adjustmentsThresholdImage(VertData v_in) : TARGET
 
 float4 alphaRangeImage(VertData v_in) : TARGET
 {
-	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	alpha = smoothstep(range_min, range_max, alpha);
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
 }
 
 float4 adjustmentsRangeImage(VertData v_in) : TARGET
 {
-	float4 mask = pmrgba_to_rgba(source_image.Sample(textureSampler, v_in.uv));
+	float4 mask = source_image.Sample(textureSampler, v_in.uv);
 	float scale = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	scale = smoothstep(range_min, range_max, scale);
 	scale = invert ? 1.0 - scale : scale;
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	color = adjustments(
 		color,
 		lerp(min_brightness, max_brightness, scale),
