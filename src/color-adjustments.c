@@ -126,8 +126,8 @@ static bool setting_mask_adjustment_modified(obs_properties_t *props,
 
 void color_adjustments_defaults(obs_data_t* settings) {
 	obs_data_set_default_bool(settings, "brightness", false);
-	obs_data_set_default_double(settings, "min_brightness_value", -1.0);
-	obs_data_set_default_double(settings, "max_brightness_value", 1.0);
+	obs_data_set_default_double(settings, "min_brightness_value", 0.0);
+	obs_data_set_default_double(settings, "max_brightness_value", 0.2);
 	obs_data_set_default_bool(settings, "contrast", false);
 	obs_data_set_default_double(settings, "min_contrast_value", 0.0);
 	obs_data_set_default_double(settings, "max_contrast_value", 1.0);

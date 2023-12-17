@@ -38,12 +38,15 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 		create_or_reset_texrender(filter->base->input_texrender);
 	filter->base->output_texrender =
 		create_or_reset_texrender(filter->base->output_texrender);
+	filter->base->param_output_image = NULL;
 	filter->base->rendered = false;
 	filter->base->rendering = false;
 
 	filter->color_adj_data = bzalloc(sizeof(color_adjustments_data_t));
 
+	load_output_effect(filter);
 	obs_source_update(source, settings);
+
 	return filter;
 }
 
@@ -62,6 +65,9 @@ static void advanced_masks_destroy(void *data)
 	}
 	if (filter->base->output_texrender) {
 		gs_texrender_destroy(filter->base->output_texrender);
+	}
+	if (filter->base->output_effect) {
+		gs_effect_destroy(filter->base->output_effect);
 	}
 	obs_leave_graphics();
 
@@ -135,6 +141,10 @@ static void advanced_masks_video_render(void *data, gs_effect_t *effect)
 	// 3. Create Stroke Mask
 	// Call a rendering functioner, e.g.:
 	render_mask(filter);
+
+	//gs_texrender_t *tmp = filter->base->output_texrender;
+	//filter->base->output_texrender = filter->base->input_texrender;
+	//filter->base->input_texrender = tmp;
 
 	// 3. Draw result (filter->output_texrender) to source
 	draw_output(filter);
@@ -345,41 +355,127 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	mask_source_defaults(settings);
 }
 
+//static void get_input_source(advanced_masks_data_t *filter)
+//{
+//	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+//
+//	filter->base->input_texrender =
+//		create_or_reset_texrender(filter->base->input_texrender);
+//	if (obs_source_process_filter_begin(filter->context, GS_RGBA,
+//					    OBS_ALLOW_DIRECT_RENDERING) &&
+//	    gs_texrender_begin(filter->base->input_texrender,
+//			       filter->base->width, filter->base->height)) {
+//
+//		set_blending_parameters();
+//		gs_ortho(0.0f, (float)filter->base->width, 0.0f,
+//			 (float)filter->base->height, -100.0f, 100.0f);
+//		obs_source_process_filter_end(filter->context, pass_through,
+//					      filter->base->width,
+//					      filter->base->height);
+//		gs_texrender_end(filter->base->input_texrender);
+//		gs_blend_state_pop();
+//		filter->base->input_texture_generated = true;
+//	}
+//}
+
 static void get_input_source(advanced_masks_data_t *filter)
 {
+	// Use the OBS default effect file as our effect.
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
+	// Set up our color space info.
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		obs_filter_get_target(filter->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
+
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+
+	// Set up our input_texrender to catch the output texture.
 	filter->base->input_texrender =
 		create_or_reset_texrender(filter->base->input_texrender);
-	if (obs_source_process_filter_begin(filter->context, GS_RGBA,
-					    OBS_ALLOW_DIRECT_RENDERING) &&
-	    gs_texrender_begin(filter->base->input_texrender,
-			       filter->base->width, filter->base->height)) {
+
+	// Start the rendering process with our correct color space params,
+	// And set up your texrender to recieve the created texture.
+	if (obs_source_process_filter_begin_with_color_space(
+		    filter->context, format, source_space,
+		    OBS_ALLOW_DIRECT_RENDERING) &&
+	    gs_texrender_begin(filter->base->input_texrender, filter->base->width,
+			       filter->base->height)) {
 
 		set_blending_parameters();
 		gs_ortho(0.0f, (float)filter->base->width, 0.0f,
 			 (float)filter->base->height, -100.0f, 100.0f);
-		obs_source_process_filter_end(filter->context, pass_through,
-					      filter->base->width,
-					      filter->base->height);
+		// The incoming source is pre-multiplied alpha, so use the
+		// OBS default effect "DrawAlphaDivide" technique to convert
+		// the colors back into non-pre-multiplied space.
+		obs_source_process_filter_tech_end(filter->context,
+						   pass_through, filter->base->width,
+						   filter->base->height,
+						   "DrawAlphaDivide");
 		gs_texrender_end(filter->base->input_texrender);
 		gs_blend_state_pop();
 		filter->base->input_texture_generated = true;
 	}
 }
 
+//static void draw_output(advanced_masks_data_t *filter)
+//{
+//	gs_texture_t *texture =
+//		gs_texrender_get_texture(filter->base->output_texrender);
+//	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+//	gs_eparam_t *param = gs_effect_get_param_by_name(pass_through, "image");
+//	gs_effect_set_texture(param, texture);
+//	uint32_t width = gs_texture_get_width(texture);
+//	uint32_t height = gs_texture_get_height(texture);
+//	while (gs_effect_loop(pass_through, "Draw")) {
+//		gs_draw_sprite(texture, 0, width, height);
+//	}
+//}
+
 static void draw_output(advanced_masks_data_t *filter)
 {
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		obs_filter_get_target(filter->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
+
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+
+	if (!obs_source_process_filter_begin_with_color_space(
+		    filter->context, format, source_space,
+		    OBS_ALLOW_DIRECT_RENDERING)) {
+		return;
+	}
+
 	gs_texture_t *texture =
 		gs_texrender_get_texture(filter->base->output_texrender);
-	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-	gs_eparam_t *param = gs_effect_get_param_by_name(pass_through, "image");
-	gs_effect_set_texture(param, texture);
-	uint32_t width = gs_texture_get_width(texture);
-	uint32_t height = gs_texture_get_height(texture);
-	while (gs_effect_loop(pass_through, "Draw")) {
-		gs_draw_sprite(texture, 0, width, height);
+	gs_effect_t *pass_through = filter->base->output_effect;
+
+	if (filter->base->param_output_image) {
+		gs_effect_set_texture(filter->base->param_output_image, texture);
 	}
+
+	gs_blend_state_push();
+	gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA,
+				   GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+	obs_source_process_filter_end(filter->context, pass_through,
+				      filter->base->width,
+				      filter->base->height);
+	gs_blend_state_pop();
 }
 
 static void advanced_masks_render_filter(advanced_masks_data_t *filter)
@@ -387,4 +483,49 @@ static void advanced_masks_render_filter(advanced_masks_data_t *filter)
 	gs_texrender_t *tmp = filter->base->output_texrender;
 	filter->base->output_texrender = filter->base->input_texrender;
 	filter->base->input_texrender = tmp;
+}
+
+static void load_output_effect(advanced_masks_data_t *filter)
+{
+	if (filter->base->output_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->base->output_effect);
+		filter->base->output_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, "/shaders/render_output.effect");
+	shader_text = load_shader_from_file(filename.array);
+	char *errors = NULL;
+	dstr_free(&filename);
+
+	obs_enter_graphics();
+	filter->base->output_effect =
+		gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+	if (filter->base->output_effect == NULL) {
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load output.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
+		bfree(errors);
+	} else {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->base->output_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->base->output_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "output_image") == 0) {
+				filter->base->param_output_image = param;
+			}
+		}
+	}
 }

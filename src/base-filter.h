@@ -28,6 +28,8 @@ struct base_filter_data {
 	gs_texrender_t *input_texrender;
 	bool output_rendered;
 	gs_texrender_t *output_texrender;
+	gs_effect_t *output_effect;
+	gs_eparam_t *param_output_image;
 
 	bool rendered;
 	bool rendering;

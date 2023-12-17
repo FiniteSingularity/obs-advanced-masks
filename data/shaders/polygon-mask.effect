@@ -68,7 +68,7 @@ float4 alphaImage(VertData v_in) : TARGET
 	float d = SDF(sample_dist, num_sides, radius) - corner_radius;
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
 	
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
+	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
 	return float4(color.rgb, color.a * d);
 }
 
@@ -85,7 +85,7 @@ float4 alphaFrameCheckImage(VertData v_in) : TARGET
 	sample_uv.y >= 0.0f && sample_uv.y <= 1.0f ? 1.0f : 0.0f;
 	d = feather_amount > 0.0f ? smoothstep(alpha_zero * alpha_scale, feather_amount, -d + feather_amount) : clamp(-d, alpha_zero * alpha_scale, 1.0f);
 	
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size));
+	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
 	return float4(color.rgb, color.a * d);
 }
 
@@ -96,7 +96,7 @@ float4 adjustmentsImage(VertData v_in) : TARGET
 	float2 sample_dist = float2(dist.x * cos_rot - dist.y * sin_rot, dist.x * sin_rot + dist.y * cos_rot);
 	float d = SDF(sample_dist, num_sides, radius) - corner_radius;
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
-	float4 color = pmrgba_to_rgba(image.Sample(textureSampler, v_in.uv));
+	float4 color = image.Sample(textureSampler, v_in.uv);
 	float4 color_adj_min = adjustments(
 		color,
 		min_brightness,
