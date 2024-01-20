@@ -4,7 +4,8 @@
 struct obs_source_info advanced_masks_filter = {
 	.id = "advanced_masks_filter",
 	.type = OBS_SOURCE_TYPE_FILTER,
-	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB |
+			OBS_SOURCE_CAP_OBSOLETE,
 	.get_name = advanced_masks_name,
 	.create = advanced_masks_create,
 	.destroy = advanced_masks_destroy,
@@ -15,6 +16,22 @@ struct obs_source_info advanced_masks_filter = {
 	.get_height = advanced_masks_height,
 	.get_properties = advanced_masks_properties,
 	.get_defaults = advanced_masks_defaults};
+
+struct obs_source_info advanced_masks_filter_v2 = {
+	.id = "advanced_masks_filter",
+	.version = 2,
+	.type = OBS_SOURCE_TYPE_FILTER,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB,
+	.get_name = advanced_masks_name,
+	.create = advanced_masks_create,
+	.destroy = advanced_masks_destroy,
+	.update = advanced_masks_update_v2,
+	.video_render = advanced_masks_video_render,
+	.video_tick = advanced_masks_video_tick,
+	.get_width = advanced_masks_width,
+	.get_height = advanced_masks_height,
+	.get_properties = advanced_masks_properties,
+	.get_defaults = advanced_masks_defaults_v2};
 
 static const char *advanced_masks_name(void *unused)
 {
@@ -113,7 +130,40 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 
 	color_adjustments_update(filter->color_adj_data, settings);
 
-	mask_shape_update(filter->shape_data, filter->base, settings);
+	mask_shape_update(filter->shape_data, filter->base, settings, 1);
+	mask_source_update(filter->source_data, settings);
+	mask_gradient_update(filter->gradient_data, settings);
+}
+
+static void advanced_masks_update_v2(void *data, obs_data_t *settings)
+{
+	// Called after UI is updated, should assign new UI values to
+	// data structure pointers/values/etc..
+	advanced_masks_data_t *filter = data;
+	if (filter->base->width > 0 &&
+	    (float)obs_data_get_double(settings, "shape_center_x") < -1.e8) {
+		double width = (double)obs_source_get_width(filter->context);
+		double height = (double)obs_source_get_height(filter->context);
+		obs_data_set_double(settings, "shape_center_x", width / 2.0);
+		obs_data_set_double(settings, "position_x", width / 2.0);
+		obs_data_set_double(settings, "shape_center_y", height / 2.0);
+		obs_data_set_double(settings, "position_y", height / 2.0);
+	}
+	if (filter->base->width > 0 &&
+	    (float)obs_data_get_double(settings, "mask_gradient_position") <
+		    -1.e8) {
+		double width = (double)obs_source_get_width(filter->context);
+		obs_data_set_double(settings, "mask_gradient_position",
+				    width / 2.0);
+	}
+	filter->base->mask_effect =
+		(uint32_t)obs_data_get_int(settings, "mask_effect");
+	filter->base->mask_type =
+		(uint32_t)obs_data_get_int(settings, "mask_type");
+
+	color_adjustments_update(filter->color_adj_data, settings);
+
+	mask_shape_update(filter->shape_data, filter->base, settings, 2);
 	mask_source_update(filter->source_data, settings);
 	mask_gradient_update(filter->gradient_data, settings);
 }
@@ -355,7 +405,18 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "mask_type", MASK_TYPE_SHAPE);
 
 	color_adjustments_defaults(settings);
-	mask_shape_defaults(settings);
+	mask_shape_defaults(settings, 1);
+	mask_gradient_defaults(settings);
+	mask_source_defaults(settings);
+}
+
+static void advanced_masks_defaults_v2(obs_data_t *settings)
+{
+	obs_data_set_default_int(settings, "mask_effect", MASK_EFFECT_ALPHA);
+	obs_data_set_default_int(settings, "mask_type", MASK_TYPE_SHAPE);
+
+	color_adjustments_defaults(settings);
+	mask_shape_defaults(settings, 2);
 	mask_gradient_defaults(settings);
 	mask_source_defaults(settings);
 }

@@ -225,7 +225,7 @@ static float mask_height(obs_data_t *settings)
 }
 
 void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
-		       obs_data_t *settings)
+		       obs_data_t *settings, int version)
 {
 	data->mask_shape_type =
 		(uint32_t)obs_data_get_int(settings, "shape_type");
@@ -240,10 +240,20 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		(float)obs_data_get_double(settings, "position_x");
 	data->global_position.y =
 		(float)obs_data_get_double(settings, "position_y");
-	data->global_scale =
-		base->mask_effect == MASK_EFFECT_ALPHA
-			? (float)obs_data_get_double(settings, "position_scale")
-			: 100.0f;
+	if (version == 1) {
+		data->global_scale =
+			base->mask_effect == MASK_EFFECT_ALPHA
+				? (float)obs_data_get_double(settings,
+							     "position_scale")
+				: 100.0f;
+	} else {
+		data->global_scale =
+			base->mask_effect == MASK_EFFECT_ALPHA && data->shape_relative
+				? (float)obs_data_get_double(settings,
+							     "position_scale")
+				: 100.0f;
+	}
+
 	data->zoom =
 		base->mask_effect == MASK_EFFECT_ALPHA
 			? (float)obs_data_get_double(settings, "source_zoom")
@@ -379,8 +389,11 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 			   (data->feather_shift + data->star_corner_radius);
 }
 
-void mask_shape_defaults(obs_data_t *settings)
+void mask_shape_defaults(obs_data_t *settings, int version)
 {
+	// Version specific settings
+	double position_scale = (version == 1 ? 120.0 : 100.0);
+
 	obs_data_set_default_int(settings, "shape_type", SHAPE_RECTANGLE);
 	obs_data_set_default_bool(settings, "shape_frame_check", false);
 	obs_data_set_default_double(settings, "shape_center_x", -1.e9);
@@ -390,7 +403,7 @@ void mask_shape_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "rectangle_height", 600.0);
 	obs_data_set_default_double(settings, "position_x", -1.e9);
 	obs_data_set_default_double(settings, "position_y", -1.e9);
-	obs_data_set_default_double(settings, "position_scale", 120.0);
+	obs_data_set_default_double(settings, "position_scale", position_scale);
 	obs_data_set_default_double(settings, "mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
 	obs_data_set_default_bool(settings, "shape_relative", false);
