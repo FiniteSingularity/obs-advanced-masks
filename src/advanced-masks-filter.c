@@ -49,6 +49,7 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->source_data = mask_source_create(settings);
 	filter->shape_data = mask_shape_create();
 	filter->gradient_data = mask_gradient_create();
+	filter->bsm_data = mask_bsm_create();
 
 	filter->base = bzalloc(sizeof(base_filter_data_t));
 	filter->base->input_texrender =
@@ -75,6 +76,7 @@ static void advanced_masks_destroy(void *data)
 	mask_source_destroy(filter->source_data);
 	mask_shape_destroy(filter->shape_data);
 	mask_gradient_destroy(filter->gradient_data);
+	mask_bsm_destroy(filter->bsm_data);
 
 	obs_enter_graphics();
 	if (filter->base->input_texrender) {
@@ -110,7 +112,8 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	// Called after UI is updated, should assign new UI values to
 	// data structure pointers/values/etc..
 	advanced_masks_data_t *filter = data;
-	if (filter->base->width > 0 && (float)obs_data_get_double(settings, "shape_center_x") < -1.e8) {
+	if (filter->base->width > 0 &&
+	    (float)obs_data_get_double(settings, "shape_center_x") < -1.e8) {
 		double width = (double)obs_source_get_width(filter->context);
 		double height = (double)obs_source_get_height(filter->context);
 		obs_data_set_double(settings, "shape_center_x", width / 2.0);
@@ -119,9 +122,11 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 		obs_data_set_double(settings, "position_y", height / 2.0);
 	}
 	if (filter->base->width > 0 &&
-	    (float)obs_data_get_double(settings, "mask_gradient_position") < -1.e8) {
+	    (float)obs_data_get_double(settings, "mask_gradient_position") <
+		    -1.e8) {
 		double width = (double)obs_source_get_width(filter->context);
-		obs_data_set_double(settings, "mask_gradient_position", width / 2.0);
+		obs_data_set_double(settings, "mask_gradient_position",
+				    width / 2.0);
 	}
 	filter->base->mask_effect =
 		(uint32_t)obs_data_get_int(settings, "mask_effect");
@@ -133,6 +138,7 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	mask_shape_update(filter->shape_data, filter->base, settings, 1);
 	mask_source_update(filter->source_data, settings);
 	mask_gradient_update(filter->gradient_data, settings);
+	mask_bsm_update(filter->bsm_data, settings);
 }
 
 static void advanced_masks_update_v2(void *data, obs_data_t *settings)
@@ -166,6 +172,7 @@ static void advanced_masks_update_v2(void *data, obs_data_t *settings)
 	mask_shape_update(filter->shape_data, filter->base, settings, 2);
 	mask_source_update(filter->source_data, settings);
 	mask_gradient_update(filter->gradient_data, settings);
+	mask_bsm_update(filter->bsm_data, settings);
 }
 
 static void advanced_masks_video_render(void *data, gs_effect_t *effect)
@@ -176,7 +183,7 @@ static void advanced_masks_video_render(void *data, gs_effect_t *effect)
 		draw_output(filter);
 		return;
 	}
-	
+
 	filter->base->rendering = true;
 
 	// 1. Get the input source as a texture renderer
@@ -215,11 +222,15 @@ static void render_mask(advanced_masks_data_t *filter)
 		break;
 	case MASK_TYPE_IMAGE:
 		render_image_mask(filter->source_data, filter->base,
-				   filter->color_adj_data);
+				  filter->color_adj_data);
 		break;
 	case MASK_TYPE_GRADIENT:
 		render_gradient_mask(filter->gradient_data, filter->base,
 				     filter->color_adj_data);
+		break;
+	case MASK_TYPE_BSM:
+		render_bsm_mask(filter->bsm_data, filter->base,
+				filter->color_adj_data);
 		break;
 	}
 }
@@ -242,7 +253,7 @@ static obs_properties_t *advanced_masks_properties(void *data)
 				  MASK_EFFECT_ADJUSTMENT);
 
 	obs_property_set_modified_callback2(mask_effect_list,
-					   setting_mask_effect_modified, data);
+					    setting_mask_effect_modified, data);
 
 	obs_property_t *mask_type_list = obs_properties_add_list(
 		props, "mask_type", obs_module_text("AdvancedMasks.Type"),
@@ -260,11 +271,16 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_list_add_int(mask_type_list,
 				  obs_module_text(MASK_TYPE_GRADIENT_LABEL),
 				  MASK_TYPE_GRADIENT);
+	obs_property_list_add_int(mask_type_list,
+				  obs_module_text(MASK_TYPE_BSM_LABEL),
+				  MASK_TYPE_BSM);
+
 	obs_property_set_modified_callback2(mask_type_list,
-					   setting_mask_type_modified, data);
+					    setting_mask_type_modified, data);
 
 	source_mask_top_properties(props, filter->source_data);
 	shape_mask_top_properties(props);
+	bsm_mask_top_properties(props);
 
 	color_adjustments_properties(props);
 
@@ -278,8 +294,7 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	return props;
 }
 
-static bool setting_mask_effect_modified(void *data,
-					 obs_properties_t *props,
+static bool setting_mask_effect_modified(void *data, obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings)
 {
@@ -324,7 +339,10 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("scale_position_group",
 				   effect_type == MASK_EFFECT_ALPHA, props);
 		setting_visibility("mask_gradient_group", false, props);
-		set_shape_settings_visibility(filter->shape_data, props, p, settings);
+		set_shape_settings_visibility(filter->shape_data, props, p,
+					      settings);
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
 		return true;
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);
@@ -345,6 +363,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("scale_position_group", false, props);
 		setting_mask_source_filter_modified(props, p, settings);
 		setting_visibility("mask_gradient_group", false, props);
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
 		return true;
 	case MASK_TYPE_IMAGE:
 		setting_visibility("mask_source", false, props);
@@ -365,6 +385,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("scale_position_group", false, props);
 		setting_mask_source_filter_modified(props, p, settings);
 		setting_visibility("mask_gradient_group", false, props);
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
 		return true;
 	case MASK_TYPE_GRADIENT:
 		setting_visibility("mask_source", false, props);
@@ -383,6 +405,27 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 				   props);
 		setting_visibility("scale_position_group", false, props);
 		setting_visibility("mask_gradient_group", true, props);
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
+		return true;
+	case MASK_TYPE_BSM:
+		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_group", false, props);
+		setting_visibility("source_mask_compression_group", false,
+				   props);
+		setting_visibility("shape_type", false, props);
+		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
+		setting_visibility("shape_feather_group", false, props);
+		setting_visibility("rectangle_source_group", false, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+				   props);
+		setting_visibility("scale_position_group", false, props);
+		setting_visibility("mask_gradient_group", false, props);
+
+		setting_visibility("bsm_mask_source", true, props);
+		setting_visibility("bsm_time", true, props);
 		return true;
 	}
 	return false;
@@ -390,7 +433,6 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 
 static void advanced_masks_video_tick(void *data, float seconds)
 {
-	UNUSED_PARAMETER(seconds);
 	advanced_masks_data_t *filter = data;
 
 	obs_source_t *target = obs_filter_get_target(filter->context);
@@ -402,6 +444,7 @@ static void advanced_masks_video_tick(void *data, float seconds)
 
 	filter->base->rendered = false;
 	filter->base->input_texture_generated = false;
+	bsm_mask_tick(filter->bsm_data, seconds);
 }
 
 static void advanced_masks_defaults(obs_data_t *settings)
@@ -413,6 +456,8 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	mask_shape_defaults(settings, 1);
 	mask_gradient_defaults(settings);
 	mask_source_defaults(settings);
+	mask_bsm_defaults(settings);
+}
 }
 
 static void advanced_masks_defaults_v2(obs_data_t *settings)
@@ -454,8 +499,8 @@ static void get_input_source(advanced_masks_data_t *filter)
 	if (obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
 		    OBS_NO_DIRECT_RENDERING) &&
-	    gs_texrender_begin(filter->base->input_texrender, filter->base->width,
-			       filter->base->height)) {
+	    gs_texrender_begin(filter->base->input_texrender,
+			       filter->base->width, filter->base->height)) {
 
 		set_blending_parameters();
 		gs_ortho(0.0f, (float)filter->base->width, 0.0f,
@@ -463,10 +508,9 @@ static void get_input_source(advanced_masks_data_t *filter)
 		// The incoming source is pre-multiplied alpha, so use the
 		// OBS default effect "DrawAlphaDivide" technique to convert
 		// the colors back into non-pre-multiplied space.
-		obs_source_process_filter_tech_end(filter->context,
-						   pass_through, filter->base->width,
-						   filter->base->height,
-						   "DrawAlphaDivide");
+		obs_source_process_filter_tech_end(
+			filter->context, pass_through, filter->base->width,
+			filter->base->height, "DrawAlphaDivide");
 		gs_texrender_end(filter->base->input_texrender);
 		gs_blend_state_pop();
 		filter->base->input_texture_generated = true;
@@ -499,7 +543,8 @@ static void draw_output(advanced_masks_data_t *filter)
 	gs_effect_t *pass_through = filter->base->output_effect;
 
 	if (filter->base->param_output_image) {
-		gs_effect_set_texture(filter->base->param_output_image, texture);
+		gs_effect_set_texture(filter->base->param_output_image,
+				      texture);
 	}
 
 	obs_source_process_filter_end(filter->context, pass_through,

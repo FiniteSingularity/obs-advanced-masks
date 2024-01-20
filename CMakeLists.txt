@@ -28,6 +28,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/obs-advanced-masks-plugin.c
 	src/advanced-masks-filter.h
 	src/advanced-masks.h
+	src/mask-bsm.c
+	src/mask-bsm.h
 	src/mask-gradient.c
 	src/mask-gradient.h
 	src/mask-shape.c
