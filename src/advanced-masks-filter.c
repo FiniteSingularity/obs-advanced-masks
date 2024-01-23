@@ -176,12 +176,7 @@ static void advanced_masks_video_render(void *data, gs_effect_t *effect)
 		draw_output(filter);
 		return;
 	}
-
-	obs_source_t *target = obs_filter_get_target(filter->context);
-
-	const char *type_id = obs_source_get_unversioned_id(target);
 	
-
 	filter->base->rendering = true;
 
 	// 1. Get the input source as a texture renderer
