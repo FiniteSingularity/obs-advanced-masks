@@ -260,11 +260,20 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 			: 100.0f;
 	data->scale_type = (uint32_t)obs_data_get_int(settings, "scale_type");
 
-	if (base->mask_effect == MASK_EFFECT_ALPHA && data->scale_type == MASK_SCALE_WIDTH) {
-		data->global_scale = 100.0f * data->global_scale / mask_width(settings);
-	} else if (base->mask_effect == MASK_EFFECT_ALPHA && data->scale_type == MASK_SCALE_HEIGHT) {
-		data->global_scale = 100.0f * data->global_scale / mask_height(settings);
+	if (data->shape_relative) {
+		if (base->mask_effect == MASK_EFFECT_ALPHA &&
+		    data->scale_type == MASK_SCALE_WIDTH) {
+			data->global_scale = 100.0f * data->global_scale /
+					     mask_width(settings);
+		} else if (base->mask_effect == MASK_EFFECT_ALPHA &&
+			   data->scale_type == MASK_SCALE_HEIGHT) {
+			data->global_scale = 100.0f * data->global_scale /
+					     mask_height(settings);
+		}
+	} else {
+		data->global_scale = 100.0f;
 	}
+
 
 	data->corner_radius_type =
 		(uint32_t)obs_data_get_int(settings, "rectangle_corner_type");
@@ -417,6 +426,7 @@ void mask_shape_defaults(obs_data_t *settings, int version)
 	obs_data_set_default_double(settings, "star_corner_radius", 0.0);
 	obs_data_set_default_double(settings, "heart_size", 800.0);
 	obs_data_set_default_double(settings, "circle_radius", 400.0);
+	obs_data_set_default_int(settings, "scale_type", MASK_SCALE_PERCENT);
 }
 
 void shape_mask_top_properties(obs_properties_t *props)
@@ -1049,7 +1059,7 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 
 		obs_property_float_set_limits(scale_p, (double)0.0,
 					      100.0 * (double)width, (double)1.0);
-		obs_data_set_double(settings, "position_scale", width * pct);
+		obs_data_set_double(settings, "position_scale", (double)width * pct);
 		obs_property_float_set_suffix(scale_p, "px");
 	} else if (type == MASK_SCALE_HEIGHT) {
 		obs_property_t *scale_p =
@@ -1115,7 +1125,7 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 	base->output_texrender =
 		create_or_reset_texrender(base->output_texrender);
 
-	float scale_factor = data->global_scale / 100.0f;
+	float scale_factor = data->shape_relative ? data->global_scale / 100.0f : 1.0f;
 
 	if (data->param_rectangle_image) {
 		gs_effect_set_texture(data->param_rectangle_image, texture);
@@ -1177,7 +1187,7 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 
 	if (data->param_global_scale) {
 		gs_effect_set_float(data->param_global_scale,
-				    data->shape_relative ? scale_factor : 1.0f);
+				    scale_factor);
 	}
 
 	if (data->param_corner_radius) {
