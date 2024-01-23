@@ -3,6 +3,7 @@
 #include "version.h"
 
 extern struct obs_source_info advanced_masks_filter;
+extern struct obs_source_info advanced_masks_filter_v2;
 
 OBS_DECLARE_MODULE();
 
@@ -14,6 +15,7 @@ bool obs_module_load(void)
 {
 	blog(LOG_INFO, "[Advanced Masks] loaded version %s", PROJECT_VERSION);
 	obs_register_source(&advanced_masks_filter);
+	obs_register_source(&advanced_masks_filter_v2);
 	return true;
 }
 

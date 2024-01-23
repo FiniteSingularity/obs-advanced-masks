@@ -225,7 +225,7 @@ static float mask_height(obs_data_t *settings)
 }
 
 void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
-		       obs_data_t *settings)
+		       obs_data_t *settings, int version)
 {
 	data->mask_shape_type =
 		(uint32_t)obs_data_get_int(settings, "shape_type");
@@ -240,21 +240,40 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		(float)obs_data_get_double(settings, "position_x");
 	data->global_position.y =
 		(float)obs_data_get_double(settings, "position_y");
-	data->global_scale =
-		base->mask_effect == MASK_EFFECT_ALPHA
-			? (float)obs_data_get_double(settings, "position_scale")
-			: 100.0f;
+	if (version == 1) {
+		data->global_scale =
+			base->mask_effect == MASK_EFFECT_ALPHA
+				? (float)obs_data_get_double(settings,
+							     "position_scale")
+				: 100.0f;
+	} else {
+		data->global_scale =
+			base->mask_effect == MASK_EFFECT_ALPHA && data->shape_relative
+				? (float)obs_data_get_double(settings,
+							     "position_scale")
+				: 100.0f;
+	}
+
 	data->zoom =
 		base->mask_effect == MASK_EFFECT_ALPHA
 			? (float)obs_data_get_double(settings, "source_zoom")
 			: 100.0f;
 	data->scale_type = (uint32_t)obs_data_get_int(settings, "scale_type");
 
-	if (base->mask_effect == MASK_EFFECT_ALPHA && data->scale_type == MASK_SCALE_WIDTH) {
-		data->global_scale = 100.0f * data->global_scale / mask_width(settings);
-	} else if (base->mask_effect == MASK_EFFECT_ALPHA && data->scale_type == MASK_SCALE_HEIGHT) {
-		data->global_scale = 100.0f * data->global_scale / mask_height(settings);
+	if (data->shape_relative) {
+		if (base->mask_effect == MASK_EFFECT_ALPHA &&
+		    data->scale_type == MASK_SCALE_WIDTH) {
+			data->global_scale = 100.0f * data->global_scale /
+					     mask_width(settings);
+		} else if (base->mask_effect == MASK_EFFECT_ALPHA &&
+			   data->scale_type == MASK_SCALE_HEIGHT) {
+			data->global_scale = 100.0f * data->global_scale /
+					     mask_height(settings);
+		}
+	} else {
+		data->global_scale = 100.0f;
 	}
+
 
 	data->corner_radius_type =
 		(uint32_t)obs_data_get_int(settings, "rectangle_corner_type");
@@ -379,8 +398,11 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 			   (data->feather_shift + data->star_corner_radius);
 }
 
-void mask_shape_defaults(obs_data_t *settings)
+void mask_shape_defaults(obs_data_t *settings, int version)
 {
+	// Version specific settings
+	double position_scale = (version == 1 ? 120.0 : 100.0);
+
 	obs_data_set_default_int(settings, "shape_type", SHAPE_RECTANGLE);
 	obs_data_set_default_bool(settings, "shape_frame_check", false);
 	obs_data_set_default_double(settings, "shape_center_x", -1.e9);
@@ -390,7 +412,7 @@ void mask_shape_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "rectangle_height", 600.0);
 	obs_data_set_default_double(settings, "position_x", -1.e9);
 	obs_data_set_default_double(settings, "position_y", -1.e9);
-	obs_data_set_default_double(settings, "position_scale", 120.0);
+	obs_data_set_default_double(settings, "position_scale", position_scale);
 	obs_data_set_default_double(settings, "mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
 	obs_data_set_default_bool(settings, "shape_relative", false);
@@ -404,6 +426,7 @@ void mask_shape_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "star_corner_radius", 0.0);
 	obs_data_set_default_double(settings, "heart_size", 800.0);
 	obs_data_set_default_double(settings, "circle_radius", 400.0);
+	obs_data_set_default_int(settings, "scale_type", MASK_SCALE_PERCENT);
 }
 
 void shape_mask_top_properties(obs_properties_t *props)
@@ -1036,7 +1059,7 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 
 		obs_property_float_set_limits(scale_p, (double)0.0,
 					      100.0 * (double)width, (double)1.0);
-		obs_data_set_double(settings, "position_scale", width * pct);
+		obs_data_set_double(settings, "position_scale", (double)width * pct);
 		obs_property_float_set_suffix(scale_p, "px");
 	} else if (type == MASK_SCALE_HEIGHT) {
 		obs_property_t *scale_p =
@@ -1071,7 +1094,14 @@ void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		render_polygon_mask(data, base, color_adj);
 		break;
 	case SHAPE_ELLIPSE:
-		render_ellipse_mask(data, base, color_adj);
+		if (fabs(data->ellipse.x - data->ellipse.y) > 0.01) {
+			render_ellipse_mask(data, base, color_adj);
+		} else {
+			float tmp = data->radius;
+			data->radius = data->ellipse.x;
+			render_circle_mask(data, base, color_adj);
+			data->radius = tmp;
+		}
 		break;
 	case SHAPE_STAR:
 		render_star_mask(data, base, color_adj);
@@ -1095,7 +1125,7 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 	base->output_texrender =
 		create_or_reset_texrender(base->output_texrender);
 
-	float scale_factor = data->global_scale / 100.0f;
+	float scale_factor = data->shape_relative ? data->global_scale / 100.0f : 1.0f;
 
 	if (data->param_rectangle_image) {
 		gs_effect_set_texture(data->param_rectangle_image, texture);
@@ -1157,7 +1187,7 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 
 	if (data->param_global_scale) {
 		gs_effect_set_float(data->param_global_scale,
-				    data->shape_relative ? scale_factor : 1.0f);
+				    scale_factor);
 	}
 
 	if (data->param_corner_radius) {
