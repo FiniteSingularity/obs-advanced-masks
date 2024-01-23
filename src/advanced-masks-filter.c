@@ -127,6 +127,11 @@ static void advanced_masks_video_render(void *data, gs_effect_t *effect)
 		return;
 	}
 
+	obs_source_t *target = obs_filter_get_target(filter->context);
+
+	const char *type_id = obs_source_get_unversioned_id(target);
+	
+
 	filter->base->rendering = true;
 
 	// 1. Get the input source as a texture renderer
@@ -355,29 +360,6 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	mask_source_defaults(settings);
 }
 
-//static void get_input_source(advanced_masks_data_t *filter)
-//{
-//	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-//
-//	filter->base->input_texrender =
-//		create_or_reset_texrender(filter->base->input_texrender);
-//	if (obs_source_process_filter_begin(filter->context, GS_RGBA,
-//					    OBS_ALLOW_DIRECT_RENDERING) &&
-//	    gs_texrender_begin(filter->base->input_texrender,
-//			       filter->base->width, filter->base->height)) {
-//
-//		set_blending_parameters();
-//		gs_ortho(0.0f, (float)filter->base->width, 0.0f,
-//			 (float)filter->base->height, -100.0f, 100.0f);
-//		obs_source_process_filter_end(filter->context, pass_through,
-//					      filter->base->width,
-//					      filter->base->height);
-//		gs_texrender_end(filter->base->input_texrender);
-//		gs_blend_state_pop();
-//		filter->base->input_texture_generated = true;
-//	}
-//}
-
 static void get_input_source(advanced_masks_data_t *filter)
 {
 	// Use the OBS default effect file as our effect.
@@ -405,7 +387,7 @@ static void get_input_source(advanced_masks_data_t *filter)
 	// And set up your texrender to recieve the created texture.
 	if (obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
-		    OBS_ALLOW_DIRECT_RENDERING) &&
+		    OBS_NO_DIRECT_RENDERING) &&
 	    gs_texrender_begin(filter->base->input_texrender, filter->base->width,
 			       filter->base->height)) {
 
@@ -425,20 +407,6 @@ static void get_input_source(advanced_masks_data_t *filter)
 	}
 }
 
-//static void draw_output(advanced_masks_data_t *filter)
-//{
-//	gs_texture_t *texture =
-//		gs_texrender_get_texture(filter->base->output_texrender);
-//	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-//	gs_eparam_t *param = gs_effect_get_param_by_name(pass_through, "image");
-//	gs_effect_set_texture(param, texture);
-//	uint32_t width = gs_texture_get_width(texture);
-//	uint32_t height = gs_texture_get_height(texture);
-//	while (gs_effect_loop(pass_through, "Draw")) {
-//		gs_draw_sprite(texture, 0, width, height);
-//	}
-//}
-
 static void draw_output(advanced_masks_data_t *filter)
 {
 	const enum gs_color_space preferred_spaces[] = {
@@ -456,7 +424,7 @@ static void draw_output(advanced_masks_data_t *filter)
 
 	if (!obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
-		    OBS_ALLOW_DIRECT_RENDERING)) {
+		    OBS_NO_DIRECT_RENDERING)) {
 		return;
 	}
 
@@ -468,14 +436,9 @@ static void draw_output(advanced_masks_data_t *filter)
 		gs_effect_set_texture(filter->base->param_output_image, texture);
 	}
 
-	gs_blend_state_push();
-	gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA,
-				   GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-
 	obs_source_process_filter_end(filter->context, pass_through,
 				      filter->base->width,
 				      filter->base->height);
-	gs_blend_state_pop();
 }
 
 static void advanced_masks_render_filter(advanced_masks_data_t *filter)
