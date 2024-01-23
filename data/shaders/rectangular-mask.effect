@@ -67,13 +67,14 @@ VertData mainTransform(VertData v_in)
 
 float4 alphaImage(VertData v_in) : TARGET
 {
+	float zero = saturate(min(floor(width), floor(height)));
 	float2 coord = v_in.uv * uv_size;
 	float2 shift = global_position - mask_position;
 	float2 coord_p = coord - shift;
 	float2 dist = coord_p - mask_position;
 	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
 	float d = SDF(sample_dist, float2(width, height), corner_radius);
-	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-d);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-(d - 1.0f) * zero);
 	
 	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
 	return float4(color.rgb, color.a * d);
@@ -81,6 +82,7 @@ float4 alphaImage(VertData v_in) : TARGET
 
 float4 alphaFrameCheckImage(VertData v_in) : TARGET
 {
+	float zero = saturate(min(floor(width), floor(height)));
 	float2 coord = v_in.uv * uv_size;
 	float2 shift = global_position - mask_position;
 	float2 coord_p = coord - shift;
@@ -90,7 +92,7 @@ float4 alphaFrameCheckImage(VertData v_in) : TARGET
 	float2 sample_uv = (mask_position + dist / zoom / global_scale) / uv_size;
 	float alpha_scale = sample_uv.x >= 0.0f && sample_uv.x <= 1.0f &&
 	sample_uv.y >= 0.0f && sample_uv.y <= 1.0f ? 1.0f : 0.0f;
-	d = feather_amount > 0.0f ? smoothstep(alpha_zero * alpha_scale, feather_amount, -d + feather_amount) : clamp(-d, alpha_zero * alpha_scale, 1.0f);
+	d = feather_amount > 0.0f ? smoothstep(alpha_zero * alpha_scale, feather_amount, -d + feather_amount) : clamp(-(d - 1.0f) * zero, alpha_zero * alpha_scale, 1.0f);
 	
 	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
 	return float4(color.rgb, color.a * d);
@@ -98,11 +100,12 @@ float4 alphaFrameCheckImage(VertData v_in) : TARGET
 
 float4 adjustmentsImage(VertData v_in) : TARGET
 {
+	float zero = saturate(min(floor(width), floor(height)));
 	float2 coord = v_in.uv * uv_size;
 	float2 dist = coord - mask_position;
 	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
 	float d = SDF(sample_dist, float2(width, height), corner_radius) + feather_shift;
-	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d) : saturate(-d);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d) : saturate(-(d - 1.0f) * zero);
 	float4 color = image.Sample(textureSampler, v_in.uv);
 	float4 color_adj_min = adjustments(
 		color,

@@ -1084,7 +1084,14 @@ void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		render_polygon_mask(data, base, color_adj);
 		break;
 	case SHAPE_ELLIPSE:
-		render_ellipse_mask(data, base, color_adj);
+		if (fabs(data->ellipse.x - data->ellipse.y) > 0.01) {
+			render_ellipse_mask(data, base, color_adj);
+		} else {
+			float tmp = data->radius;
+			data->radius = data->ellipse.x;
+			render_circle_mask(data, base, color_adj);
+			data->radius = tmp;
+		}
 		break;
 	case SHAPE_STAR:
 		render_star_mask(data, base, color_adj);
