@@ -46,7 +46,7 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 
 	filter->context = source;
 
-	filter->source_data = mask_source_create();
+	filter->source_data = mask_source_create(settings);
 	filter->shape_data = mask_shape_create();
 	filter->gradient_data = mask_gradient_create();
 
@@ -263,12 +263,12 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_set_modified_callback2(mask_type_list,
 					   setting_mask_type_modified, data);
 
-	source_mask_top_properties(props);
+	source_mask_top_properties(props, filter->source_data);
 	shape_mask_top_properties(props);
 
 	color_adjustments_properties(props);
 
-	source_mask_bot_properties(props);
+	source_mask_bot_properties(props, filter->source_data);
 	shape_mask_bot_properties(props, filter->context, filter->shape_data);
 	gradient_mask_properties(props);
 
@@ -308,6 +308,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 	case MASK_TYPE_SHAPE:
 		setting_visibility("mask_source", false, props);
 		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_scaling_type", false, props);
+		setting_visibility("mask_source_scaling_group", false, props);
 		setting_visibility("mask_source_group", false, props);
 		setting_visibility("source_mask_compression_group", false,
 				   props);
@@ -327,6 +329,9 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);
 		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_scaling_type", true, props);
+		setting_visibility("mask_source_scaling_group", true, props);
+
 		setting_visibility("mask_source_group", true, props);
 		setting_visibility("source_mask_compression_group", true,
 				   props);
@@ -344,6 +349,9 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 	case MASK_TYPE_IMAGE:
 		setting_visibility("mask_source", false, props);
 		setting_visibility("mask_source_image", true, props);
+		setting_visibility("mask_source_scaling_type", true, props);
+		setting_visibility("mask_source_scaling_group", true, props);
+
 		setting_visibility("mask_source_group", true, props);
 		setting_visibility("source_mask_compression_group", true,
 				   props);
@@ -361,6 +369,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 	case MASK_TYPE_GRADIENT:
 		setting_visibility("mask_source", false, props);
 		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_scaling_type", false, props);
+		setting_visibility("mask_source_scaling_group", false, props);
 		setting_visibility("mask_source_group", false, props);
 		setting_visibility("source_mask_compression_group", false,
 				   props);
