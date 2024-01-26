@@ -1003,7 +1003,51 @@ void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
 	if (data->mask_image) {
 		source_texture = data->mask_image->texture;
 	}
-	
+
+	uint32_t base_width = gs_texture_get_width(source_texture);
+	uint32_t base_height = gs_texture_get_height(source_texture);
+	data->source_size.x = (float)base->width;
+	data->source_size.y = (float)base->height;
+
+	switch (data->mask_source_scale_by) {
+	case MASK_SOURCE_SCALE_BY_PERCENT:
+		data->mask_source_size.x =
+			(float)base_width * data->mask_scale_pct;
+		data->mask_source_size.y =
+			(float)base_height * data->mask_scale_pct;
+		break;
+	case MASK_SOURCE_SCALE_BY_WIDTH:
+		data->mask_source_size.x = data->mask_scale_width;
+		data->mask_source_size.y = (float)base_height *
+					   data->mask_scale_width /
+					   (float)base_width;
+		break;
+	case MASK_SOURCE_SCALE_BY_HEIGHT:
+		data->mask_source_size.y = data->mask_scale_height;
+		data->mask_source_size.x = (float)base_width *
+					   data->mask_scale_height /
+					   (float)base_height;
+		break;
+	case MASK_SOURCE_SCALE_BY_WIDTH_HEIGHT:
+		data->mask_source_size.x = data->mask_scale_width;
+		data->mask_source_size.y = data->mask_scale_height;
+		break;
+	}
+
+	if (data->param_source_source_image_size) {
+		gs_effect_set_vec2(data->param_source_source_image_size,
+				   &data->source_size);
+	}
+
+	if (data->param_source_mask_image_size) {
+		gs_effect_set_vec2(data->param_source_mask_image_size,
+				   &data->mask_source_size);
+	}
+
+	if (data->param_source_mask_offset) {
+		gs_effect_set_vec2(data->param_source_mask_offset,
+				   &data->mask_offset);
+	}
 
 	if (data->param_source_mask_source_image && source_texture) {
 		gs_effect_set_texture(data->param_source_mask_source_image,
