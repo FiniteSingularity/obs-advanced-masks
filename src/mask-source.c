@@ -60,8 +60,6 @@ void mask_source_destroy(mask_source_data_t *data)
 void mask_source_update(mask_source_data_t *data,
 			obs_data_t *settings)
 {
-	uint32_t mask_width = 0;
-	uint32_t mask_height = 0;
 	const char *mask_source_name =
 		obs_data_get_string(settings, "mask_source");
 	obs_source_t *mask_source =
@@ -73,8 +71,6 @@ void mask_source_update(mask_source_data_t *data,
 		obs_weak_source_release(data->mask_source_source);
 		data->mask_source_source =
 			obs_source_get_weak_source(mask_source);
-		mask_width = obs_source_get_width(mask_source);
-		mask_height = obs_source_get_height(mask_source);
 		obs_source_release(mask_source);
 	} else {
 		data->mask_source_source = NULL;
@@ -635,6 +631,7 @@ static bool setting_mask_source_boundary_modified(void *data,
 						  obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
+	UNUSED_PARAMETER(props);
 	mask_source_data_t *filter = data;
 	uint32_t prior_horiz = filter->boundary_horizontal;
 	uint32_t prior_vert = filter->boundary_vertical;
@@ -657,6 +654,7 @@ static bool setting_mask_source_source_modified(obs_properties_t* props,
 	obs_data_t* settings)
 {
 	UNUSED_PARAMETER(p);
+	UNUSED_PARAMETER(props);
 	float width_setting =
 		(float)obs_data_get_double(settings, "mask_source_mask_width");
 	if (width_setting > -0.001) {
