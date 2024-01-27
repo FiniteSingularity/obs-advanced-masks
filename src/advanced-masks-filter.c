@@ -299,14 +299,8 @@ static bool setting_mask_effect_modified(void *data, obs_properties_t *props,
 					 obs_data_t *settings)
 {
 	int mask_effect = (int)obs_data_get_int(settings, "mask_effect");
-	switch (mask_effect) {
-	case MASK_EFFECT_ADJUSTMENT:
-		setting_visibility("mask_adjustments_group", true, props);
-		break;
-	case MASK_EFFECT_ALPHA:
-		setting_visibility("mask_adjustments_group", false, props);
-		break;
-	}
+	setting_visibility("mask_adjustments_group", mask_effect == MASK_EFFECT_ADJUSTMENT, props);
+
 	setting_mask_type_modified(data, props, p, settings);
 	return true;
 }
@@ -343,6 +337,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 					      settings);
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
 		return true;
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);
@@ -365,6 +360,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_gradient_group", false, props);
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
 		return true;
 	case MASK_TYPE_IMAGE:
 		setting_visibility("mask_source", false, props);
@@ -387,6 +383,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_gradient_group", false, props);
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
 		return true;
 	case MASK_TYPE_GRADIENT:
 		setting_visibility("mask_source", false, props);
@@ -407,6 +404,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_gradient_group", true, props);
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
 		return true;
 	case MASK_TYPE_BSM:
 		setting_visibility("mask_source", false, props);
@@ -428,6 +426,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 
 		setting_visibility("bsm_mask_source", true, props);
 		setting_visibility("bsm_time", true, props);
+		setting_visibility("bsm_freeze", effect_type == MASK_EFFECT_ALPHA, props);
 		return true;
 	}
 	return false;

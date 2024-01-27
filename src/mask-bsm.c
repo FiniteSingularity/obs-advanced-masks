@@ -88,7 +88,7 @@ void bsm_mask_top_properties(obs_properties_t *props)
 
 	obs_property_float_set_suffix(p, "ms");
 
-	obs_properties_add_bool(
+	p = obs_properties_add_bool(
 		props, "bsm_freeze",
 		obs_module_text("AdvancedMasks.BSMMask.Freeze"));
 }
