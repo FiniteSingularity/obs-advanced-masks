@@ -1,0 +1,120 @@
+#include "common.effect"
+
+uniform float4x4 ViewProj;
+
+uniform texture2d image;              // What we're masking
+uniform texture2d buffer;             // Last frame to add next to
+uniform texture2d current_input_mask; // Source that creates the mask.
+uniform texture2d adjustment_mask;    // Mask for applying adjustments.
+
+uniform float alpha_reduction;
+
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 alphaMaskImage(VertData v_in) : TARGET
+{
+	float4 buffer_color = buffer.Sample(textureSampler, v_in.uv);
+	float4 cur_color = current_input_mask.Sample(textureSampler, v_in.uv);
+	buffer_color.a = max(0.0, buffer_color.a - alpha_reduction);
+	float alpha_mask = max(buffer_color.a, cur_color.a);
+	return float4(1.0, 1.0, 1.0, alpha_mask);
+}
+
+float4 alphaImage(VertData v_in) : TARGET
+{
+	float4 buffer_color = buffer.Sample(textureSampler, v_in.uv);
+	float4 cur_color = current_input_mask.Sample(textureSampler, v_in.uv);
+	buffer_color.a = max(0.0, buffer_color.a - alpha_reduction);
+	float alpha_mask = max(buffer_color.a, cur_color.a);
+	float4 c = image.Sample(textureSampler, v_in.uv);
+	return float4(c.rgb, c.a * alpha_mask);
+}
+
+float4 adjustmentsImage(VertData v_in) : TARGET
+{
+	float4 buffer_color = adjustment_mask.Sample(textureSampler, v_in.uv);
+	float alpha_mask = buffer_color.a;
+	float4 color = image.Sample(textureSampler, v_in.uv);
+	color = adjustments(
+		color,
+		lerp(min_brightness, max_brightness, alpha_mask),
+		lerp(min_contrast, max_contrast, alpha_mask),
+		lerp(min_saturation, max_saturation, alpha_mask),
+		lerp(min_hue_shift, max_hue_shift, alpha_mask)
+	);
+	return color;
+}
+
+float4 alphaImageFreeze(VertData v_in) : TARGET
+{
+	float4 buffer_color = buffer.Sample(textureSampler, v_in.uv);
+	float4 cur_color = current_input_mask.Sample(textureSampler, v_in.uv);
+	buffer_color.a = max(0.0, buffer_color.a - alpha_reduction);;
+	float4 c = image.Sample(textureSampler, v_in.uv);
+	
+	return cur_color.a > 0.01 ? c : buffer_color;
+}
+
+technique Alpha
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaImage(v_in);
+	}
+}
+
+technique AlphaFreeze
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaImageFreeze(v_in);
+	}
+}
+
+technique Mask
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaMaskImage(v_in);
+	}
+}
+
+technique Adjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsImage(v_in);
+	}
+}

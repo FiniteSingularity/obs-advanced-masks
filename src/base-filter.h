@@ -19,6 +19,8 @@
 #define MASK_TYPE_IMAGE_LABEL "AdvancedMasks.Image"
 #define MASK_TYPE_GRADIENT 4
 #define MASK_TYPE_GRADIENT_LABEL "AdvancedMasks.Gradient"
+#define MASK_TYPE_BSM 5
+#define MASK_TYPE_BSM_LABEL "AdvancedMasks.BSM"
 
 struct base_filter_data;
 typedef struct base_filter_data base_filter_data_t;
