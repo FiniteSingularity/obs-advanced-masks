@@ -412,6 +412,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_source", false, props);
 		setting_visibility("mask_source_image", false, props);
 		setting_visibility("mask_source_group", false, props);
+		setting_visibility("mask_source_scaling_type", false, props);
+		setting_visibility("mask_source_scaling_group", false, props);
 		setting_visibility("source_mask_compression_group", false,
 				   props);
 		setting_visibility("shape_type", false, props);
@@ -457,7 +459,6 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	mask_gradient_defaults(settings);
 	mask_source_defaults(settings);
 	mask_bsm_defaults(settings);
-}
 }
 
 static void advanced_masks_defaults_v2(obs_data_t *settings)

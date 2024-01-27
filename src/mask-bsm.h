@@ -17,11 +17,13 @@ struct mask_bsm_data {
 	float fade_time;
 	float seconds;
 	float alpha_reduction;
+	bool freeze_frame;
 
 	// shader params
 	gs_eparam_t *param_bsm_image;
 	gs_eparam_t *param_bsm_buffer;
 	gs_eparam_t *param_bsm_current_input_mask;
+	gs_eparam_t *param_bsm_adjustment_mask;
 	gs_eparam_t *param_bsm_alpha_reduction;
 	gs_eparam_t *param_bsm_min_brightness;
 	gs_eparam_t *param_bsm_max_brightness;
@@ -40,9 +42,19 @@ extern void mask_bsm_defaults(obs_data_t *settings);
 extern void bsm_mask_tick(mask_bsm_data_t *data, float seconds);
 extern void bsm_mask_top_properties(obs_properties_t *props);
 extern void bsm_mask_bot_properties(obs_properties_t *props);
+static void setup_adjustment_params(mask_bsm_data_t *data, color_adjustments_data_t *color_adj);
+static gs_texrender_t *get_mask_source_render(mask_bsm_data_t *data, base_filter_data_t *base);
+static void setup_bsm_params(mask_bsm_data_t *data, gs_texture_t *image_texture,
+			     gs_texture_t *cur_mask_texture,
+			     gs_texture_t *buffer_texture,
+	                     bool reduce_alpha);
 extern void render_bsm_mask(mask_bsm_data_t *data,
 			       base_filter_data_t *base,
 			       color_adjustments_data_t *color_adj);
+static void render_bsm_alpha_mask(mask_bsm_data_t *data, base_filter_data_t *base);
+static void render_bsm_adjustment_mask(mask_bsm_data_t *data,
+				       base_filter_data_t *base,
+				       color_adjustments_data_t *color_adj);
 
 extern bool setting_mask_source_filter_modified(obs_properties_t *props,
 						obs_property_t *p,

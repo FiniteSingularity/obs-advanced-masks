@@ -60,11 +60,14 @@ void mask_bsm_update(mask_bsm_data_t *data, obs_data_t *settings)
 	}
 
 	data->fade_time = (float)obs_data_get_double(settings, "bsm_time");
+	data->freeze_frame = obs_data_get_bool(settings, "bsm_freeze");
 }
 
 void mask_bsm_defaults(obs_data_t *settings)
 {
 	UNUSED_PARAMETER(settings);
+	obs_data_set_default_double(settings, "bsm_time", 5000.0);
+	obs_data_set_default_bool(settings, "bsm_freeze", false);
 }
 
 void bsm_mask_top_properties(obs_properties_t *props)
@@ -84,6 +87,10 @@ void bsm_mask_top_properties(obs_properties_t *props)
 		100000.0, 1.0);
 
 	obs_property_float_set_suffix(p, "ms");
+
+	obs_properties_add_bool(
+		props, "bsm_freeze",
+		obs_module_text("AdvancedMasks.BSMMask.Freeze"));
 }
 
 void bsm_mask_bot_properties(obs_properties_t *props)
@@ -93,22 +100,8 @@ void bsm_mask_tick(mask_bsm_data_t* data, float seconds) {
 	data->seconds = seconds;
 }
 
-void render_bsm_mask(mask_bsm_data_t *data, base_filter_data_t *base,
-			color_adjustments_data_t *color_adj)
+static void setup_adjustment_params(mask_bsm_data_t* data, color_adjustments_data_t* color_adj)
 {
-	gs_effect_t *effect = data->effect_bsm_mask;
-	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
-	if (!effect || !texture) {
-		return;
-	}
-
-	gs_texrender_t *tmp = data->bsm_buffer_texrender;
-	data->bsm_buffer_texrender = base->output_texrender;
-	base->output_texrender = tmp;
-
-	base->output_texrender =
-		create_or_reset_texrender(base->output_texrender);
-
 	if (data->param_bsm_min_brightness) {
 		const float min_brightness = color_adj->adj_brightness
 						     ? color_adj->min_brightness
@@ -170,20 +163,11 @@ void render_bsm_mask(mask_bsm_data_t *data, base_filter_data_t *base,
 		gs_effect_set_float(data->param_bsm_max_hue_shift,
 				    max_hue_shift);
 	}
+}
 
-	if (data->param_bsm_alpha_reduction) {
-		float alpha_reduction = 0.0f;
-		if(data->fade_time > 0.0001f) {
-			data->alpha_reduction +=
-				data->seconds / (data->fade_time / 1000.0f);
-			if (data->alpha_reduction > 0.004) {
-				alpha_reduction = data->alpha_reduction;
-				data->alpha_reduction = 0.0f;
-			}
-		}
-		gs_effect_set_float(data->param_bsm_alpha_reduction, alpha_reduction);
-	}
-
+static gs_texrender_t *get_mask_source_render(mask_bsm_data_t *data,
+					 base_filter_data_t *base)
+{
 	gs_texrender_t *mask_source_render = NULL;
 	obs_source_t *source =
 		data->mask_source_source
@@ -194,7 +178,7 @@ void render_bsm_mask(mask_bsm_data_t *data, base_filter_data_t *base,
 		gs_texrender_t *tmp = base->output_texrender;
 		base->output_texrender = base->input_texrender;
 		base->input_texrender = tmp;
-		return;
+		return NULL;
 	}
 
 	const enum gs_color_space preferred_spaces[] = {
@@ -226,44 +210,167 @@ void render_bsm_mask(mask_bsm_data_t *data, base_filter_data_t *base,
 	}
 	gs_blend_state_pop();
 	obs_source_release(source);
-	gs_texture_t *source_texture =
-		gs_texrender_get_texture(mask_source_render);
+	return mask_source_render;
+}
 
-	gs_texture_t *buffer_texture =
-		gs_texrender_get_texture(data->bsm_buffer_texrender);
+static void setup_bsm_params(mask_bsm_data_t *data,
+		      gs_texture_t *image_texture,
+		      gs_texture_t *cur_mask_texture,
+		      gs_texture_t *buffer_texture,
+		      bool reduce_alpha)
+{
+	if (reduce_alpha && data->param_bsm_alpha_reduction) {
+		float alpha_reduction = 0.0f;
+		if (data->fade_time > 0.0001f) {
+			data->alpha_reduction +=
+				data->seconds / (data->fade_time / 1000.0f);
+			if (data->alpha_reduction > 0.004) {
+				alpha_reduction = data->alpha_reduction;
+				data->alpha_reduction = 0.0f;
+			}
+		}
+		gs_effect_set_float(data->param_bsm_alpha_reduction,
+				    alpha_reduction);
+	}
 
 	if (data->param_bsm_image) {
-		gs_effect_set_texture(data->param_bsm_image,
-				      texture);
+		gs_effect_set_texture(data->param_bsm_image, image_texture);
 	}
 
 	if (data->param_bsm_current_input_mask) {
 		gs_effect_set_texture(data->param_bsm_current_input_mask,
-				      source_texture);
+				      cur_mask_texture);
 	}
 
 	if (data->param_bsm_buffer) {
-		gs_effect_set_texture(data->param_bsm_buffer,
-				      buffer_texture);
+		gs_effect_set_texture(data->param_bsm_buffer, buffer_texture);
 	}
+}
+
+void render_bsm_mask(mask_bsm_data_t* data, base_filter_data_t* base,
+	color_adjustments_data_t* color_adj)
+{
+	if (base->mask_effect == MASK_EFFECT_ADJUSTMENT) {
+		render_bsm_adjustment_mask(data, base, color_adj);
+	} else {
+		render_bsm_alpha_mask(data, base);
+	}
+}
+
+static void render_bsm_alpha_mask(mask_bsm_data_t *data, base_filter_data_t *base)
+{
+	gs_effect_t *effect = data->effect_bsm_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+
+	gs_texrender_t *tmp = data->bsm_buffer_texrender;
+	data->bsm_buffer_texrender = base->output_texrender;
+	base->output_texrender = tmp;
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	gs_texrender_t *mask_source_render = get_mask_source_render(data, base);
+	if (!mask_source_render) {
+		return;
+	}
+	gs_texture_t *source_texture = gs_texrender_get_texture(mask_source_render);
+	gs_texture_t *buffer_texture = gs_texrender_get_texture(data->bsm_buffer_texrender);
+
+	setup_bsm_params(data, texture, source_texture, buffer_texture, true);
 
 	set_blending_parameters();
 
-	char technique[32];
-	strcpy(technique, base->mask_effect == MASK_EFFECT_ADJUSTMENT
-				  ? "Adjustments"
-				  : "Alpha");
+	struct dstr technique;
+	dstr_init_copy(&technique, "Alpha");
+	if (data->freeze_frame) {
+		dstr_cat(&technique, "Freeze");
+	}
 
 	if (gs_texrender_begin(base->output_texrender, base->width,
 			       base->height)) {
 		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
 			 -100.0f, 100.0f);
-		while (gs_effect_loop(effect, technique))
+		while (gs_effect_loop(effect, technique.array))
 			gs_draw_sprite(texture, 0, base->width, base->height);
 		gs_texrender_end(base->output_texrender);
 	}
+	dstr_free(&technique);
 	gs_texrender_destroy(mask_source_render);
 	gs_blend_state_pop();
+}
+
+static void render_bsm_adjustment_mask(mask_bsm_data_t *data, base_filter_data_t *base,
+			   color_adjustments_data_t *color_adj)
+{
+	gs_effect_t *effect = data->effect_bsm_mask;
+	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
+	if (!effect || !texture) {
+		return;
+	}
+	gs_texrender_t *tmp = data->bsm_buffer_texrender;
+	data->bsm_buffer_texrender = data->bsm_mask_texrender;
+	data->bsm_mask_texrender = tmp;
+
+	data->bsm_mask_texrender =
+		create_or_reset_texrender(data->bsm_mask_texrender);
+
+	base->output_texrender =
+		create_or_reset_texrender(base->output_texrender);
+
+	gs_texrender_t *mask_source_render = get_mask_source_render(data, base);
+	if (!mask_source_render) {
+		return;
+	}
+	gs_texture_t *source_texture = gs_texrender_get_texture(mask_source_render);
+	gs_texture_t *buffer_texture = gs_texrender_get_texture(data->bsm_buffer_texrender);
+
+	setup_bsm_params(data, texture, source_texture, buffer_texture, true);
+
+	// 1. Render mask
+	set_blending_parameters();
+
+	struct dstr technique;
+	dstr_init_copy(&technique, "Mask");
+	if (gs_texrender_begin(data->bsm_mask_texrender, base->width,
+			       base->height)) {
+		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique.array))
+			gs_draw_sprite(texture, 0, base->width, base->height);
+		gs_texrender_end(data->bsm_mask_texrender);
+	}
+	gs_blend_state_pop();
+
+	// 2. Render output
+	gs_texture_t *adjustment_mask =
+		gs_texrender_get_texture(data->bsm_mask_texrender);
+	if (data->param_bsm_adjustment_mask) {
+		gs_effect_set_texture(data->param_bsm_adjustment_mask, adjustment_mask);
+	}
+
+	setup_adjustment_params(data, color_adj);
+	setup_bsm_params(data, texture, source_texture, buffer_texture, false);
+
+	dstr_copy(&technique, "Adjustments");
+
+	set_blending_parameters();
+
+	if (gs_texrender_begin(base->output_texrender, base->width,
+			       base->height)) {
+		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
+			 -100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique.array))
+			gs_draw_sprite(texture, 0, base->width, base->height);
+		gs_texrender_end(base->output_texrender);
+	}
+	gs_blend_state_pop();
+
+	dstr_free(&technique);
+	gs_texrender_destroy(mask_source_render);
+	
 }
 
 
@@ -293,6 +400,8 @@ static void load_bsm_mask_effect(mask_bsm_data_t *data)
 				data->param_bsm_buffer = param;
 			} else if (strcmp(info.name, "current_input_mask") == 0) {
 				data->param_bsm_current_input_mask = param;
+			} else if (strcmp(info.name, "adjustment_mask") ==  0) {
+				data->param_bsm_adjustment_mask = param;
 			} else if (strcmp(info.name, "alpha_reduction") == 0) {
 				data->param_bsm_alpha_reduction = param;
 			} else if (strcmp(info.name, "min_brightness") == 0) {
