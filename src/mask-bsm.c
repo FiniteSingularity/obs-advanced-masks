@@ -94,7 +94,9 @@ void bsm_mask_top_properties(obs_properties_t *props)
 }
 
 void bsm_mask_bot_properties(obs_properties_t *props)
-{ }
+{
+	UNUSED_PARAMETER(props);
+}
 
 void bsm_mask_tick(mask_bsm_data_t* data, float seconds) {
 	data->seconds = seconds;
