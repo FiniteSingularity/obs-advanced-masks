@@ -11,6 +11,7 @@ uniform float radius;
 uniform float zoom;
 uniform float feather_amount;
 uniform float alpha_zero;
+uniform float invert;
 
 uniform float min_brightness;
 uniform float max_brightness;
@@ -23,12 +24,10 @@ uniform float max_hue_shift;
 
 sampler_state textureSampler{
     Filter = Linear;
-    AddressU = Clamp;
-    AddressV = Clamp;
-    MinLOD = 0;
-    MaxLOD = 0;
+    AddressU = Border;
+    AddressV = Border;
+    BorderColor = 0x00000000;
 };
-
 struct VertData
 {
 	float4 pos : POSITION;
@@ -57,7 +56,7 @@ float4 alphaImage(VertData v_in) : TARGET
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-(d - 1.0) * zero);
 	
 	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
-	return float4(color.rgb, color.a * d);
+	return float4(color.rgb, (1.0f - invert) * color.a * d + invert * color.a * (1.0f - d));
 }
 
 float4 alphaFrameCheckImage(VertData v_in) : TARGET
@@ -71,7 +70,9 @@ float4 alphaFrameCheckImage(VertData v_in) : TARGET
 	float2 sample_uv = (mask_position + dist / zoom / global_scale) / uv_size;
 	float alpha_scale = sample_uv.x >= 0.0f && sample_uv.x <= 1.0f &&
 	sample_uv.y >= 0.0f && sample_uv.y <= 1.0f ? 1.0f : 0.0f;
-	d = feather_amount > 0.0f ? smoothstep(alpha_zero * alpha_scale, feather_amount, -d + feather_amount) : clamp(-(d - 1.0) * zero, alpha_zero * alpha_scale, 1.0f);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-(d - 1.0) * zero);
+	d = (1.0f - invert) * d + invert * (1.0 - d);
+	d = (d + alpha_zero) / (1.0 + alpha_zero);
 	
 	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
 	return float4(color.rgb, color.a * d);
@@ -84,6 +85,7 @@ float4 adjustmentsImage(VertData v_in) : TARGET
 	float2 dist = coord - mask_position;
 	float d = SDF(dist, radius);
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-(d - 1.0) * zero);
+	d = (1.0f - invert) * d + invert * (1.0 - d);
 	
 	float4 color = image.Sample(textureSampler, v_in.uv);
 	float4 color_adj_min = adjustments(

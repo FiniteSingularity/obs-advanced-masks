@@ -19,7 +19,7 @@ uniform float feather_shift;
 uniform float feather_amount;
 uniform float sin_theta;
 uniform float cos_theta;
-uniform bool invert;
+uniform float invert;
 uniform float alpha_zero;
 
 uniform float min_brightness;
@@ -35,10 +35,9 @@ uniform float aa_scale;
 
 sampler_state textureSampler{
     Filter = Linear;
-    AddressU = Clamp;
-    AddressV = Clamp;
-    MinLOD = 0;
-    MaxLOD = 0;
+    AddressU = Border;
+    AddressV = Border;
+    BorderColor = 0x00000000;
 };
 
 struct VertData
@@ -77,7 +76,7 @@ float4 alphaImage(VertData v_in) : TARGET
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-(d - 1.0f) * zero);
 	
 	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
-	return float4(color.rgb, color.a * d);
+	return float4(color.rgb, (1.0f - invert) * color.a * d + invert * color.a * (1.0f - d));
 }
 
 float4 alphaFrameCheckImage(VertData v_in) : TARGET
@@ -92,7 +91,9 @@ float4 alphaFrameCheckImage(VertData v_in) : TARGET
 	float2 sample_uv = (mask_position + dist / zoom / global_scale) / uv_size;
 	float alpha_scale = sample_uv.x >= 0.0f && sample_uv.x <= 1.0f &&
 	sample_uv.y >= 0.0f && sample_uv.y <= 1.0f ? 1.0f : 0.0f;
-	d = feather_amount > 0.0f ? smoothstep(alpha_zero * alpha_scale, feather_amount, -d + feather_amount) : clamp(-(d - 1.0f) * zero, alpha_zero * alpha_scale, 1.0f);
+	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-(d - 1.0) * zero);
+	d = (1.0f - invert) * d + invert * (1.0 - d);
+	d = (d + alpha_zero) / (1.0 + alpha_zero);
 	
 	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
 	return float4(color.rgb, color.a * d);
@@ -106,6 +107,8 @@ float4 adjustmentsImage(VertData v_in) : TARGET
 	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
 	float d = SDF(sample_dist, float2(width, height), corner_radius) + feather_shift;
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d) : saturate(-(d - 1.0f) * zero);
+	d = (1.0f - invert) * d + invert * (1.0 - d);
+
 	float4 color = image.Sample(textureSampler, v_in.uv);
 	float4 color_adj_min = adjustments(
 		color,

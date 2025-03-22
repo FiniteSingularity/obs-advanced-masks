@@ -62,6 +62,7 @@ struct mask_shape_data {
 	float feather_amount;
 	float feather_shift;
 	float shape_corner_radius;
+	bool invert_mask;
 
 	// Parameters for rectangle mask
 	float rectangle_width;
@@ -119,6 +120,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_rectangle_max_saturation;
 	gs_eparam_t *param_rectangle_min_hue_shift;
 	gs_eparam_t *param_rectangle_max_hue_shift;
+	gs_eparam_t* param_rectangle_invert;
 
 	gs_eparam_t *param_circle_image;
 	gs_eparam_t *param_circle_uv_size;
@@ -137,6 +139,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_circle_max_saturation;
 	gs_eparam_t *param_circle_min_hue_shift;
 	gs_eparam_t *param_circle_max_hue_shift;
+	gs_eparam_t* param_circle_invert;
 
 	gs_eparam_t *param_polygon_image;
 	gs_eparam_t *param_polygon_uv_size;
@@ -162,6 +165,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_polygon_max_saturation;
 	gs_eparam_t *param_polygon_min_hue_shift;
 	gs_eparam_t *param_polygon_max_hue_shift;
+	gs_eparam_t* param_polygon_invert;
 
 	gs_eparam_t *param_ellipse_image;
 	gs_eparam_t *param_ellipse_uv_size;
@@ -182,6 +186,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_ellipse_max_saturation;
 	gs_eparam_t *param_ellipse_min_hue_shift;
 	gs_eparam_t *param_ellipse_max_hue_shift;
+	gs_eparam_t* param_ellipse_invert;
 
 	gs_eparam_t *param_star_image;
 	gs_eparam_t *param_star_uv_size;
@@ -207,6 +212,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_star_max_saturation;
 	gs_eparam_t *param_star_min_hue_shift;
 	gs_eparam_t *param_star_max_hue_shift;
+	gs_eparam_t* param_star_invert;
 
 	gs_eparam_t *param_heart_image;
 	gs_eparam_t *param_heart_uv_size;
@@ -228,6 +234,7 @@ struct mask_shape_data {
 	gs_eparam_t *param_heart_max_saturation;
 	gs_eparam_t *param_heart_min_hue_shift;
 	gs_eparam_t *param_heart_max_hue_shift;
+	gs_eparam_t* param_heart_invert;
 };
 
 extern mask_shape_data_t *mask_shape_create();

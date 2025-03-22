@@ -232,6 +232,7 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 
 	data->shape_relative = obs_data_get_bool(settings, "shape_relative");
 	data->frame_check = obs_data_get_bool(settings, "shape_frame_check");
+	data->invert_mask = obs_data_get_bool(settings, "shape_invert");
 	data->mask_center.x =
 		(float)obs_data_get_double(settings, "shape_center_x");
 	data->mask_center.y =
@@ -483,6 +484,9 @@ static void shape_properties(obs_properties_t *props, obs_source_t *context,
 
 	obs_properties_t *mask_geometry_group = obs_properties_create();
 	char label[255];
+
+	label_indent(label, obs_module_text("AdvancedMasks.Shape.Invert"));
+	obs_properties_add_bool(mask_geometry_group, "shape_invert", label);
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.X"));
 	p = obs_properties_add_float_slider(
@@ -1175,6 +1179,10 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 				    data->feather_shift);
 	}
 
+	if (data->param_rectangle_invert) {
+		gs_effect_set_float(data->param_rectangle_invert, data->invert_mask ? 1.0f : 0.0f);
+	}
+
 	if (data->param_global_position) {
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_global_position,
@@ -1330,6 +1338,10 @@ static void render_polygon_mask(mask_shape_data_t *data,
 
 	if (data->param_polygon_image) {
 		gs_effect_set_texture(data->param_polygon_image, texture);
+	}
+
+	if (data->param_polygon_invert) {
+		gs_effect_set_float(data->param_polygon_invert, data->invert_mask ? 1.0f : 0.0f);
 	}
 
 	if (data->param_polygon_zoom) {
@@ -1510,6 +1522,10 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		gs_effect_set_texture(data->param_star_image, texture);
 	}
 
+	if (data->param_star_invert) {
+		gs_effect_set_float(data->param_star_invert, data->invert_mask ? 1.0f : 0.0f);
+	}
+
 	if (data->param_star_zoom) {
 		gs_effect_set_float(data->param_star_zoom, data->zoom / 100.0f);
 	}
@@ -1687,6 +1703,10 @@ static void render_circle_mask(mask_shape_data_t *data,
 		gs_effect_set_texture(data->param_circle_image, texture);
 	}
 
+	if (data->param_circle_invert) {
+		gs_effect_set_float(data->param_circle_invert, data->invert_mask ? 1.0f : 0.0f);
+	}
+
 	if (data->param_circle_zoom) {
 		gs_effect_set_float(data->param_circle_zoom,
 				    data->zoom / 100.0f);
@@ -1840,6 +1860,10 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 
 	if (data->param_heart_image) {
 		gs_effect_set_texture(data->param_heart_image, texture);
+	}
+
+	if (data->param_heart_invert) {
+		gs_effect_set_float(data->param_heart_invert, data->invert_mask ? 1.0f : 0.0f);
 	}
 
 	if (data->param_heart_zoom) {
@@ -2011,6 +2035,10 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 
 	if (data->param_ellipse_image) {
 		gs_effect_set_texture(data->param_ellipse_image, texture);
+	}
+
+	if (data->param_ellipse_invert) {
+		gs_effect_set_float(data->param_ellipse_invert, data->invert_mask ? 1.0f : 0.0f);
 	}
 
 	if (data->param_ellipse_zoom) {
@@ -2234,6 +2262,8 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data)
 				data->param_rectangle_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_rectangle_max_hue_shift = param;
+			} else if (strcmp(info.name, "invert") == 0) {
+				data->param_rectangle_invert = param;
 			}
 		}
 	}
@@ -2288,6 +2318,8 @@ static void load_circle_mask_effect(mask_shape_data_t *data)
 				data->param_circle_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_circle_max_hue_shift = param;
+			} else if (strcmp(info.name, "invert") == 0) {
+				data->param_circle_invert = param;
 			}
 		}
 	}
@@ -2346,6 +2378,8 @@ static void load_ellipse_mask_effect(mask_shape_data_t *data)
 				data->param_ellipse_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_ellipse_max_hue_shift = param;
+			} else if (strcmp(info.name, "invert") == 0) {
+				data->param_ellipse_invert = param;
 			}
 		}
 	}
@@ -2414,6 +2448,8 @@ static void load_star_mask_effect(mask_shape_data_t *data)
 				data->param_star_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_star_max_hue_shift = param;
+			} else if (strcmp(info.name, "invert") == 0) {
+				data->param_star_invert = param;
 			}
 		}
 	}
@@ -2482,6 +2518,8 @@ static void load_polygon_mask_effect(mask_shape_data_t *data)
 				data->param_polygon_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_polygon_max_hue_shift = param;
+			} else if (strcmp(info.name, "invert") == 0) {
+				data->param_polygon_invert = param;
 			}
 		}
 	}
@@ -2542,6 +2580,8 @@ static void load_heart_mask_effect(mask_shape_data_t *data)
 				data->param_heart_min_hue_shift = param;
 			} else if (strcmp(info.name, "max_hue_shift") == 0) {
 				data->param_heart_max_hue_shift = param;
+			} else if (strcmp(info.name, "invert") == 0) {
+				data->param_heart_invert = param;
 			}
 		}
 	}

@@ -1128,7 +1128,9 @@ gs_effect_t *load_source_mask_file(gs_effect_t *effect,
 			: "";
 
 	dstr_cat(&shader_text, defines);
-	dstr_cat(&shader_text, load_shader_from_file(filename.array));
+	char* file_contents = load_shader_from_file(filename.array);
+	dstr_cat(&shader_text, file_contents);
+	bfree(file_contents);
 
 	dstr_replace(&shader_text, "<ADDR_U>", get_addr_mode(data->boundary_horizontal));
 	dstr_replace(&shader_text, "<ADDR_V>", get_addr_mode(data->boundary_vertical));
