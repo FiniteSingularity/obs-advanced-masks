@@ -1,0 +1,53 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 uv_size;
+uniform float feather_size;
+uniform texture2d distance_field;
+
+sampler_state textureSampler {
+	Filter    = Linear;
+	AddressU  = Clamp;
+	AddressV  = Clamp;
+};
+
+sampler_state sdfSampler{
+    Filter = Point;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+    //BorderColor = 0xFFFFFFFF;
+};
+
+
+struct VertData {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertData VSDefault(VertData v_in)
+{
+	VertData vert_out;
+	vert_out.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = v_in.uv;
+	return vert_out;
+}
+
+float4 PSFeather(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float4 rgba = image.Sample(textureSampler, v_in.uv);
+	float4 dist_texture = distance_field.Sample(sdfSampler, v_in.uv);
+	float mask = saturate(distance(coord, dist_texture.xy) / feather_size);
+	float4 retColor = float4(rgba.r, rgba.g, rgba.b, rgba.a * mask);
+	return retColor;
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = VSDefault(v_in);
+		pixel_shader = PSFeather(v_in);
+	}
+}

@@ -44,14 +44,16 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 {
 	advanced_masks_data_t *filter = bzalloc(sizeof(advanced_masks_data_t));
 
-	filter->context = source;
-
 	filter->source_data = mask_source_create(settings);
 	filter->shape_data = mask_shape_create();
 	filter->gradient_data = mask_gradient_create();
 	filter->bsm_data = mask_bsm_create();
+	filter->chroma_key_data = mask_chroma_key_create();
+	filter->feather_data = mask_feather_create();
+	filter->svg_data = mask_svg_create(settings);
 
 	filter->base = bzalloc(sizeof(base_filter_data_t));
+	filter->base->context = source;
 	filter->base->input_texrender =
 		create_or_reset_texrender(filter->base->input_texrender);
 	filter->base->output_texrender =
@@ -61,6 +63,7 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->base->rendering = false;
 
 	filter->color_adj_data = bzalloc(sizeof(color_adjustments_data_t));
+	filter->multiPassShader = true;
 
 	load_output_effect(filter);
 	obs_source_update(source, settings);
@@ -76,7 +79,10 @@ static void advanced_masks_destroy(void *data)
 	mask_source_destroy(filter->source_data);
 	mask_shape_destroy(filter->shape_data);
 	mask_gradient_destroy(filter->gradient_data);
+	mask_chroma_key_destroy(filter->chroma_key_data);
 	mask_bsm_destroy(filter->bsm_data);
+	mask_feather_destroy(filter->feather_data);
+	mask_svg_destroy(filter->svg_data);
 
 	obs_enter_graphics();
 	if (filter->base->input_texrender) {
@@ -114,8 +120,8 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	advanced_masks_data_t *filter = data;
 	if (filter->base->width > 0 &&
 	    (float)obs_data_get_double(settings, "shape_center_x") < -1.e8) {
-		double width = (double)obs_source_get_width(filter->context);
-		double height = (double)obs_source_get_height(filter->context);
+		double width = (double)obs_source_get_width(filter->base->context);
+		double height = (double)obs_source_get_height(filter->base->context);
 		obs_data_set_double(settings, "shape_center_x", width / 2.0);
 		obs_data_set_double(settings, "position_x", width / 2.0);
 		obs_data_set_double(settings, "shape_center_y", height / 2.0);
@@ -124,7 +130,7 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	if (filter->base->width > 0 &&
 	    (float)obs_data_get_double(settings, "mask_gradient_position") <
 		    -1.e8) {
-		double width = (double)obs_source_get_width(filter->context);
+		double width = (double)obs_source_get_width(filter->base->context);
 		obs_data_set_double(settings, "mask_gradient_position",
 				    width / 2.0);
 	}
@@ -139,6 +145,8 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	mask_source_update(filter->source_data, settings);
 	mask_gradient_update(filter->gradient_data, settings);
 	mask_bsm_update(filter->bsm_data, settings);
+	mask_feather_update(filter->feather_data, settings);
+	mask_svg_update(filter->svg_data, settings);
 }
 
 static void advanced_masks_update_v2(void *data, obs_data_t *settings)
@@ -148,8 +156,8 @@ static void advanced_masks_update_v2(void *data, obs_data_t *settings)
 	advanced_masks_data_t *filter = data;
 	if (filter->base->width > 0 &&
 	    (float)obs_data_get_double(settings, "shape_center_x") < -1.e8) {
-		double width = (double)obs_source_get_width(filter->context);
-		double height = (double)obs_source_get_height(filter->context);
+		double width = (double)obs_source_get_width(filter->base->context);
+		double height = (double)obs_source_get_height(filter->base->context);
 		obs_data_set_double(settings, "shape_center_x", width / 2.0);
 		obs_data_set_double(settings, "position_x", width / 2.0);
 		obs_data_set_double(settings, "shape_center_y", height / 2.0);
@@ -158,7 +166,7 @@ static void advanced_masks_update_v2(void *data, obs_data_t *settings)
 	if (filter->base->width > 0 &&
 	    (float)obs_data_get_double(settings, "mask_gradient_position") <
 		    -1.e8) {
-		double width = (double)obs_source_get_width(filter->context);
+		double width = (double)obs_source_get_width(filter->base->context);
 		obs_data_set_double(settings, "mask_gradient_position",
 				    width / 2.0);
 	}
@@ -173,40 +181,66 @@ static void advanced_masks_update_v2(void *data, obs_data_t *settings)
 	mask_source_update(filter->source_data, settings);
 	mask_gradient_update(filter->gradient_data, settings);
 	mask_bsm_update(filter->bsm_data, settings);
+	mask_chroma_key_update(filter->chroma_key_data, settings);
+	mask_feather_update(filter->feather_data, settings);
+	mask_svg_update(filter->svg_data, settings);
 }
 
 static void advanced_masks_video_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	advanced_masks_data_t *filter = data;
-	if (filter->base->rendered) {
+	bool multiPass = advanced_masks_multi_pass(filter);
+
+	if (multiPass) {
+		if (filter->base->rendered) {
+			draw_output(filter);
+			return;
+		}
+		filter->base->rendering = true;
+		// 1. Get the input source as a texture renderer
+		//    accessed as filter->input_texrender after call
+		get_input_source(filter->base);
+		if (!filter->base->input_texture_generated) {
+			filter->base->rendering = false;
+			obs_source_skip_video_filter(filter->base->context);
+			return;
+		}
+
+		// 3. Create Stroke Mask
+		// Call a rendering functioner, e.g.:
+		render_mask(filter);
+
+		//gs_texrender_t *tmp = filter->base->output_texrender;
+		//filter->base->output_texrender = filter->base->input_texrender;
+		//filter->base->input_texrender = tmp;
+
+		// 3. Draw result (filter->output_texrender) to source
 		draw_output(filter);
-		return;
-	}
-
-	filter->base->rendering = true;
-
-	// 1. Get the input source as a texture renderer
-	//    accessed as filter->input_texrender after call
-	get_input_source(filter);
-	if (!filter->base->input_texture_generated) {
+		filter->base->rendered = true;
 		filter->base->rendering = false;
-		obs_source_skip_video_filter(filter->context);
-		return;
+	} else {
+		filter->base->rendering = true;
+
+		render_mask(filter);
+
+		filter->base->rendered = true;
+		filter->base->rendering = false;
 	}
 
-	// 3. Create Stroke Mask
-	// Call a rendering functioner, e.g.:
-	render_mask(filter);
+}
 
-	//gs_texrender_t *tmp = filter->base->output_texrender;
-	//filter->base->output_texrender = filter->base->input_texrender;
-	//filter->base->input_texrender = tmp;
-
-	// 3. Draw result (filter->output_texrender) to source
-	draw_output(filter);
-	filter->base->rendered = true;
-	filter->base->rendering = false;
+static bool advanced_masks_multi_pass(advanced_masks_data_t* filter)
+{
+	
+	switch (filter->base->mask_type) {
+	case MASK_TYPE_CHROMA_KEY:
+		return false;
+	case MASK_TYPE_FEATHER:
+		return false;
+	default:
+		return true;
+	}
 }
 
 static void render_mask(advanced_masks_data_t *filter)
@@ -231,6 +265,15 @@ static void render_mask(advanced_masks_data_t *filter)
 	case MASK_TYPE_BSM:
 		render_bsm_mask(filter->bsm_data, filter->base,
 				filter->color_adj_data);
+		break;
+	case MASK_TYPE_CHROMA_KEY:
+		render_chroma_key_mask(filter->chroma_key_data, filter->base);
+		break;
+	case MASK_TYPE_FEATHER:
+		render_feather_mask(filter->feather_data, filter->base);
+		break;
+	case MASK_TYPE_SVG:
+		render_mask_svg(filter->svg_data, filter->base);
 		break;
 	}
 }
@@ -274,6 +317,15 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_list_add_int(mask_type_list,
 				  obs_module_text(MASK_TYPE_BSM_LABEL),
 				  MASK_TYPE_BSM);
+	obs_property_list_add_int(mask_type_list,
+				  obs_module_text(MASK_TYPE_CHROMA_KEY_LABEL),
+				  MASK_TYPE_CHROMA_KEY);
+	obs_property_list_add_int(mask_type_list,
+				  obs_module_text(MASK_TYPE_FEATHER_LABEL),
+				  MASK_TYPE_FEATHER);
+	obs_property_list_add_int(mask_type_list,
+				  obs_module_text(MASK_TYPE_SVG_LABEL),
+				  MASK_TYPE_SVG);
 
 	obs_property_set_modified_callback2(mask_type_list,
 					    setting_mask_type_modified, data);
@@ -285,8 +337,11 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	color_adjustments_properties(props);
 
 	source_mask_bot_properties(props, filter->source_data);
-	shape_mask_bot_properties(props, filter->context, filter->shape_data);
+	shape_mask_bot_properties(props, filter->base->context, filter->shape_data);
 	gradient_mask_properties(props);
+	mask_chroma_key_properties(props);
+	feather_mask_properties(props);
+	mask_svg_properties(props, filter->svg_data);
 
 	obs_properties_add_text(props, "plugin_info", PLUGIN_INFO,
 				OBS_TEXT_INFO);
@@ -311,6 +366,8 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 	UNUSED_PARAMETER(p);
 	int mask_type = (int)obs_data_get_int(settings, "mask_type");
 	int effect_type = (int)obs_data_get_int(settings, "mask_effect");
+	int key_type = (int)obs_data_get_int(settings, "key_type");
+	int scaling_type = (int)obs_data_get_int(settings, "mask_source_scaling_type");
 	advanced_masks_data_t *filter = data;
 
 	switch (mask_type) {
@@ -338,12 +395,18 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
 		setting_visibility("bsm_freeze", false, props);
+		setting_visibility("key_type", false, props);
+		setting_visibility("show_matte", false, props);
+		setting_visibility("mask_advanced_key_group", false, props);
+		setting_visibility("mask_super_key_group", false, props);
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", false, props);
 		return true;
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);
 		setting_visibility("mask_source_image", false, props);
 		setting_visibility("mask_source_scaling_type", true, props);
-		setting_visibility("mask_source_scaling_group", true, props);
+		setting_visibility("mask_source_scaling_group", scaling_type == MASK_SOURCE_SCALING_MANUAL, props);
 
 		setting_visibility("mask_source_group", true, props);
 		setting_visibility("source_mask_compression_group", true,
@@ -361,12 +424,18 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
 		setting_visibility("bsm_freeze", false, props);
+		setting_visibility("key_type", false, props);
+		setting_visibility("show_matte", false, props);
+		setting_visibility("mask_advanced_key_group", false, props);
+		setting_visibility("mask_super_key_group", false, props);
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", false, props);
 		return true;
 	case MASK_TYPE_IMAGE:
 		setting_visibility("mask_source", false, props);
 		setting_visibility("mask_source_image", true, props);
 		setting_visibility("mask_source_scaling_type", true, props);
-		setting_visibility("mask_source_scaling_group", true, props);
+		setting_visibility("mask_source_scaling_group", scaling_type == MASK_SOURCE_SCALING_MANUAL, props);
 
 		setting_visibility("mask_source_group", true, props);
 		setting_visibility("source_mask_compression_group", true,
@@ -384,6 +453,12 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
 		setting_visibility("bsm_freeze", false, props);
+		setting_visibility("key_type", false, props);
+		setting_visibility("show_matte", false, props);
+		setting_visibility("mask_advanced_key_group", false, props);
+		setting_visibility("mask_super_key_group", false, props);
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", false, props);
 		return true;
 	case MASK_TYPE_GRADIENT:
 		setting_visibility("mask_source", false, props);
@@ -405,6 +480,12 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("bsm_mask_source", false, props);
 		setting_visibility("bsm_time", false, props);
 		setting_visibility("bsm_freeze", false, props);
+		setting_visibility("key_type", false, props);
+		setting_visibility("show_matte", false, props);
+		setting_visibility("mask_advanced_key_group", false, props);
+		setting_visibility("mask_super_key_group", false, props);
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", false, props);
 		return true;
 	case MASK_TYPE_BSM:
 		setting_visibility("mask_source", false, props);
@@ -427,6 +508,102 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("bsm_mask_source", true, props);
 		setting_visibility("bsm_time", true, props);
 		setting_visibility("bsm_freeze", effect_type == MASK_EFFECT_ALPHA, props);
+		setting_visibility("key_type", false , props);
+		setting_visibility("show_matte", false , props);
+		setting_visibility("mask_advanced_key_group", false , props);
+		setting_visibility("mask_super_key_group", false, props);
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", false, props);
+		return true;
+	case MASK_TYPE_CHROMA_KEY:
+		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_group", false, props);
+		setting_visibility("mask_source_scaling_type", false, props);
+		setting_visibility("mask_source_scaling_group", false, props);
+		setting_visibility("source_mask_compression_group", false,
+			props);
+		setting_visibility("shape_type", false, props);
+		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
+		setting_visibility("shape_feather_group", false, props);
+		setting_visibility("rectangle_source_group", false, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+			props);
+		setting_visibility("scale_position_group", false, props);
+		setting_visibility("mask_gradient_group", false, props);
+
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
+
+		setting_visibility("key_type", true, props);
+		setting_visibility("show_matte", true, props);
+		setting_visibility("mask_advanced_key_group", key_type == KEY_ADVANCED, props);
+		setting_visibility("mask_super_key_group", key_type == KEY_SUPER, props);
+
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", false, props);
+		return true;
+	case MASK_TYPE_FEATHER:
+		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_group", false, props);
+		setting_visibility("mask_source_scaling_type", false, props);
+		setting_visibility("mask_source_scaling_group", false, props);
+		setting_visibility("source_mask_compression_group", false,
+			props);
+		setting_visibility("shape_type", false, props);
+		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
+		setting_visibility("shape_feather_group", false, props);
+		setting_visibility("rectangle_source_group", false, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+			props);
+		setting_visibility("scale_position_group", false, props);
+		setting_visibility("mask_gradient_group", false, props);
+
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
+
+		setting_visibility("key_type", false, props);
+		setting_visibility("show_matte", false, props);
+		setting_visibility("mask_advanced_key_group", false, props);
+		setting_visibility("mask_super_key_group", false, props);
+
+		setting_visibility("mask_feather_group", true, props);
+		setting_visibility("mask_svg_group", false, props);
+		return true;
+	case MASK_TYPE_SVG:
+		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_group", false, props);
+		setting_visibility("mask_source_scaling_type", false, props);
+		setting_visibility("mask_source_scaling_group", false, props);
+		setting_visibility("source_mask_compression_group", false,
+			props);
+		setting_visibility("shape_type", false, props);
+		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
+		setting_visibility("shape_feather_group", false, props);
+		setting_visibility("rectangle_source_group", false, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+			props);
+		setting_visibility("scale_position_group", false, props);
+		setting_visibility("mask_gradient_group", false, props);
+
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
+
+		setting_visibility("key_type", false, props);
+		setting_visibility("show_matte", false, props);
+		setting_visibility("mask_advanced_key_group", false, props);
+		setting_visibility("mask_super_key_group", false, props);
+
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", true, props);
 		return true;
 	}
 	return false;
@@ -435,13 +612,17 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 static void advanced_masks_video_tick(void *data, float seconds)
 {
 	advanced_masks_data_t *filter = data;
-
-	obs_source_t *target = obs_filter_get_target(filter->context);
+	obs_source_t *target = obs_filter_get_target(filter->base->context);
 	if (!target) {
 		return;
 	}
 	filter->base->width = (uint32_t)obs_source_get_base_width(target);
 	filter->base->height = (uint32_t)obs_source_get_base_height(target);
+
+	bool multiPass = advanced_masks_multi_pass(filter);
+	if (!multiPass) {
+		return;
+	}
 
 	filter->base->rendered = false;
 	filter->base->input_texture_generated = false;
@@ -458,6 +639,7 @@ static void advanced_masks_defaults(obs_data_t *settings)
 	mask_gradient_defaults(settings);
 	mask_source_defaults(settings);
 	mask_bsm_defaults(settings);
+	mask_svg_defaults(settings);
 }
 
 static void advanced_masks_defaults_v2(obs_data_t *settings)
@@ -469,9 +651,11 @@ static void advanced_masks_defaults_v2(obs_data_t *settings)
 	mask_shape_defaults(settings, 2);
 	mask_gradient_defaults(settings);
 	mask_source_defaults(settings);
+	mask_chroma_key_defaults(settings);
+	mask_svg_defaults(settings);
 }
 
-static void get_input_source(advanced_masks_data_t *filter)
+void get_input_source(base_filter_data_t *filter)
 {
 	// Use the OBS default effect file as our effect.
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
@@ -491,29 +675,29 @@ static void get_input_source(advanced_masks_data_t *filter)
 		gs_get_format_from_space(source_space);
 
 	// Set up our input_texrender to catch the output texture.
-	filter->base->input_texrender =
-		create_or_reset_texrender(filter->base->input_texrender);
+	filter->input_texrender =
+		create_or_reset_texrender(filter->input_texrender);
 
 	// Start the rendering process with our correct color space params,
 	// And set up your texrender to recieve the created texture.
 	if (obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
 		    OBS_NO_DIRECT_RENDERING) &&
-	    gs_texrender_begin(filter->base->input_texrender,
-			       filter->base->width, filter->base->height)) {
+	    gs_texrender_begin(filter->input_texrender,
+			       filter->width, filter->height)) {
 
 		set_blending_parameters();
-		gs_ortho(0.0f, (float)filter->base->width, 0.0f,
-			 (float)filter->base->height, -100.0f, 100.0f);
+		gs_ortho(0.0f, (float)filter->width, 0.0f,
+			 (float)filter->height, -100.0f, 100.0f);
 		// The incoming source is pre-multiplied alpha, so use the
 		// OBS default effect "DrawAlphaDivide" technique to convert
 		// the colors back into non-pre-multiplied space.
 		obs_source_process_filter_tech_end(
-			filter->context, pass_through, filter->base->width,
-			filter->base->height, "DrawAlphaDivide");
-		gs_texrender_end(filter->base->input_texrender);
+			filter->context, pass_through, filter->width,
+			filter->height, "DrawAlphaDivide");
+		gs_texrender_end(filter->input_texrender);
 		gs_blend_state_pop();
-		filter->base->input_texture_generated = true;
+		filter->input_texture_generated = true;
 	}
 }
 
@@ -526,17 +710,19 @@ static void draw_output(advanced_masks_data_t *filter)
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(filter->context),
+		obs_filter_get_target(filter->base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 
 	const enum gs_color_format format =
 		gs_get_format_from_space(source_space);
 
 	if (!obs_source_process_filter_begin_with_color_space(
-		    filter->context, format, source_space,
-		    OBS_NO_DIRECT_RENDERING)) {
+		    filter->base->context, format, source_space,
+		    OBS_ALLOW_DIRECT_RENDERING)) {
 		return;
 	}
+	//gs_blend_state_push();
+	//gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
 	gs_texture_t *texture =
 		gs_texrender_get_texture(filter->base->output_texrender);
@@ -547,9 +733,10 @@ static void draw_output(advanced_masks_data_t *filter)
 				      texture);
 	}
 
-	obs_source_process_filter_end(filter->context, pass_through,
+	obs_source_process_filter_end(filter->base->context, pass_through,
 				      filter->base->width,
 				      filter->base->height);
+	//gs_blend_state_pop();
 }
 
 static void advanced_masks_render_filter(advanced_masks_data_t *filter)

@@ -30,19 +30,34 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/advanced-masks.h
 	src/mask-bsm.c
 	src/mask-bsm.h
+	src/mask-chroma-key.c
+	src/mask-chroma-key.h
+	src/mask-feather.c
+	src/mask-feather.h
 	src/mask-gradient.c
 	src/mask-gradient.h
 	src/mask-shape.c
 	src/mask-shape.h
 	src/mask-source.c
 	src/mask-source.h
+	src/mask-svg.c
+	src/mask-svg.h
 	src/obs-utils.c
 	src/obs-utils.h
+	src/svg-utils.cpp
+	src/svg-utils.hpp
 	src/version.h)
 
 if(BUILD_OUT_OF_TREE)
 	find_package(libobs REQUIRED)
 	include(cmake/ObsPluginHelpers.cmake)
+	find_qt(COMPONENTS Widgets Svg COMPONENTS_LINUX Gui)
+else()
+	if(OBS_VERSION VERSION_GREATER_EQUAL 30.1.0)
+		find_package(Qt6 COMPONENTS Core Widgets Concurrent)
+	else()
+		find_qt(COMPONENTS Widgets COMPONENTS_LINUX Gui)
+	endif()
 endif()
   
 if(OS_WINDOWS)
@@ -68,6 +83,9 @@ elseif(OS_MACOS)
 endif()
 
 target_link_libraries(${PROJECT_NAME}
+	Qt::Widgets
+	Qt::Svg
+	Qt::Concurrent
 	OBS::libobs)
 
 if(BUILD_OUT_OF_TREE)

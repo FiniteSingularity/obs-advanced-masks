@@ -21,11 +21,19 @@
 #define MASK_TYPE_GRADIENT_LABEL "AdvancedMasks.Gradient"
 #define MASK_TYPE_BSM 5
 #define MASK_TYPE_BSM_LABEL "AdvancedMasks.BSM"
+#define MASK_TYPE_CHROMA_KEY 6
+#define MASK_TYPE_CHROMA_KEY_LABEL "AdvancedMasks.ChromaKey"
+#define MASK_TYPE_FEATHER 7
+#define MASK_TYPE_FEATHER_LABEL "AdvancedMasks.FeatherMask"
+#define MASK_TYPE_SVG 8
+#define MASK_TYPE_SVG_LABEL "AdvancedMasks.SvgMask"
 
 struct base_filter_data;
 typedef struct base_filter_data base_filter_data_t;
 
 struct base_filter_data {
+	obs_source_t* context;
+
 	bool input_texture_generated;
 	gs_texrender_t *input_texrender;
 	bool output_rendered;
