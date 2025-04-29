@@ -1,6 +1,7 @@
 #include "mask-svg.h"
 #include "obs-utils.h"
 #include "advanced-masks-filter.h"
+#include <math.h>
 
 gs_texture_t* gs_texture_from_svg(const char* path, int width, int height, int scale_by);
 void update_svg_textures(
@@ -19,6 +20,8 @@ mask_svg_data_t* mask_svg_create(obs_data_t* settings)
 	mask_svg_data_t* data = bzalloc(sizeof(mask_svg_data_t));
 	dstr_init_copy(&data->svg_image_path, "!");
 	load_svg_effect_files(data);
+
+	da_init(data->textures);
 
 	mask_svg_update(data, settings);
 	return data;
@@ -43,6 +46,12 @@ void mask_svg_destroy(mask_svg_data_t* data)
 		gs_texture_destroy(data->next_size_greater_tex);
 	}
 
+	for (size_t i = 0; i < data->textures.num; i++)
+	{
+		gs_texture_destroy(data->textures.array[i]);
+	}
+	da_free(data->textures);
+
 	dstr_free(&data->svg_image_path);
 	obs_leave_graphics();
 
@@ -62,38 +71,48 @@ void mask_svg_update(mask_svg_data_t* data,
 	uint32_t scaleBy = (uint32_t)obs_data_get_int(settings, "mask_svg_scale_by");
 
 	bool image_path_changed = false;
+	bool scaleByChanged = data->scale_by != scaleBy;
+
 	bool cur_img_path_zero = data->svg_image_path.len == 0;
 	if (!cur_img_path_zero) {
-		image_path_changed = !dstr_cmp(&data->svg_image_path, svg_image_path);
+		image_path_changed = dstr_cmp(&data->svg_image_path, svg_image_path) != 0;
 	} else {
 		image_path_changed = strlen(svg_image_path) > 0;
 	}
 
-	bool regen_bitmap = width != data->target_width ||
-			    height != data->target_height ||
-			    scaleBy != data->scale_by ||
-		            image_path_changed;
+	bool regen_bitmap = image_path_changed;
 
 	dstr_copy(&data->svg_image_path, svg_image_path);
 	data->target_width = width;
 	data->target_height = height;
 	data->scale_by = scaleBy;
 
-	if (regen_bitmap && !dstr_is_empty(&data->svg_image_path)) {
+	data->offset_x = (int)obs_data_get_int(settings, "mask_pos_x");
+	data->offset_y = (int)obs_data_get_int(settings, "mask_pos_y");
+
+
+	if ((regen_bitmap || scaleByChanged) && !dstr_is_empty(&data->svg_image_path)) {
 		render_svg_to_texture(data);
 	}
+	uint32_t npt;
 	switch (data->scale_by) {
 	case SVG_SCALE_WIDTH:
 		data->svg_render_width = data->target_width;
 		data->svg_render_height = (uint32_t)((double)data->target_width * (double)data->texture_height / (double)data->texture_width);
+		npt = next_power_of_2(data->target_width);
+		data->textureIndex = min((uint32_t)log2(npt) - 3, data->textures.num - 1);
 		break;
 	case SVG_SCALE_HEIGHT:
 		data->svg_render_height = data->target_height;
 		data->svg_render_width = (uint32_t)((double)data->target_height * (double)data->texture_width / (double)data->texture_height);
+		npt = next_power_of_2(data->target_height);
+		data->textureIndex = min((uint32_t)log2(npt) - 3, data->textures.num - 1);
 		break;
 	case SVG_SCALE_BOTH:
 		data->svg_render_width = data->target_width;
 		data->svg_render_height = data->target_height;
+		npt = next_power_of_2(data->target_width);
+		data->textureIndex = min((uint32_t)log2(npt) - 3, data->textures.num - 1);
 		break;
 	}
 }
@@ -148,6 +167,18 @@ void mask_svg_properties(obs_properties_t* props, mask_svg_data_t* data)
 		1);
 	obs_property_float_set_suffix(p, "px");
 
+	p = obs_properties_add_int_slider(
+		mask_svg_group, "mask_pos_x",
+		obs_module_text("AdvancedMasks.SvgMask.PosX"), -4000, 4000,
+		1);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_int_slider(
+		mask_svg_group, "mask_pos_y",
+		obs_module_text("AdvancedMasks.SvgMask.PosY"), -4000, 4000,
+		1);
+	obs_property_float_set_suffix(p, "px");
+
 	obs_properties_add_group(
 		props, "mask_svg_group",
 		obs_module_text("AdvancedMasks.SvgMask.Label"),
@@ -156,60 +187,27 @@ void mask_svg_properties(obs_properties_t* props, mask_svg_data_t* data)
 
 static void render_svg_to_texture(mask_svg_data_t* filter)
 {
-
-	uint32_t new_width = next_power_of_2(filter->target_width);
-	uint32_t new_height = next_power_of_2(filter->target_height);
-
-	bool larger = (filter->scale_by == SVG_SCALE_WIDTH && new_width > filter->texture_width) || (filter->scale_by == SVG_SCALE_HEIGHT && new_height > filter->texture_height);
-	bool smaller = (filter->scale_by == SVG_SCALE_WIDTH && new_width < filter->texture_width) || (filter->scale_by == SVG_SCALE_HEIGHT && new_height < filter->texture_height);
-
-	if (filter->scale_by == SVG_SCALE_WIDTH && filter->texture_width == new_width) {
-		return;
-	} else if (filter->scale_by == SVG_SCALE_HEIGHT && filter->texture_height == new_height) {
-		return;
-	} else if (filter->scale_by == SVG_SCALE_BOTH && filter->texture_width == new_width && filter->texture_height == new_height) {
-		return;
+	for (size_t i = 0; i < filter->textures.num; i++)
+	{
+		gs_texture_destroy(filter->textures.array[i]);
 	}
+	da_clear(filter->textures);
 
-	
-	//if (filter->imageTexture) {
-	//	obs_enter_graphics();
-	//	gs_texture_destroy(filter->imageTexture);
-	//	obs_leave_graphics();
-	//}
-	//obs_enter_graphics();
-	//filter->imageTexture = gs_texture_from_svg(filter->svg_image_path.array, new_width, new_height, filter->scale_by);
-	if (filter->current_tex == NULL) {
-		update_svg_textures(
-			filter->svg_image_path.array, new_width, new_height, filter->scale_by,
-			SVG_GENERATE_ALL,
-			&filter->next_size_smaller_tex,
-			&filter->current_tex,
-			&filter->next_size_greater_tex
+	const int max_size = 4096;
+
+	for (int i = 8; i <= max_size; i *= 2) {
+		gs_texture_t* tex = gs_texture_from_svg(
+			filter->svg_image_path.array,
+			i,
+			i,
+			filter->scale_by
 		);
-	} 
-	else if (larger) {
-		update_svg_textures(
-			filter->svg_image_path.array, new_width, new_height, filter->scale_by,
-			SVG_GENERATE_NEW_LARGE,
-			&filter->next_size_smaller_tex,
-			&filter->current_tex,
-			&filter->next_size_greater_tex
-		);
-	} else if (smaller) {
-		update_svg_textures(
-			filter->svg_image_path.array, new_width, new_height, filter->scale_by,
-			SVG_GENERATE_NEW_SMALL,
-			&filter->next_size_smaller_tex,
-			&filter->current_tex,
-			&filter->next_size_greater_tex
-		);
+		da_push_back(filter->textures, &tex);
+		obs_enter_graphics();
+		filter->texture_width = gs_texture_get_width(tex);
+		filter->texture_height = gs_texture_get_height(tex);
+		obs_leave_graphics();
 	}
-	obs_enter_graphics();
-	filter->texture_width = gs_texture_get_width(filter->current_tex);
-	filter->texture_height = gs_texture_get_height(filter->current_tex);
-	blog(LOG_INFO, "Regenerating Texture (%ix%i)", filter->texture_width, filter->texture_height);
-	obs_leave_graphics();
 }
 
 static bool setting_file_path_modified(void* data,
@@ -243,12 +241,16 @@ static void load_mask_svg_effect(mask_svg_data_t* data)
 				data->effect_svg_mask, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
-			if (strcmp(info.name, "svg_image") == 0) {
+			if (strcmp(info.name, "image") == 0) {
+				data->param_image = param;
+			} else if (strcmp(info.name, "svg_image") == 0) {
 				data->param_svg_image = param;
 			} else if (strcmp(info.name, "uv_size") == 0) {
 				data->param_uv_size = param;
 			} else if (strcmp(info.name, "svg_uv_size") == 0) {
 				data->param_svg_uv_size = param;
+			} else if (strcmp(info.name, "offset") == 0) {
+				data->param_offset = param;
 			}
 		}
 	}
@@ -257,17 +259,27 @@ static void load_mask_svg_effect(mask_svg_data_t* data)
 void render_mask_svg(mask_svg_data_t* data,
 	base_filter_data_t* base)
 {
+	if (data->textures.num == 0) {
+		return;
+	}
+
 	gs_effect_t* effect = data->effect_svg_mask;
 	gs_texture_t* texture = gs_texrender_get_texture(base->input_texrender);
-	if (!effect || !texture || !data->current_tex) {
+
+	gs_texture_t* svg_texture = data->textures.array[data->textureIndex];
+	if (!effect || !texture || !svg_texture) {
 		return;
 	}
 
 	base->output_texrender =
 		create_or_reset_texrender(base->output_texrender);
 
+	if (data->param_image) {
+		gs_effect_set_texture(data->param_image, texture);
+	}
+
 	if (data->param_svg_image) {
-		gs_effect_set_texture(data->param_svg_image, data->current_tex);
+		gs_effect_set_texture(data->param_svg_image, svg_texture);
 	}
 	if (data->param_uv_size) {
 		struct vec2 uv_size;
@@ -280,6 +292,12 @@ void render_mask_svg(mask_svg_data_t* data,
 		svg_uv_size.x = (float)data->svg_render_width;
 		svg_uv_size.y = (float)data->svg_render_height;
 		gs_effect_set_vec2(data->param_svg_uv_size, &svg_uv_size);
+	}
+	if (data->param_offset) {
+		struct vec2 offset;
+		offset.x = (float)data->offset_x;
+		offset.y = (float)data->offset_y;
+		gs_effect_set_vec2(data->param_offset, &offset);
 	}
 
 

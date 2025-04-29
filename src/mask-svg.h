@@ -2,6 +2,7 @@
 
 #include <obs-module.h>
 #include <util/dstr.h>
+#include <util/darray.h>
 #include "base-filter.h"
 
 struct mask_svg_data;
@@ -26,9 +27,11 @@ struct mask_svg_data {
 	gs_texture_t* next_size_smaller_tex;
 	gs_texture_t* current_tex;
 
+	gs_eparam_t* param_image;
 	gs_eparam_t* param_svg_image;
 	gs_eparam_t* param_uv_size;
 	gs_eparam_t* param_svg_uv_size;
+	gs_eparam_t* param_offset;
 
 	uint32_t scale_by;
 	uint32_t target_width;
@@ -40,7 +43,14 @@ struct mask_svg_data {
 	uint32_t svg_render_width;
 	uint32_t svg_render_height;
 
+	int offset_x;
+	int offset_y;
+
+	size_t textureIndex;
+
 	struct dstr svg_image_path;
+
+	DARRAY(gs_texture_t*) textures;
 };
 
 extern mask_svg_data_t* mask_svg_create(obs_data_t* settings);

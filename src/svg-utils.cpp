@@ -10,6 +10,7 @@ extern "C" {
 #include <QPainter>
 #include <QBuffer>
 #include <QByteArray>
+#include <QtConcurrent/QtConcurrent>
 
 // update type- 1: smaller, 2: larger, 3: all
 void update_svg_textures(
@@ -29,6 +30,7 @@ void update_svg_textures(
 	uint32_t small_height = previous_power_of_2(height - 1);
 	gs_texture_t* to_delete;
 	blog(LOG_INFO, "Updating Texture...");
+	QFuture<void> future;
 	switch (update_type) {
 	case SVG_GENERATE_NEW_SMALL:
 		to_delete = *large;
@@ -41,10 +43,14 @@ void update_svg_textures(
 		*current = *small;
 
 		// Todo: pop this in its own thread.
-		*small = gs_texture_from_svg(path, small_width, small_height, scale_by);
-		obs_enter_graphics();
-		gs_texture_destroy(to_delete);
-		obs_leave_graphics();
+		future = QtConcurrent::run(
+			[path, small, small_width, small_height, scale_by, to_delete]() {
+				*small = gs_texture_from_svg(path, small_width, small_height, scale_by);
+				obs_enter_graphics();
+				gs_texture_destroy(to_delete);
+				obs_leave_graphics();
+		});
+
 		break;
 	case SVG_GENERATE_NEW_LARGE:
 		to_delete = *small;
@@ -52,11 +58,14 @@ void update_svg_textures(
 		*current = *large;
 
 		// TODO: Thead the following
-		
-		*large = gs_texture_from_svg(path, large_width, large_height, scale_by);
-		obs_enter_graphics();
-		gs_texture_destroy(to_delete);
-		obs_leave_graphics();
+
+		future = QtConcurrent::run(
+			[path, large, large_width, large_height, scale_by, to_delete]() {
+				*large = gs_texture_from_svg(path, large_width, large_height, scale_by);
+				obs_enter_graphics();
+				gs_texture_destroy(to_delete);
+				obs_leave_graphics();
+			});
 		break;
 	case SVG_GENERATE_ALL:
 		*small = gs_texture_from_svg(path, small_width, small_height, scale_by);
@@ -103,8 +112,10 @@ gs_texture_t* gs_texture_from_svg(const char* path, int width, int height, int s
 	std::vector<uint8_t> rawData(ptr, ptr + (bytesPerLine * cy));
 
 	enum gs_color_format format = GS_RGBA;
+	blog(LOG_INFO, "Generating texture...");
 	obs_enter_graphics();
 	gs_texture_t* tex = gs_texture_create(cx, cy, format, 1, (const uint8_t**)&ptr, 0);
 	obs_leave_graphics();
+	blog(LOG_INFO, "COMPLETE!");
 	return tex;
 }
