@@ -1,9 +1,10 @@
 #include "mask-svg.h"
 #include "obs-utils.h"
+#include "utils.h"
 #include "advanced-masks-filter.h"
 #include <math.h>
 
-gs_texture_t* gs_texture_from_svg(const char* path, int width, int height, int scale_by);
+gs_texture_t* gs_texture_from_svg_path(const char* path, int width, int height, int scale_by);
 void update_svg_textures(
 	const char* path,
 	int width,
@@ -196,7 +197,7 @@ static void render_svg_to_texture(mask_svg_data_t* filter)
 	const int max_size = 4096;
 
 	for (int i = 8; i <= max_size; i *= 2) {
-		gs_texture_t* tex = gs_texture_from_svg(
+		gs_texture_t* tex = gs_texture_from_svg_path(
 			filter->svg_image_path.array,
 			i,
 			i,
@@ -317,28 +318,3 @@ void render_mask_svg(mask_svg_data_t* data,
 	gs_blend_state_pop();
 }
 
-uint32_t next_power_of_2(uint32_t n) {
-	if (n == 0)
-		return 1;
-	// If already a power of 2, return n
-	if ((n & (n - 1)) == 0)
-		return n;
-
-	// Else find the next power of 2
-	uint32_t power = 1;
-	while (power < n) {
-		power <<= 1; // Same as power *= 2
-	}
-	return power;
-}
-
-uint32_t previous_power_of_2(uint32_t n) {
-	if (n == 0)
-		return 0;
-
-	uint32_t power = 1;
-	while (power << 1 <= n) {
-		power <<= 1;
-	}
-	return power;
-}

@@ -24,6 +24,7 @@ struct advanced_masks_data {
 	mask_chroma_key_data_t* chroma_key_data;
 	mask_feather_data_t* feather_data;
 	mask_svg_data_t* svg_data;
+	void* font_awesome_data;
 
 	bool invert;
 	bool multiPassShader;

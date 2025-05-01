@@ -34,6 +34,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/mask-chroma-key.h
 	src/mask-feather.c
 	src/mask-feather.h
+	src/mask-font-awesome.cpp
+	src/mask-font-awesome.hpp
 	src/mask-gradient.c
 	src/mask-gradient.h
 	src/mask-shape.c
@@ -46,18 +48,23 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/obs-utils.h
 	src/svg-utils.cpp
 	src/svg-utils.hpp
+	src/utils.c
+	src/utils.h
 	src/version.h)
 
 if(BUILD_OUT_OF_TREE)
 	find_package(libobs REQUIRED)
+	find_package(obs-frontend-api REQUIRED)
 	include(cmake/ObsPluginHelpers.cmake)
-	find_qt(COMPONENTS Widgets Svg COMPONENTS_LINUX Gui)
+	find_qt(COMPONENTS Widgets Svg Concurrent COMPONENTS_LINUX Gui)
+	set(OBS_FRONTEND_API_NAME "obs-frontend-api")
 else()
 	if(OBS_VERSION VERSION_GREATER_EQUAL 30.1.0)
-		find_package(Qt6 COMPONENTS Core Widgets Concurrent)
+		find_package(Qt6 COMPONENTS Core Widgets Svg Xml Concurrent)
 	else()
-		find_qt(COMPONENTS Widgets COMPONENTS_LINUX Gui)
+		find_qt(COMPONENTS Widgets Svg Xml Concurrent COMPONENTS_LINUX Gui)
 	endif()
+	set(OBS_FRONTEND_API_NAME "frontend-api")
 endif()
   
 if(OS_WINDOWS)
@@ -82,11 +89,20 @@ elseif(OS_MACOS)
 		target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 endif()
 
+find_package(CURL REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
+
 target_link_libraries(${PROJECT_NAME}
 	Qt::Widgets
 	Qt::Svg
 	Qt::Concurrent
-	OBS::libobs)
+	Qt::Xml
+	nlohmann_json
+	CURL::libcurl
+	OBS::libobs
+	OBS::${OBS_FRONTEND_API_NAME})
 
 if(BUILD_OUT_OF_TREE)
     if(NOT LIB_OUT_DIR)

@@ -70,5 +70,3 @@ static bool setting_file_path_modified(void* data,
 	obs_property_t* p,
 	obs_data_t* settings);
 
-extern uint32_t next_power_of_2(uint32_t n);
-extern uint32_t previous_power_of_2(uint32_t n);

@@ -1,6 +1,15 @@
 #include "advanced-masks-filter.h"
 #include "advanced-masks.h"
 
+void* mask_font_awesome_create(base_filter_data_t* base);
+void mask_font_awesome_destroy(void*);
+void mask_font_awesome_update(void* data, base_filter_data_t* base,
+	obs_data_t* settings);
+void mask_font_awesome_defaults(void* data, obs_data_t* settings);
+void mask_font_awesome_properties(void* data, obs_properties_t* props);
+void mask_font_awesome_render(void* data, base_filter_data_t* base,
+	color_adjustments_data_t* color_adj);
+
 struct obs_source_info advanced_masks_filter = {
 	.id = "advanced_masks_filter",
 	.type = OBS_SOURCE_TYPE_FILTER,
@@ -31,7 +40,8 @@ struct obs_source_info advanced_masks_filter_v2 = {
 	.get_width = advanced_masks_width,
 	.get_height = advanced_masks_height,
 	.get_properties = advanced_masks_properties,
-	.get_defaults = advanced_masks_defaults_v2};
+	.get_defaults = advanced_masks_defaults_v2,
+};
 
 static const char *advanced_masks_name(void *unused)
 {
@@ -51,6 +61,7 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->chroma_key_data = mask_chroma_key_create();
 	filter->feather_data = mask_feather_create();
 	filter->svg_data = mask_svg_create(settings);
+	
 
 	filter->base = bzalloc(sizeof(base_filter_data_t));
 	filter->base->context = source;
@@ -61,6 +72,8 @@ static void *advanced_masks_create(obs_data_t *settings, obs_source_t *source)
 	filter->base->param_output_image = NULL;
 	filter->base->rendered = false;
 	filter->base->rendering = false;
+
+	filter->font_awesome_data = mask_font_awesome_create(filter->base);
 
 	filter->color_adj_data = bzalloc(sizeof(color_adjustments_data_t));
 	filter->multiPassShader = true;
@@ -83,6 +96,7 @@ static void advanced_masks_destroy(void *data)
 	mask_bsm_destroy(filter->bsm_data);
 	mask_feather_destroy(filter->feather_data);
 	mask_svg_destroy(filter->svg_data);
+	mask_font_awesome_destroy(filter->font_awesome_data);
 
 	obs_enter_graphics();
 	if (filter->base->input_texrender) {
@@ -147,6 +161,7 @@ static void advanced_masks_update(void *data, obs_data_t *settings)
 	mask_bsm_update(filter->bsm_data, settings);
 	mask_feather_update(filter->feather_data, settings);
 	mask_svg_update(filter->svg_data, settings);
+	mask_font_awesome_update(filter->font_awesome_data, filter->base, settings);
 }
 
 static void advanced_masks_update_v2(void *data, obs_data_t *settings)
@@ -184,6 +199,7 @@ static void advanced_masks_update_v2(void *data, obs_data_t *settings)
 	mask_chroma_key_update(filter->chroma_key_data, settings);
 	mask_feather_update(filter->feather_data, settings);
 	mask_svg_update(filter->svg_data, settings);
+	mask_font_awesome_update(filter->font_awesome_data, filter->base, settings);
 }
 
 static void advanced_masks_video_render(void *data, gs_effect_t *effect)
@@ -275,6 +291,12 @@ static void render_mask(advanced_masks_data_t *filter)
 	case MASK_TYPE_SVG:
 		render_mask_svg(filter->svg_data, filter->base);
 		break;
+	case MASK_TYPE_FONT_AWESOME:
+		mask_font_awesome_render(
+			filter->font_awesome_data,
+			filter->base,
+			filter->color_adj_data);
+		break;
 	}
 }
 
@@ -326,6 +348,9 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	obs_property_list_add_int(mask_type_list,
 				  obs_module_text(MASK_TYPE_SVG_LABEL),
 				  MASK_TYPE_SVG);
+	obs_property_list_add_int(mask_type_list,
+				  obs_module_text(MASK_TYPE_FONT_AWESOME_LABEL),
+				  MASK_TYPE_FONT_AWESOME);
 
 	obs_property_set_modified_callback2(mask_type_list,
 					    setting_mask_type_modified, data);
@@ -333,6 +358,7 @@ static obs_properties_t *advanced_masks_properties(void *data)
 	source_mask_top_properties(props, filter->source_data);
 	shape_mask_top_properties(props);
 	bsm_mask_top_properties(props);
+	mask_font_awesome_properties(filter->font_awesome_data, props);
 
 	color_adjustments_properties(props);
 
@@ -401,6 +427,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_super_key_group", false, props);
 		setting_visibility("mask_feather_group", false, props);
 		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", false, props);
 		return true;
 	case MASK_TYPE_SOURCE:
 		setting_visibility("mask_source", true, props);
@@ -430,6 +457,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_super_key_group", false, props);
 		setting_visibility("mask_feather_group", false, props);
 		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", false, props);
 		return true;
 	case MASK_TYPE_IMAGE:
 		setting_visibility("mask_source", false, props);
@@ -459,6 +487,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_super_key_group", false, props);
 		setting_visibility("mask_feather_group", false, props);
 		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", false, props);
 		return true;
 	case MASK_TYPE_GRADIENT:
 		setting_visibility("mask_source", false, props);
@@ -486,6 +515,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_super_key_group", false, props);
 		setting_visibility("mask_feather_group", false, props);
 		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", false, props);
 		return true;
 	case MASK_TYPE_BSM:
 		setting_visibility("mask_source", false, props);
@@ -514,6 +544,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 		setting_visibility("mask_super_key_group", false, props);
 		setting_visibility("mask_feather_group", false, props);
 		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", false, props);
 		return true;
 	case MASK_TYPE_CHROMA_KEY:
 		setting_visibility("mask_source", false, props);
@@ -544,6 +575,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 
 		setting_visibility("mask_feather_group", false, props);
 		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", false, props);
 		return true;
 	case MASK_TYPE_FEATHER:
 		setting_visibility("mask_source", false, props);
@@ -574,6 +606,7 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 
 		setting_visibility("mask_feather_group", true, props);
 		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", false, props);
 		return true;
 	case MASK_TYPE_SVG:
 		setting_visibility("mask_source", false, props);
@@ -604,6 +637,38 @@ static bool setting_mask_type_modified(void *data, obs_properties_t *props,
 
 		setting_visibility("mask_feather_group", false, props);
 		setting_visibility("mask_svg_group", true, props);
+		setting_visibility("mask_font_awesome_group", false, props);
+		return true;
+	case MASK_TYPE_FONT_AWESOME:
+		setting_visibility("mask_source", false, props);
+		setting_visibility("mask_source_image", false, props);
+		setting_visibility("mask_source_group", false, props);
+		setting_visibility("mask_source_scaling_type", false, props);
+		setting_visibility("mask_source_scaling_group", false, props);
+		setting_visibility("source_mask_compression_group", false,
+			props);
+		setting_visibility("shape_type", false, props);
+		setting_visibility("shape_relative", false, props);
+		setting_visibility("shape_frame_check", false, props);
+		setting_visibility("shape_feather_group", false, props);
+		setting_visibility("rectangle_source_group", false, props);
+		setting_visibility("rectangle_rounded_corners_group", false,
+			props);
+		setting_visibility("scale_position_group", false, props);
+		setting_visibility("mask_gradient_group", false, props);
+
+		setting_visibility("bsm_mask_source", false, props);
+		setting_visibility("bsm_time", false, props);
+		setting_visibility("bsm_freeze", false, props);
+
+		setting_visibility("key_type", false, props);
+		setting_visibility("show_matte", false, props);
+		setting_visibility("mask_advanced_key_group", false, props);
+		setting_visibility("mask_super_key_group", false, props);
+
+		setting_visibility("mask_feather_group", false, props);
+		setting_visibility("mask_svg_group", false, props);
+		setting_visibility("mask_font_awesome_group", true, props);
 		return true;
 	}
 	return false;
@@ -654,6 +719,7 @@ static void advanced_masks_defaults_v2(obs_data_t *settings)
 	mask_chroma_key_defaults(settings);
 	mask_svg_defaults(settings);
 }
+
 
 void get_input_source(base_filter_data_t *filter)
 {

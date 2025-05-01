@@ -27,26 +27,35 @@
 #define MASK_TYPE_FEATHER_LABEL "AdvancedMasks.FeatherMask"
 #define MASK_TYPE_SVG 8
 #define MASK_TYPE_SVG_LABEL "AdvancedMasks.SvgMask"
+#define MASK_TYPE_FONT_AWESOME 9
+#define MASK_TYPE_FONT_AWESOME_LABEL "AdvancedMasks.FontAwesome"
 
-struct base_filter_data;
-typedef struct base_filter_data base_filter_data_t;
 
-struct base_filter_data {
-	obs_source_t* context;
+#ifdef __cplusplus
+extern "C" {
+#endif
+	struct base_filter_data;
+	typedef struct base_filter_data base_filter_data_t;
 
-	bool input_texture_generated;
-	gs_texrender_t *input_texrender;
-	bool output_rendered;
-	gs_texrender_t *output_texrender;
-	gs_effect_t *output_effect;
-	gs_eparam_t *param_output_image;
+	struct base_filter_data {
+		obs_source_t* context;
 
-	bool rendered;
-	bool rendering;
+		bool input_texture_generated;
+		gs_texrender_t* input_texrender;
+		bool output_rendered;
+		gs_texrender_t* output_texrender;
+		gs_effect_t* output_effect;
+		gs_eparam_t* param_output_image;
 
-	uint32_t width;
-	uint32_t height;
+		bool rendered;
+		bool rendering;
 
-	uint32_t mask_effect;
-	uint32_t mask_type;
-};
+		uint32_t width;
+		uint32_t height;
+
+		uint32_t mask_effect;
+		uint32_t mask_type;
+	};
+#ifdef __cplusplus
+}
+#endif
