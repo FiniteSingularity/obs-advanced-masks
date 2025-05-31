@@ -42,6 +42,7 @@ void mask_feather_update(mask_feather_data_t *data,
 }
 
 void mask_feather_defaults(obs_data_t *settings) {
+	UNUSED_PARAMETER(settings);
 	//obs_data_set_default_double(settings, "mask_gradient_position", -1.e9);
 	//obs_data_set_default_double(settings, "mask_gradient_width", 500.0);
 }

@@ -56,15 +56,19 @@ if(BUILD_OUT_OF_TREE)
 	find_package(libobs REQUIRED)
 	find_package(obs-frontend-api REQUIRED)
 	include(cmake/ObsPluginHelpers.cmake)
-	find_qt(COMPONENTS Widgets Svg Concurrent COMPONENTS_LINUX Gui)
+	find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
 	set(OBS_FRONTEND_API_NAME "obs-frontend-api")
+	include(FetchContent)
+	FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+	FetchContent_MakeAvailable(json)
 else()
 	if(OBS_VERSION VERSION_GREATER_EQUAL 30.1.0)
-		find_package(Qt6 COMPONENTS Core Widgets Svg Xml Concurrent)
+		find_package(Qt6 COMPONENTS Core Widgets Svg Xml)
 	else()
-		find_qt(COMPONENTS Widgets Svg Xml Concurrent COMPONENTS_LINUX Gui)
+		find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
 	endif()
 	set(OBS_FRONTEND_API_NAME "frontend-api")
+	find_package(nlohmann_json REQUIRED)
 endif()
   
 if(OS_WINDOWS)
@@ -90,19 +94,30 @@ elseif(OS_MACOS)
 endif()
 
 find_package(CURL REQUIRED)
-find_package(nlohmann_json REQUIRED)
+
 
 set_target_properties(${PROJECT_NAME} PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
 
-target_link_libraries(${PROJECT_NAME}
-	Qt::Widgets
-	Qt::Svg
-	Qt::Concurrent
-	Qt::Xml
-	nlohmann_json
-	CURL::libcurl
-	OBS::libobs
-	OBS::${OBS_FRONTEND_API_NAME})
+if(OS_MACOS)
+	target_link_libraries(${PROJECT_NAME}
+		Qt::Widgets
+		Qt::Svg
+		Qt::Xml
+		nlohmann_json
+		CURL::libcurl
+		OBS::libobs
+		OBS::${OBS_FRONTEND_API_NAME}
+		"-framework Security")
+else()
+	target_link_libraries(${PROJECT_NAME}
+		Qt::Widgets
+		Qt::Svg
+		Qt::Xml
+		nlohmann_json
+		CURL::libcurl
+		OBS::libobs
+		OBS::${OBS_FRONTEND_API_NAME})
+endif()
 
 if(BUILD_OUT_OF_TREE)
     if(NOT LIB_OUT_DIR)

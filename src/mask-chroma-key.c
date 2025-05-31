@@ -108,7 +108,6 @@ void mask_chroma_key_properties(obs_properties_t* props)
 {
 	obs_properties_t* mask_advanced_key_group = obs_properties_create();
 	obs_properties_t* mask_super_key_group = obs_properties_create();
-	obs_property_t* p;
 
 	obs_property_t* key_type_list = obs_properties_add_list(
 		props, "key_type", obs_module_text("AdvancedMasks.ChromaKey.Type"),
@@ -181,17 +180,17 @@ void mask_chroma_key_properties(obs_properties_t* props)
 		obs_module_text("AdvancedMasks.ChromaKey.Advanced.Gamma"), -1.0, 1.0,
 		0.01);
 
-	p = obs_properties_add_float_slider(
+	obs_properties_add_float_slider(
 		mask_super_key_group, "mask_super_key_k",
 		obs_module_text("AdvancedMasks.ChromaKey.K"), 0.0, 10.0,
 		0.01);
 
-	p = obs_properties_add_float_slider(
+	obs_properties_add_float_slider(
 		mask_super_key_group, "mask_super_key_k2",
 		obs_module_text("AdvancedMasks.ChromaKey.K2"), 0.0, 10.0,
 		0.01);
 
-	p = obs_properties_add_float_slider(
+	obs_properties_add_float_slider(
 		mask_super_key_group, "mask_super_key_veil",
 		obs_module_text("AdvancedMasks.ChromaKey.Veil"), 0.0, 100.0,
 		0.01);
@@ -392,6 +391,7 @@ bool key_type_modified(obs_properties_t* props,
 	obs_property_t* p,
 	obs_data_t* settings)
 {
+	UNUSED_PARAMETER(p);
 	uint32_t key_type = (uint32_t)obs_data_get_int(settings, "key_type");
 	switch (key_type) {
 	case KEY_ADVANCED:
@@ -411,6 +411,7 @@ bool color_type_modified(obs_properties_t* props,
 	obs_property_t* p,
 	obs_data_t* settings)
 {
+	UNUSED_PARAMETER(p);
 	uint32_t color_type = (uint32_t)obs_data_get_int(settings, "advanced_color_type");
 	switch (color_type) {
 	case KEY_COLOR_TYPE_SINGLE:

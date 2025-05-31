@@ -4,20 +4,18 @@
 #include "advanced-masks-filter.h"
 #include <math.h>
 
+#ifndef _WIN32
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+#define da_clear(v) darray_clear(&(v).da)
+static void darray_clear(struct darray *dst)
+{
+	dst->num = 0;
+}
+#endif
+
 gs_texture_t* gs_texture_from_svg_path(const char* path, int width, int height, int scale_by);
 gs_texture_t* gs_texture_from_svg(const char* path, int width, int height, int scale_by);
-
-
-void update_svg_textures(
-	const char* path,
-	int width,
-	int height,
-	int scale_by,
-	int update_type,
-	gs_texture_t** small,
-	gs_texture_t** current,
-	gs_texture_t** large
-);
 
 mask_svg_data_t* mask_svg_create(obs_data_t* settings, base_filter_data_t* base)
 {
@@ -260,6 +258,7 @@ void mask_svg_defaults(obs_data_t* settings, uint32_t width, uint32_t height)
 
 void mask_svg_properties(obs_properties_t* props, mask_svg_data_t* data)
 {
+	UNUSED_PARAMETER(data);
 	obs_properties_t* mask_svg_group = obs_properties_create();
 	obs_properties_t* mask_svg_advanced_group = obs_properties_create();
 	obs_property_t* p;
@@ -283,12 +282,12 @@ void mask_svg_properties(obs_properties_t* props, mask_svg_data_t* data)
 
 	obs_property_set_modified_callback(input_type, input_type_changed);
 
-	obs_property_t* file_path = obs_properties_add_path(
+	obs_properties_add_path(
 		mask_svg_group, "mask_svg_image",
 		obs_module_text("AdvancedMasks.SvgMask.File"), OBS_PATH_FILE,
 		"Textures (*.svg);;", NULL);
 
-	obs_property_t* text_input = obs_properties_add_text(
+	obs_properties_add_text(
 		mask_svg_group,
 		"mask_svg_text",
 		obs_module_text("AdvancedMasks.SvgMask.Text"),
@@ -433,6 +432,7 @@ void mask_svg_properties(obs_properties_t* props, mask_svg_data_t* data)
 bool svg_anchor_changed(obs_properties_t* props,
 	obs_property_t* property, obs_data_t* settings)
 {
+	UNUSED_PARAMETER(property);
 	bool manual = obs_data_get_int(settings, "mask_svg_anchor") == SVG_ANCHOR_MANUAL;
 	setting_visibility("mask_svg_anchor_x", manual, props);
 	setting_visibility("mask_svg_anchor_y", manual, props);
@@ -496,6 +496,9 @@ static bool setting_file_path_modified(void* data,
 	obs_property_t* p,
 	obs_data_t* settings)
 {
+	UNUSED_PARAMETER(props);
+	UNUSED_PARAMETER(p);
+	UNUSED_PARAMETER(settings);
 	mask_svg_data_t* filter = (mask_svg_data_t*)data;
 	render_svg_to_texture(filter);
 	return false;
@@ -691,6 +694,7 @@ void render_mask_svg(mask_svg_data_t* data,
 bool scale_by_changed(obs_properties_t* props,
 	obs_property_t* property, obs_data_t* settings)
 {
+	UNUSED_PARAMETER(property);
 	int scale_by = (int)obs_data_get_int(settings, "mask_svg_scale_by");
 	switch (scale_by) {
 	case SVG_SCALE_WIDTH:
@@ -712,6 +716,7 @@ bool scale_by_changed(obs_properties_t* props,
 bool input_type_changed(obs_properties_t* props,
 	obs_property_t* property, obs_data_t* settings)
 {
+	UNUSED_PARAMETER(property);
 	int input_type = (int)obs_data_get_int(settings, "mask_svg_input_type");
 	switch (input_type) {
 	case SVG_INPUT_TYPE_FILE:

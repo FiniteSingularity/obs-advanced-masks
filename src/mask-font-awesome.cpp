@@ -29,11 +29,21 @@ extern "C" {
 #include <QDomDocument>
 #include <QDomElement>
 
-
+#ifdef _WIN32
 #pragma comment(lib, "crypt32.lib")
 #include <Windows.h>
 #include <Wincrypt.h>
 #define MY_ENCODING_TYPE  (PKCS_7_ASN_ENCODING | X509_ASN_ENCODING)
+#endif
+
+#ifdef __APPLE__
+#include <Security/Security.h>
+#include <unistd.h>
+#include <pwd.h>
+//#include <iostream>
+//#include <string>
+#include <cstring>
+#endif
 
 FontAwesomeApi* FontAwesomeApi::_instance = nullptr;
 
@@ -63,7 +73,8 @@ void mask_font_awesome_update(void* data, base_filter_data_t* base,
 
 void mask_font_awesome_defaults(void* data, obs_data_t* settings)
 {
-
+	UNUSED_PARAMETER(data);
+	UNUSED_PARAMETER(settings);
 }
 
 void mask_font_awesome_properties(void* data, obs_properties_t* props)
@@ -204,7 +215,7 @@ void MaskFontAwesomeFilter::update(base_filter_data_t* base, obs_data_t* setting
 	uint32_t height = (uint32_t)obs_data_get_int(settings, "mask_font_awesome_height");
 	uint32_t scaleBy = (uint32_t)obs_data_get_int(settings, "mask_font_awesome_scale_by");
 	std::string svg = obs_data_get_string(settings, "mask_font_awesome_svg");
-	int maxTextureSize = obs_data_get_int(settings, "mask_font_awesome_max_texture_size");
+	int maxTextureSize = (int)obs_data_get_int(settings, "mask_font_awesome_max_texture_size");
 
 
 	bool maxTextureSizeChanged = maxTextureSize != _maxTextureSize;
@@ -226,7 +237,7 @@ void MaskFontAwesomeFilter::update(base_filter_data_t* base, obs_data_t* setting
 	_rotation = (float)obs_data_get_double(settings, "mask_font_awesome_rotation");
 	_invert = obs_data_get_bool(settings, "mask_font_awesome_invert");
 
-	const int anchor = obs_data_get_int(settings, "mask_font_awesome_anchor");
+	const int anchor = (int)obs_data_get_int(settings, "mask_font_awesome_anchor");
 	if (anchor == FA_ANCHOR_MANUAL) {
 		_anchor.x = (float)obs_data_get_double(settings, "mask_font_awesome_anchor_x");
 		_anchor.y = (float)obs_data_get_double(settings, "mask_font_awesome_anchor_y");
@@ -247,19 +258,19 @@ void MaskFontAwesomeFilter::update(base_filter_data_t* base, obs_data_t* setting
 		_svg_render_width = _target_width;
 		_svg_render_height = (uint32_t)((double)_target_width * (double)_texture_height / (double)_texture_width);
 		npt = next_power_of_2(_target_width);
-		_textureIndex = min((uint32_t)log2(npt) - 3, static_cast<uint32_t>(_textures.size()) - 1);
+		_textureIndex = (std::min)((uint32_t)log2(npt) - 3, static_cast<uint32_t>(_textures.size()) - 1);
 		break;
 	case FA_SCALE_HEIGHT:
 		_svg_render_height = _target_height;
 		_svg_render_width = (uint32_t)((double)_target_height * (double)_texture_width / (double)_texture_height);
 		npt = next_power_of_2(_target_height);
-		_textureIndex = min((uint32_t)log2(npt) - 3, static_cast<uint32_t>(_textures.size()) - 1);
+		_textureIndex = (std::min)((uint32_t)log2(npt) - 3, static_cast<uint32_t>(_textures.size()) - 1);
 		break;
 	case FA_SCALE_BOTH:
 		_svg_render_width = _target_width;
 		_svg_render_height = _target_height;
 		npt = next_power_of_2(_target_width);
-		_textureIndex = min((uint32_t)log2(npt) - 3, static_cast<uint32_t>(_textures.size()) - 1);
+		_textureIndex = (std::min)((uint32_t)log2(npt) - 3, static_cast<uint32_t>(_textures.size()) - 1);
 		break;
 	}
 
@@ -268,10 +279,10 @@ void MaskFontAwesomeFilter::update(base_filter_data_t* base, obs_data_t* setting
 	float y = _anchor.y * _svg_render_height;
 
 	_rotation_matrix = {
-		{                         cos(theta),                          sin(theta), 0.0, 0.0},
-		{                        -sin(theta),                          cos(theta), 0.0, 0.0},
-		{x - x * cos(theta) + y * sin(theta), y - x * sin(theta) - y * cos(theta), 1.0, 0.0},
-		{                                1.0,                                 1.0, 0.0, 1.0}
+		{{{                         cos(theta),                          sin(theta), 0.0, 0.0}}},
+		{{{                        -sin(theta),                          cos(theta), 0.0, 0.0}}},
+		{{{x - x * cos(theta) + y * sin(theta), y - x * sin(theta) - y * cos(theta), 1.0, 0.0}}},
+		{{{                                1.0,                                 1.0, 0.0, 1.0}}}
 	};
 }
 
@@ -297,6 +308,7 @@ void MaskFontAwesomeFilter::defaults(obs_data_t* settings, uint32_t width, uint3
 bool MaskFontAwesomeFilter::anchor_changed(obs_properties_t* props,
 	obs_property_t* property, obs_data_t* settings)
 {
+	UNUSED_PARAMETER(property);
 	bool manual = obs_data_get_int(settings, "mask_font_awesome_anchor") == FA_ANCHOR_MANUAL;
 	setting_visibility("mask_font_awesome_anchor_x", manual, props);
 	setting_visibility("mask_font_awesome_anchor_y", manual, props);
@@ -306,6 +318,7 @@ bool MaskFontAwesomeFilter::anchor_changed(obs_properties_t* props,
 bool MaskFontAwesomeFilter::svg_changed(obs_properties_t* props,
 	obs_property_t* property, obs_data_t* settings)
 {
+	UNUSED_PARAMETER(property);
 	std::string svg = obs_data_get_string(settings, "mask_font_awesome_svg");
 	obs_property_t* group = obs_properties_get(props, "mask_font_awesome_selected_group");
 	if (svg.size() == 0) {
@@ -340,7 +353,8 @@ bool MaskFontAwesomeFilter::svg_changed(obs_properties_t* props,
 bool MaskFontAwesomeFilter::scale_by_changed(obs_properties_t* props,
 	obs_property_t* property, obs_data_t* settings)
 {
-	int scale_by = obs_data_get_int(settings, "mask_font_awesome_scale_by");
+	UNUSED_PARAMETER(property);
+	int scale_by = (int)obs_data_get_int(settings, "mask_font_awesome_scale_by");
 	switch (scale_by) {
 	case FA_SCALE_WIDTH:
 		setting_visibility("mask_font_awesome_width", true, props);
@@ -361,10 +375,11 @@ bool MaskFontAwesomeFilter::scale_by_changed(obs_properties_t* props,
 bool MaskFontAwesomeFilter::choose_button_clicked(obs_properties_t* props,
 	obs_property_t* property, void* data)
 {
+	UNUSED_PARAMETER(property);
 	auto obj = static_cast<MaskFontAwesomeFilter*>(data);
 	const auto mainWindow = static_cast<QMainWindow*>(
 		obs_frontend_get_main_window());
-	const QRect& hostRect = mainWindow->geometry();
+	//const QRect& hostRect = mainWindow->geometry();
 
 	auto dialog = new FontAwesomePicker(mainWindow);
 	auto resp = dialog->exec();
@@ -872,7 +887,7 @@ FontAwesomeSettingsTab::FontAwesomeSettingsTab(QWidget* parent)
 
 	auto applyButton = new QPushButton(obs_module_text("AdvancedMasks.FontAwesome.Apply"), this);
 
-	connect(applyButton, &QPushButton::clicked, [this, tokenField, tokenGood, tokenBad]() {
+	connect(applyButton, &QPushButton::clicked, [this, tokenField]() {
 		_api->setApiToken(tokenField->text().toStdString());
 	});
 
@@ -931,7 +946,7 @@ FontAwesomeSearchTab::FontAwesomeSearchTab(QWidget* parent)
 	auto searchField = new QLineEdit(this);
 
 	auto versionSelect = new QComboBox(this);
-	size_t  i = 0;
+
 	for (auto version : releases) {
 		versionSelect->addItem(version.c_str());
 	}
@@ -1001,7 +1016,7 @@ int FontAwesomeIconModel::rowCount(const QModelIndex&) const {
 }
 
 QVariant FontAwesomeIconModel::data(const QModelIndex& index, int role) const {
-	if (!index.isValid() || index.row() >= _icons.size())
+	if (!index.isValid() || (size_t)index.row() >= _icons.size())
 		return {};
 
 	if (role == Qt::UserRole)
@@ -1163,6 +1178,7 @@ void FontAwesomeIconGridWidget::_updateGridSize() {
 	}
 }
 
+#ifdef _WIN32
 std::string binaryToString(const BYTE* binaryData, DWORD dataLen, DWORD flags = CRYPT_STRING_BASE64) {
 	DWORD stringLen = 0;
 	// Get the required string length, not including the null terminator.
@@ -1297,7 +1313,150 @@ void save_api_token(std::string token)
 	save_module_config(config);
 	obs_data_release(config);
 }
+#endif
 
+#ifdef __APPLE__
+class KeychainHelper {
+public:
+    KeychainHelper(const std::string& serviceName)
+        : service(serviceName) {}
+
+    bool saveSecret(const std::string& secret) {
+        std::string account = getCurrentUsername();
+        if (account.empty()) {
+            return false;
+        }
+
+        // Prepare the keychain item query
+        CFMutableDictionaryRef query = createQuery(account);
+        CFMutableDictionaryRef attributes = createAttributes(secret);
+
+        // Attempt to add the item to the keychain
+        OSStatus status = SecItemAdd(attributes, nullptr);
+        if (status == errSecDuplicateItem) {
+            // Item already exists, update it
+            status = SecItemUpdate(query, attributes);
+        }
+
+        CFRelease(query);
+        CFRelease(attributes);
+
+        return status == errSecSuccess;
+    }
+
+    bool getSecret(std::string& outSecret) {
+        std::string account = getCurrentUsername();
+        if (account.empty()) {
+            return false;
+        }
+
+        // Prepare the keychain item query
+        CFMutableDictionaryRef query = createQuery(account);
+        CFMutableDictionaryRef attributes = createAttributes("");
+
+        // Attempt to retrieve the item from the keychain
+        CFTypeRef result = nullptr;
+        OSStatus status = SecItemCopyMatching(query, &result);
+        if (status == errSecSuccess && result != nullptr) {
+            // Extract the secret data from the result
+            CFDataRef data = (CFDataRef)CFDictionaryGetValue((CFDictionaryRef)result, kSecValueData);
+            if (data != nullptr) {
+                outSecret.assign((const char*)CFDataGetBytePtr(data), CFDataGetLength(data));
+            }
+            CFRelease(result);
+            CFRelease(query);
+            CFRelease(attributes);
+            return true;
+        }
+
+        CFRelease(query);
+        CFRelease(attributes);
+        return false;
+    }
+
+private:
+    std::string service;
+
+    std::string getCurrentUsername() {
+        struct passwd* pw = getpwuid(getuid());
+        return (pw != nullptr) ? std::string(pw->pw_name) : "";
+    }
+
+	CFMutableDictionaryRef createQuery(const std::string& account) {
+		CFMutableDictionaryRef query = CFDictionaryCreateMutable(
+			kCFAllocatorDefault,
+			0,
+			&kCFTypeDictionaryKeyCallBacks,
+			&kCFTypeDictionaryValueCallBacks
+		);
+
+		CFStringRef cfService = CFStringCreateWithCString(NULL, service.c_str(), kCFStringEncodingUTF8);
+		CFStringRef cfAccount = CFStringCreateWithCString(NULL, account.c_str(), kCFStringEncodingUTF8);
+
+		CFDictionaryAddValue(query, kSecClass, kSecClassGenericPassword);
+		CFDictionaryAddValue(query, kSecAttrService, cfService);
+		CFDictionaryAddValue(query, kSecAttrAccount, cfAccount);
+
+		CFRelease(cfService);
+		CFRelease(cfAccount);
+
+		return query;
+	}
+
+	CFMutableDictionaryRef createAttributes(const std::string& secret) {
+		std::string account = getCurrentUsername();
+
+		CFMutableDictionaryRef attributes = CFDictionaryCreateMutable(
+			kCFAllocatorDefault,
+			0,
+			&kCFTypeDictionaryKeyCallBacks,
+			&kCFTypeDictionaryValueCallBacks
+		);
+
+		CFStringRef cfService = CFStringCreateWithCString(NULL, service.c_str(), kCFStringEncodingUTF8);
+		CFStringRef cfAccount = CFStringCreateWithCString(NULL, account.c_str(), kCFStringEncodingUTF8);
+		CFDataRef cfData = CFDataCreate(NULL, (const UInt8*)secret.c_str(), secret.length());
+
+		CFDictionaryAddValue(attributes, kSecClass, kSecClassGenericPassword);
+		CFDictionaryAddValue(attributes, kSecAttrService, cfService);
+		CFDictionaryAddValue(attributes, kSecAttrAccount, cfAccount);
+		if (!secret.empty()) {
+			CFDictionaryAddValue(attributes, kSecValueData, cfData);
+		}
+
+		CFRelease(cfService);
+		CFRelease(cfAccount);
+		if (cfData) CFRelease(cfData);
+
+		return attributes;
+	}
+};
+
+
+std::string get_api_token()
+{
+	KeychainHelper kc(std::string("com.f15y.advanced-masks"));
+	std::string token;
+	try {
+   		if (!kc.getSecret(token)) {
+			blog(LOG_WARNING, "Unable to retrieve Font Awesome Token from keychain.");
+			return "";
+		}
+	} catch(...) {
+		return "";
+	}
+ 
+	return token;
+}
+
+void save_api_token(std::string token)
+{
+	KeychainHelper kc("com.f15y.advanced-masks");
+	if (!kc.saveSecret(token)) {
+        blog(LOG_WARNING, "Unable to save Font Awesome Token to keychain.");
+    }
+}
+#endif
 
 obs_data_t* load_module_config()
 {

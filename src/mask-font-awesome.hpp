@@ -307,8 +307,10 @@ void save_module_config(obs_data_t* config);
 
 QString preprocessSvg(const QString& rawSvg, const QString& primary, const QString& secondary);
 
+#ifdef _WIN32
 std::string encryptString(std::string input);
 std::string decryptString(std::string input);
+#endif
 
 std::string fetch_string_from_post(
 	std::string url,
