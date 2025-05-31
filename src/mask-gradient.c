@@ -155,119 +155,88 @@ void render_gradient_mask(mask_gradient_data_t *data,
 				 base_filter_data_t *base,
 				 color_adjustments_data_t *color_adj)
 {
-	gs_effect_t *effect = data->effect_gradient_mask;
-	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
-	if (!effect || !texture) {
-		return;
+	obs_source_t* target = obs_filter_get_target(base->context);
+	uint32_t width = obs_source_get_base_width(target);
+	uint32_t height = obs_source_get_base_height(target);
+	base->width = width;
+	base->height = height;
+
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+	if (source_space == GS_CS_709_EXTENDED) {
+		obs_source_skip_video_filter(base->context);
 	}
+	else {
+		char technique[32];
+		strcpy(technique, data->gradient_debug ? "Debug" : "");
+		strcat(technique, base->mask_effect == MASK_EFFECT_ALPHA
+			? "Alpha"
+			: "Adjustments");
 
-	base->output_texrender =
-		create_or_reset_texrender(base->output_texrender);
+		const enum gs_color_format format = gs_get_format_from_space(source_space);
+		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
+			OBS_ALLOW_DIRECT_RENDERING)) {
 
-	if (data->param_gradient_image) {
-		gs_effect_set_texture(data->param_gradient_image, texture);
+			gs_effect_set_float(data->param_gradient_width,
+				data->gradient_width);
+			gs_effect_set_bool(data->param_gradient_invert,
+				data->gradient_invert);
+			const float position = data->gradient_position - (float)base->width / 2.0f;
+			gs_effect_set_float(data->param_gradient_position, position);
+			const float rotation = data->gradient_rotation * M_PI / 180.0f;
+			gs_effect_set_float(data->param_gradient_rotation, rotation);
+
+			const float min_brightness =
+				color_adj->adj_brightness ? color_adj->min_brightness : 0.0f;
+			gs_effect_set_float(data->param_gradient_min_brightness,
+				min_brightness);
+			const float max_brightness =
+				color_adj->adj_brightness ? color_adj->max_brightness : 0.0f;
+			gs_effect_set_float(data->param_gradient_max_brightness,
+				max_brightness);
+
+			const float min_contrast =
+				color_adj->adj_contrast ? color_adj->min_contrast : 0.0f;
+			gs_effect_set_float(data->param_gradient_min_contrast,
+				min_contrast);
+			const float max_contrast =
+				color_adj->adj_contrast ? color_adj->max_contrast : 0.0f;
+			gs_effect_set_float(data->param_gradient_max_contrast,
+				max_contrast);
+
+			const float min_saturation =
+				color_adj->adj_saturation ? color_adj->min_saturation : 1.0f;
+			gs_effect_set_float(data->param_gradient_min_saturation,
+				min_saturation);
+			const float max_saturation =
+				color_adj->adj_saturation ? color_adj->max_saturation : 1.0f;
+			gs_effect_set_float(data->param_gradient_max_saturation,
+				max_saturation);
+
+			const float min_hue_shift =
+				color_adj->adj_hue_shift ? color_adj->min_hue_shift : 0.0f;
+			gs_effect_set_float(data->param_gradient_min_hue_shift,
+				min_hue_shift);
+			const float max_hue_shift =
+				color_adj->adj_hue_shift ? color_adj->max_hue_shift : 1.0f;
+			gs_effect_set_float(data->param_gradient_max_hue_shift,
+				max_hue_shift);
+
+			struct vec2 uv_size;
+			uv_size.x = (float)base->width;
+			uv_size.y = (float)base->height;
+			gs_effect_set_vec2(data->param_gradient_uv_size, &uv_size);
+
+			gs_blend_state_push();
+			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+			obs_source_process_filter_tech_end(base->context, data->effect_gradient_mask, 0, 0, technique);
+			gs_blend_state_pop();
+		}
 	}
-
-	if (data->param_gradient_width) {
-		gs_effect_set_float(data->param_gradient_width,
-				    data->gradient_width);
-	}
-
-	if (data->param_gradient_invert) {
-		gs_effect_set_bool(data->param_gradient_invert,
-				   data->gradient_invert);
-	}
-
-	if (data->param_gradient_position) {
-		const float position =
-			data->gradient_position - (float)base->width / 2.0f;
-		gs_effect_set_float(data->param_gradient_position, position);
-	}
-
-	if (data->param_gradient_rotation) {
-		const float rotation = data->gradient_rotation * M_PI / 180.0f;
-		gs_effect_set_float(data->param_gradient_rotation, rotation);
-	}
-
-	if (data->param_gradient_min_brightness) {
-		const float min_brightness =
-			color_adj->adj_brightness ? color_adj->min_brightness : 0.0f;
-		gs_effect_set_float(data->param_gradient_min_brightness,
-				    min_brightness);
-	}
-
-	if (data->param_gradient_max_brightness) {
-		const float max_brightness =
-			color_adj->adj_brightness ? color_adj->max_brightness : 0.0f;
-		gs_effect_set_float(data->param_gradient_max_brightness,
-				    max_brightness);
-	}
-
-	if (data->param_gradient_min_contrast) {
-		const float min_contrast =
-			color_adj->adj_contrast ? color_adj->min_contrast : 0.0f;
-		gs_effect_set_float(data->param_gradient_min_contrast,
-				    min_contrast);
-	}
-
-	if (data->param_gradient_max_contrast) {
-		const float max_contrast =
-			color_adj->adj_contrast ? color_adj->max_contrast : 0.0f;
-		gs_effect_set_float(data->param_gradient_max_contrast,
-				    max_contrast);
-	}
-
-	if (data->param_gradient_min_saturation) {
-		const float min_saturation =
-			color_adj->adj_saturation ? color_adj->min_saturation : 1.0f;
-		gs_effect_set_float(data->param_gradient_min_saturation,
-				    min_saturation);
-	}
-
-	if (data->param_gradient_max_saturation) {
-		const float max_saturation =
-			color_adj->adj_saturation ? color_adj->max_saturation : 1.0f;
-		gs_effect_set_float(data->param_gradient_max_saturation,
-				    max_saturation);
-	}
-
-	if (data->param_gradient_min_hue_shift) {
-		const float min_hue_shift =
-			color_adj->adj_hue_shift ? color_adj->min_hue_shift : 0.0f;
-		gs_effect_set_float(data->param_gradient_min_hue_shift,
-				    min_hue_shift);
-	}
-
-	if (data->param_gradient_max_hue_shift) {
-		const float max_hue_shift =
-			color_adj->adj_hue_shift ? color_adj->max_hue_shift : 1.0f;
-		gs_effect_set_float(data->param_gradient_max_hue_shift,
-				    max_hue_shift);
-	}
-
-	if (data->param_gradient_uv_size) {
-		struct vec2 uv_size;
-		uv_size.x = (float)base->width;
-		uv_size.y = (float)base->height;
-		gs_effect_set_vec2(data->param_gradient_uv_size, &uv_size);
-	}
-
-	set_render_parameters();
-	set_blending_parameters();
-	char technique[32];
-	strcpy(technique, data->gradient_debug ? "Debug" : "");
-	strcat(technique, base->mask_effect == MASK_EFFECT_ALPHA
-				  ? "Alpha"
-				  : "Adjustments");
-
-	if (gs_texrender_begin(base->output_texrender, base->width,
-			       base->height)) {
-		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
-			 -100.0f, 100.0f);
-		while (gs_effect_loop(effect, technique))
-			gs_draw_sprite(texture, 0, base->width, base->height);
-		gs_texrender_end(base->output_texrender);
-	}
-
-	gs_blend_state_pop();
 }

@@ -93,6 +93,15 @@ void mask_chroma_key_defaults(obs_data_t* settings) {
 	obs_data_set_default_double(settings, "mask_super_key_k", 1.0);
 	obs_data_set_default_double(settings, "mask_super_key_k2", 1.5);
 	obs_data_set_default_double(settings, "mask_super_key_veil", 0.1);
+	obs_data_set_default_bool(settings, "show_matte", false);
+	obs_data_set_default_int(settings, "advanced_color_type", KEY_COLOR_TYPE_SINGLE);
+	obs_data_set_default_int(settings, "mask_advanced_key_similarity", 65);
+	obs_data_set_default_int(settings, "mask_advanced_key_smoothness", 35);
+	obs_data_set_default_int(settings, "mask_advanced_key_spill_reduction", 40);
+	obs_data_set_default_int(settings, "advanced_key_color_single", 0x28795a);
+	obs_data_set_default_int(settings, "advanced_key_color_double_light", 0x3b8561);
+	obs_data_set_default_int(settings, "advanced_key_color_double_dark", 0x0b301c);
+	obs_data_set_default_double(settings, "mask_advanced_key_opacity", 1.0);
 }
 
 void mask_chroma_key_properties(obs_properties_t* props)
@@ -328,47 +337,6 @@ void render_super_key_mask(mask_chroma_key_data_t* data,
 			gs_blend_state_pop();
 		}
 	}
-
-
-	//gs_effect_t* effect = data->effect_super_key_mask;
-	//gs_texture_t* texture = gs_texrender_get_texture(base->input_texrender);
-	//if (!effect || !texture) {
-	//	return;
-	//}
-
-	//base->output_texrender =
-	//	create_or_reset_texrender(base->output_texrender);
-
-	//if (data->param_super_key_image) {
-	//	gs_effect_set_texture(data->param_super_key_image, texture);
-	//}
-
-	//if (data->param_super_key_k) {
-	//	gs_effect_set_float(data->param_super_key_k, data->k);
-	//}
-
-	//if (data->param_super_key_k2) {
-	//	gs_effect_set_float(data->param_super_key_k2, data->k2);
-	//}
-
-	//if (data->param_super_key_veil) {
-	//	gs_effect_set_float(data->param_super_key_veil, data->veil);
-	//}
-
-	//set_render_parameters();
-	//set_blending_parameters();
-	//const char* technique = "Draw";
-
-	//if (gs_texrender_begin(base->output_texrender, base->width,
-	//	base->height)) {
-	//	gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
-	//		-100.0f, 100.0f);
-	//	while (gs_effect_loop(effect, technique))
-	//		gs_draw_sprite(texture, 0, base->width, base->height);
-	//	gs_texrender_end(base->output_texrender);
-	//}
-
-	//gs_blend_state_pop();
 }
 
 void render_advanced_key_mask(mask_chroma_key_data_t* data,

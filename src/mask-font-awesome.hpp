@@ -6,6 +6,8 @@
 #include <optional>
 
 #include <obs-module.h>
+#include <graphics/matrix4.h>
+
 
 #include <QDialog>
 #include <QWidget>
@@ -32,6 +34,26 @@
 #define FA_SCALE_BOTH 3
 #define FA_SCALE_BOTH_LABEL "AdvancedMasks.SvgMask.ScaleBy.Both"
 
+#define FA_ANCHOR_TOP_LEFT 1
+#define FA_ANCHOR_TOP_LEFT_LABEL "AdvancedMasks.SvgMask.Anchor.TopLeft"
+#define FA_ANCHOR_TOP_CENTER 2
+#define FA_ANCHOR_TOP_CENTER_LABEL "AdvancedMasks.SvgMask.Anchor.TopCenter"
+#define FA_ANCHOR_TOP_RIGHT 3
+#define FA_ANCHOR_TOP_RIGHT_LABEL "AdvancedMasks.SvgMask.Anchor.TopRight"
+#define FA_ANCHOR_CENTER_LEFT 4
+#define FA_ANCHOR_CENTER_LEFT_LABEL "AdvancedMasks.SvgMask.Anchor.CenterLeft"
+#define FA_ANCHOR_CENTER_CENTER 5
+#define FA_ANCHOR_CENTER_CENTER_LABEL "AdvancedMasks.SvgMask.Anchor.CenterCenter"
+#define FA_ANCHOR_CENTER_RIGHT 6
+#define FA_ANCHOR_CENTER_RIGHT_LABEL "AdvancedMasks.SvgMask.Anchor.CenterRight"
+#define FA_ANCHOR_BOTTOM_LEFT 7
+#define FA_ANCHOR_BOTTOM_LEFT_LABEL "AdvancedMasks.SvgMask.Anchor.BottomLeft"
+#define FA_ANCHOR_BOTTOM_CENTER 8
+#define FA_ANCHOR_BOTTOM_CENTER_LABEL "AdvancedMasks.SvgMask.Anchor.BottomCenter"
+#define FA_ANCHOR_BOTTOM_RIGHT 9
+#define FA_ANCHOR_BOTTOM_RIGHT_LABEL "AdvancedMasks.SvgMask.Anchor.BottomRight"
+#define FA_ANCHOR_MANUAL 10
+#define FA_ANCHOR_MANUAL_LABEL "AdvancedMasks.SvgMask.Anchor.Manual"
 
 // C Call wrapper functions
 extern "C" void* mask_font_awesome_create(base_filter_data_t* base);
@@ -69,7 +91,8 @@ private:
 
 class MaskFontAwesomeFilter;
 
-class FontAwesomeApi {
+class FontAwesomeApi : public QObject {
+	Q_OBJECT
 public:
 	static FontAwesomeApi* getInstance();
 
@@ -79,8 +102,13 @@ public:
 
 	inline std::string getApiToken() const { return _apiToken; }
 	bool setApiToken(std::string token);
+	inline bool validApiToken() { return _validToken; }
 
-	nlohmann::json search(std::string searchString);
+	nlohmann::json search(std::string searchString, std::string version);
+	nlohmann::json releases();
+
+signals:
+	void validToken(bool valid);
 
 protected:
 	FontAwesomeApi();
@@ -89,7 +117,7 @@ protected:
 
 private:
 	bool _getAccessToken(std::string apiToken);
-
+	bool _validToken;
 	std::string _accessToken;
 	std::string _apiToken;
 };
@@ -106,6 +134,15 @@ public:
 
 	static bool choose_button_clicked(obs_properties_t* props,
 		obs_property_t* property, void* data);
+
+	static bool anchor_changed(obs_properties_t* props,
+		obs_property_t* property, obs_data_t* settings);
+
+	static bool svg_changed(obs_properties_t* props,
+		obs_property_t* property, obs_data_t* settings);
+
+	static bool scale_by_changed(obs_properties_t* props,
+		obs_property_t* property, obs_data_t* settings);
 private:
 	void _loadEffectFiles();
 	void _loadSvgEffect();
@@ -127,7 +164,19 @@ private:
 	gs_eparam_t* _param_offset;
 	gs_eparam_t* _param_primary_alpha;
 	gs_eparam_t* _param_secondary_alpha;
-
+	gs_eparam_t* _param_sin_rot;
+	gs_eparam_t* _param_cos_rot;
+	gs_eparam_t* _param_invert;
+	gs_eparam_t* _param_anchor;
+	gs_eparam_t* _param_rotation_matrix;
+	gs_eparam_t* _param_min_brightness;
+	gs_eparam_t* _param_max_brightness;
+	gs_eparam_t* _param_min_contrast;
+	gs_eparam_t* _param_max_contrast;
+	gs_eparam_t* _param_min_saturation;
+	gs_eparam_t* _param_max_saturation;
+	gs_eparam_t* _param_min_hue_shift;
+	gs_eparam_t* _param_max_hue_shift;
 
 	uint32_t _scale_by;
 	uint32_t _target_width;
@@ -139,8 +188,15 @@ private:
 	uint32_t _svg_render_width;
 	uint32_t _svg_render_height;
 
+	bool _invert;
+
 	int _offset_x;
 	int _offset_y;
+
+	struct vec2 _anchor;
+	struct matrix4 _rotation_matrix;
+
+	float _rotation;
 
 	float _primary_alpha;
 	float _secondary_alpha;

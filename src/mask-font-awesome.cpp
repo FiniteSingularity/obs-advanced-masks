@@ -8,6 +8,7 @@ extern "C" {
 
 
 #include <algorithm>
+#include <regex>
 
 #include <obs-frontend-api.h>
 #include <util/config-file.h>
@@ -19,6 +20,7 @@ extern "C" {
 #include <QWidget>
 #include <QTabWidget>
 #include <QLineEdit>
+#include <QComboBox>
 #include <QMainWindow>
 #include <QPushButton>
 #include <QScrollArea>
@@ -34,6 +36,12 @@ extern "C" {
 #define MY_ENCODING_TYPE  (PKCS_7_ASN_ENCODING | X509_ASN_ENCODING)
 
 FontAwesomeApi* FontAwesomeApi::_instance = nullptr;
+
+const std::map<int, std::pair<float, float>> Anchors = {
+	{ FA_ANCHOR_TOP_LEFT, {0.0f, 0.0f}}, {FA_ANCHOR_TOP_CENTER, {0.5f, 0.0f}}, {FA_ANCHOR_TOP_RIGHT, {1.0f, 0.0f}},
+	{ FA_ANCHOR_CENTER_LEFT, {0.0f, 0.5f}}, {FA_ANCHOR_CENTER_CENTER, {0.5f, 0.5f}}, {FA_ANCHOR_CENTER_RIGHT, {1.0f, 0.5f}},
+	{ FA_ANCHOR_BOTTOM_LEFT, {0.0f, 1.0f}}, {FA_ANCHOR_BOTTOM_CENTER, {0.5f, 1.0f}}, {FA_ANCHOR_BOTTOM_RIGHT, {1.0f, 1.0f}}
+};
 
 void* mask_font_awesome_create(base_filter_data_t* base)
 {
@@ -82,13 +90,14 @@ void FontAwesomeIcon::addIcon(std::string family, std::string style, std::string
 }
 
 FontAwesomeApi::FontAwesomeApi()
+	: _validToken(false)
 {
 	// Do stuff here to get API key and access token.
 	_apiToken = get_api_token();
 	if (_apiToken == "") {
 		return;
 	}
-	_getAccessToken(_apiToken);
+	_validToken = _getAccessToken(_apiToken);
 }
 
 FontAwesomeApi* FontAwesomeApi::getInstance()
@@ -99,10 +108,10 @@ FontAwesomeApi* FontAwesomeApi::getInstance()
 	return _instance;
 }
 
-nlohmann::json FontAwesomeApi::search(std::string searchString)
+nlohmann::json FontAwesomeApi::search(std::string searchString, std::string version)
 {
 
-	std::string query = "query{ search(version: \"6.x\", query: \"" + searchString + "\", first: 50) { id label svgs { html familyStyle {family style } } } }";
+	std::string query = "query{ search(version: \""+ version +"\", query: \"" + searchString + "\", first: 50) { id label svgs { html familyStyle {family style } } } }";
 	nlohmann::json postJson;
 	postJson["query"] = query;
 	auto q = postJson.dump();
@@ -113,27 +122,40 @@ nlohmann::json FontAwesomeApi::search(std::string searchString)
 	return nlohmann::json::parse(result);
 }
 
+nlohmann::json FontAwesomeApi::releases()
+{
+	std::string query = "query{ releases { version } }";
+	nlohmann::json postJson;
+	postJson["query"] = query;
+	auto q = postJson.dump();
+	std::string result = fetch_string_from_post("https://api.fontawesome.com/", postJson.dump(), "");
+	if (result == "unauthorized") {
+		return nlohmann::json::parse("{\"error\": \"unauthorized\"}");
+	}
+	return nlohmann::json::parse(result);
+}
+
 bool FontAwesomeApi::setApiToken(std::string token)
 {
 	bool success = _getAccessToken(token);
-
-	if (!success) {
-		return false;
-	}
+	_validToken = success;
 	_apiToken = token;
 	save_api_token(_apiToken);
-	return true;
+	return success;
 }
 
 bool FontAwesomeApi::_getAccessToken(std::string apiToken)
 {
+	_accessToken = "";
 	std::string result = fetch_string_from_post("https://api.fontawesome.com/token", "", apiToken);
 	if (result == "unauthorized") {
+		emit validToken(false);
 		return false;
 	}
 	// TODO- Error checking if we get bad json response.
 	auto json = nlohmann::json::parse(result);
 	_accessToken = json["access_token"];
+	emit validToken(true);
 	return true;
 }
 
@@ -163,28 +185,55 @@ void MaskFontAwesomeFilter::update(base_filter_data_t* base, obs_data_t* setting
 	uint32_t w = obs_source_get_width(base->context);
 	uint32_t h = obs_source_get_height(base->context);
 
+	if (w > 0) {
+		obs_data_set_int(settings, "mask_source_width", w);
+	} else {
+		w = (uint32_t)obs_data_get_int(settings, "mask_source_width");
+	}
+
+	if (h > 0) {
+		obs_data_set_int(settings, "mask_source_height", h);
+	}
+	else {
+		h = (uint32_t)obs_data_get_int(settings, "mask_source_height");
+	}
+
 	defaults(settings, w, h);
 
 	uint32_t width = (uint32_t)obs_data_get_int(settings, "mask_font_awesome_width");
 	uint32_t height = (uint32_t)obs_data_get_int(settings, "mask_font_awesome_height");
 	uint32_t scaleBy = (uint32_t)obs_data_get_int(settings, "mask_font_awesome_scale_by");
 	std::string svg = obs_data_get_string(settings, "mask_font_awesome_svg");
+	int maxTextureSize = obs_data_get_int(settings, "mask_font_awesome_max_texture_size");
 
 
+	bool maxTextureSizeChanged = maxTextureSize != _maxTextureSize;
 	bool iconChanged = svg != _svg;
 	bool scaleByChanged = scaleBy != _scale_by;
 
-	bool regen_bitmap = iconChanged;
+	bool regen_bitmap = iconChanged || maxTextureSizeChanged;
 
 	_svg = svg;
 
 	_target_width = width;
 	_target_height = height;
 	_scale_by = scaleBy;
+	_maxTextureSize = maxTextureSize;
 
 	_offset_x = (int)obs_data_get_int(settings, "mask_font_awesome_pos_x");
 	_offset_y = (int)obs_data_get_int(settings, "mask_font_awesome_pos_y");
 
+	_rotation = (float)obs_data_get_double(settings, "mask_font_awesome_rotation");
+	_invert = obs_data_get_bool(settings, "mask_font_awesome_invert");
+
+	const int anchor = obs_data_get_int(settings, "mask_font_awesome_anchor");
+	if (anchor == FA_ANCHOR_MANUAL) {
+		_anchor.x = (float)obs_data_get_double(settings, "mask_font_awesome_anchor_x");
+		_anchor.y = (float)obs_data_get_double(settings, "mask_font_awesome_anchor_y");
+	} else {
+		_anchor.x = Anchors.at(anchor).first;
+		_anchor.y = Anchors.at(anchor).second;
+	}
 
 	_primary_alpha = (float)obs_data_get_double(settings, "mask_font_awesome_primary");
 	_secondary_alpha = (float)obs_data_get_double(settings, "mask_font_awesome_secondary");
@@ -213,17 +262,100 @@ void MaskFontAwesomeFilter::update(base_filter_data_t* base, obs_data_t* setting
 		_textureIndex = min((uint32_t)log2(npt) - 3, static_cast<uint32_t>(_textures.size()) - 1);
 		break;
 	}
+
+	float theta = _rotation * M_PI / 180.0f;
+	float x = _anchor.x * _svg_render_width;
+	float y = _anchor.y * _svg_render_height;
+
+	_rotation_matrix = {
+		{                         cos(theta),                          sin(theta), 0.0, 0.0},
+		{                        -sin(theta),                          cos(theta), 0.0, 0.0},
+		{x - x * cos(theta) + y * sin(theta), y - x * sin(theta) - y * cos(theta), 1.0, 0.0},
+		{                                1.0,                                 1.0, 0.0, 1.0}
+	};
 }
 
 void MaskFontAwesomeFilter::defaults(obs_data_t* settings, uint32_t width, uint32_t height)
 {
 	obs_data_set_default_int(settings, "mask_font_awesome_width", 256);
 	obs_data_set_default_int(settings, "mask_font_awesome_height", 256);
-	obs_data_set_default_int(settings, "mask_font_awesome_pos_x", width / 2);
-	obs_data_set_default_int(settings, "mask_font_awesome_pos_y", height / 2);
+	if(width > 0)
+		obs_data_set_default_int(settings, "mask_font_awesome_pos_x", width / 2);
+	if(height > 0)
+		obs_data_set_default_int(settings, "mask_font_awesome_pos_y", height / 2);
+	obs_data_set_default_int(settings, "mask_font_awesome_anchor", FA_ANCHOR_CENTER_CENTER);
 	obs_data_set_default_double(settings, "mask_font_awesome_primary", 1.0);
 	obs_data_set_default_double(settings, "mask_font_awesome_secondary", 0.7);
+	obs_data_set_default_bool(settings, "mask_font_awesome_invert", false);
+	obs_data_set_default_double(settings, "mask_font_awesome_anchor_x", 0.5);
+	obs_data_set_default_double(settings, "mask_font_awesome_anchor_y", 0.5);
+	obs_data_set_default_int(settings, "mask_font_awesome_max_texture_size", (std::max)(width, height));
+
 	_defaultsSet = true;
+}
+
+bool MaskFontAwesomeFilter::anchor_changed(obs_properties_t* props,
+	obs_property_t* property, obs_data_t* settings)
+{
+	bool manual = obs_data_get_int(settings, "mask_font_awesome_anchor") == FA_ANCHOR_MANUAL;
+	setting_visibility("mask_font_awesome_anchor_x", manual, props);
+	setting_visibility("mask_font_awesome_anchor_y", manual, props);
+	return true;
+}
+
+bool MaskFontAwesomeFilter::svg_changed(obs_properties_t* props,
+	obs_property_t* property, obs_data_t* settings)
+{
+	std::string svg = obs_data_get_string(settings, "mask_font_awesome_svg");
+	obs_property_t* group = obs_properties_get(props, "mask_font_awesome_selected_group");
+	if (svg.size() == 0) {
+		// Hide all the things
+		setting_visibility("mask_font_awesome_mask_props_group", false, props);
+		setting_visibility("mask_font_awesome_advanced_group", false, props);
+		setting_visibility("mask_font_awesome_primary", false, props);
+		setting_visibility("mask_font_awesome_secondary", false, props);
+		setting_visibility("mask_font_awesome_invert", false, props);
+		setting_visibility("mask_font_awesome_selected_group", false, props);
+		obs_property_set_description(group, "Pick an icon!");
+	} else {
+		
+		std::string name = obs_data_get_string(settings, "mask_font_awesome_name");
+		std::string family = obs_data_get_string(settings, "mask_font_awesome_family");
+		std::string style = obs_data_get_string(settings, "mask_font_awesome_style");
+
+		std::string iconLabel = "Selected Icon: " + name + " [" + family + ", " + style + "]";
+		obs_property_set_description(group, iconLabel.c_str());
+		setting_visibility("mask_font_awesome_mask_props_group", true, props);
+		setting_visibility("mask_font_awesome_advanced_group", true, props);
+		setting_visibility("mask_font_awesome_primary", true, props);
+		setting_visibility("mask_font_awesome_secondary", true, props);
+		setting_visibility("mask_font_awesome_invert", true, props);
+		setting_visibility("mask_font_awesome_selected_group", true, props);
+	}
+	//setting_visibility("mask_font_awesome_anchor_x", manual, props);
+	//setting_visibility("mask_font_awesome_anchor_y", manual, props);
+	return true;
+}
+
+bool MaskFontAwesomeFilter::scale_by_changed(obs_properties_t* props,
+	obs_property_t* property, obs_data_t* settings)
+{
+	int scale_by = obs_data_get_int(settings, "mask_font_awesome_scale_by");
+	switch (scale_by) {
+	case FA_SCALE_WIDTH:
+		setting_visibility("mask_font_awesome_width", true, props);
+		setting_visibility("mask_font_awesome_height", false, props);
+		break;
+	case FA_SCALE_HEIGHT:
+		setting_visibility("mask_font_awesome_width", false, props);
+		setting_visibility("mask_font_awesome_height", true, props);
+		break;
+	case FA_SCALE_BOTH:
+		setting_visibility("mask_font_awesome_width", true, props);
+		setting_visibility("mask_font_awesome_height", true, props);
+		break;
+	}
+	return true;
 }
 
 bool MaskFontAwesomeFilter::choose_button_clicked(obs_properties_t* props,
@@ -240,10 +372,19 @@ bool MaskFontAwesomeFilter::choose_button_clicked(obs_properties_t* props,
 		auto selectedIcon = dialog->getSelectedIcon();
 
 		obs_data_t* settings = obs_source_get_settings(obj->_base->context);
+		obs_property_t* group = obs_properties_get(props, "mask_font_awesome_selected_group");
+		QString iconLabel = "Selected Icon: " + selectedIcon.name + " [" + selectedIcon.family + ", " + selectedIcon.style + "]";
+		obs_property_set_description(group, iconLabel.toUtf8().constData());
 		obs_data_set_string(settings, "mask_font_awesome_name", selectedIcon.name.toStdString().c_str());
 		obs_data_set_string(settings, "mask_font_awesome_family", selectedIcon.family.toStdString().c_str());
 		obs_data_set_string(settings, "mask_font_awesome_style", selectedIcon.style.toStdString().c_str());
 		obs_data_set_string(settings, "mask_font_awesome_svg", selectedIcon.svg.toStdString().c_str());
+		setting_visibility("mask_font_awesome_mask_props_group", true, props);
+		setting_visibility("mask_font_awesome_advanced_group", true, props);
+		setting_visibility("mask_font_awesome_primary", true, props);
+		setting_visibility("mask_font_awesome_secondary", true, props);
+		setting_visibility("mask_font_awesome_invert", true, props);
+		setting_visibility("mask_font_awesome_selected_group", true, props);
 
 		obj->update(obj->_base, settings);
 
@@ -260,6 +401,7 @@ void MaskFontAwesomeFilter::properties(obs_properties_t* props)
 	auto mask_font_awesome_group = obs_properties_create();
 	auto mask_font_awesome_selected_group = obs_properties_create();
 	auto mask_font_awesome_mask_props_group = obs_properties_create();
+	auto mask_font_awesome_advanced_group = obs_properties_create();
 
 	auto p = obs_properties_add_button2(
 		mask_font_awesome_group, "mask_font_awesome_choose",
@@ -267,14 +409,15 @@ void MaskFontAwesomeFilter::properties(obs_properties_t* props)
 		MaskFontAwesomeFilter::choose_button_clicked,
 		this);
 
-	obs_properties_add_text(mask_font_awesome_selected_group, "mask_font_awesome_name", "    Name:", OBS_TEXT_INFO);
-	obs_properties_add_text(mask_font_awesome_selected_group, "mask_font_awesome_family", "    Family:", OBS_TEXT_INFO);
-	obs_properties_add_text(mask_font_awesome_selected_group, "mask_font_awesome_style", "    Style:", OBS_TEXT_INFO);
 	p = obs_properties_add_text(mask_font_awesome_selected_group, "mask_font_awesome_svg", "    Svg:", OBS_TEXT_INFO);
 	obs_property_set_visible(p, false);
+	obs_property_set_modified_callback(p, MaskFontAwesomeFilter::svg_changed);
+
 
 	obs_properties_add_float_slider(mask_font_awesome_selected_group, "mask_font_awesome_primary", "    Primary Opacity:", 0.0, 1.0, 0.01);
 	obs_properties_add_float_slider(mask_font_awesome_selected_group, "mask_font_awesome_secondary", "    Secondary Opacity:", 0.0, 1.0, 0.01);
+
+	obs_properties_add_bool(mask_font_awesome_selected_group, "mask_font_awesome_invert", "Invert?");
 
 	obs_properties_add_group(
 		mask_font_awesome_group, "mask_font_awesome_selected_group",
@@ -287,7 +430,74 @@ void MaskFontAwesomeFilter::properties(obs_properties_t* props)
 		obs_module_text("AdvancedMasks.FontAwesome.Label"),
 		OBS_GROUP_NORMAL, mask_font_awesome_group);
 
+	obs_property_t* anchor = obs_properties_add_list(mask_font_awesome_mask_props_group, "mask_font_awesome_anchor",
+		obs_module_text("AdvancedMasks.SvgMask.Anchor"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_TOP_LEFT_LABEL),
+		FA_ANCHOR_TOP_LEFT);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_TOP_CENTER_LABEL),
+		FA_ANCHOR_TOP_CENTER);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_TOP_RIGHT_LABEL),
+		FA_ANCHOR_TOP_RIGHT);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_CENTER_LEFT_LABEL),
+		FA_ANCHOR_CENTER_LEFT);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_CENTER_CENTER_LABEL),
+		FA_ANCHOR_CENTER_CENTER);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_CENTER_RIGHT_LABEL),
+		FA_ANCHOR_CENTER_RIGHT);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_BOTTOM_LEFT_LABEL),
+		FA_ANCHOR_BOTTOM_LEFT);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_BOTTOM_CENTER_LABEL),
+		FA_ANCHOR_BOTTOM_CENTER);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_BOTTOM_RIGHT_LABEL),
+		FA_ANCHOR_BOTTOM_RIGHT);
+
+	obs_property_list_add_int(
+		anchor,
+		obs_module_text(FA_ANCHOR_MANUAL_LABEL),
+		FA_ANCHOR_MANUAL);
+
+	obs_property_set_modified_callback(anchor, MaskFontAwesomeFilter::anchor_changed);
+
+	p = obs_properties_add_float_slider(
+		mask_font_awesome_mask_props_group, "mask_font_awesome_anchor_x",
+		obs_module_text("AdvancedMasks.SvgMask.AnchorX"),
+		0.0f, 1.0f, 0.01f
+	);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		mask_font_awesome_mask_props_group, "mask_font_awesome_anchor_y",
+		obs_module_text("AdvancedMasks.SvgMask.AnchorY"),
+		0.0f, 1.0f, 0.01f
+	);
+	obs_property_float_set_suffix(p, "px");
 
 	obs_property_t* scale_by = obs_properties_add_list(
 		mask_font_awesome_mask_props_group, "mask_font_awesome_scale_by",
@@ -308,6 +518,8 @@ void MaskFontAwesomeFilter::properties(obs_properties_t* props)
 		scale_by,
 		obs_module_text(FA_SCALE_BOTH_LABEL),
 		FA_SCALE_BOTH);
+
+	obs_property_set_modified_callback(scale_by, MaskFontAwesomeFilter::scale_by_changed);
 
 	p = obs_properties_add_int_slider(
 		mask_font_awesome_mask_props_group, "mask_font_awesome_width",
@@ -333,10 +545,24 @@ void MaskFontAwesomeFilter::properties(obs_properties_t* props)
 		1);
 	obs_property_float_set_suffix(p, "px");
 
+	p = obs_properties_add_float_slider(
+		mask_font_awesome_mask_props_group, "mask_font_awesome_rotation",
+		obs_module_text("AdvancedMasks.SvgMask.Rotation"), -360.0, 360.0, 1.0);
+	obs_property_float_set_suffix(p, " deg");
+
 	obs_properties_add_group(
 		props, "mask_font_awesome_mask_props_group",
 		obs_module_text("AdvancedMasks.FontAwesome.Properties"),
 		OBS_GROUP_NORMAL, mask_font_awesome_mask_props_group);
+
+	p = obs_properties_add_int(
+		mask_font_awesome_advanced_group, "mask_font_awesome_max_texture_size",
+		obs_module_text("AdvancedMasks.SvgMask.MaxTextureSize"), 8, 8196, 1);
+
+	obs_properties_add_group(
+		props, "mask_font_awesome_advanced_group",
+		obs_module_text("AdvancedMasks.SvgMask.Advanced"),
+		OBS_GROUP_NORMAL, mask_font_awesome_advanced_group);
 
 
 }
@@ -344,67 +570,111 @@ void MaskFontAwesomeFilter::properties(obs_properties_t* props)
 void MaskFontAwesomeFilter::render(base_filter_data_t* base, color_adjustments_data_t* color_adj)
 {
 	if (_textures.size() == 0 || _textureRegen) {
+		obs_source_skip_video_filter(base->context);
 		return;
 	}
 
-	gs_effect_t* effect = _effect_svg_mask;
-	gs_texture_t* texture = gs_texrender_get_texture(base->input_texrender);
+	if (_textureIndex > _textures.size() - 1 && _textures.size() > 0) {
+		_textureIndex = (uint32_t)(_textures.size()) - 1;
+	}
 
 	gs_texture_t* svg_texture = _textures[_textureIndex];
-	if (!effect || !texture || !svg_texture) {
+	if (!svg_texture) {
 		return;
 	}
 
-	base->output_texrender =
-		create_or_reset_texrender(base->output_texrender);
+	obs_source_t* target = obs_filter_get_target(base->context);
+	uint32_t width = obs_source_get_base_width(target);
+	uint32_t height = obs_source_get_base_height(target);
+	base->width = width;
+	base->height = height;
 
-	if (_param_image) {
-		gs_effect_set_texture(_param_image, texture);
-	}
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
 
-	if (_param_svg_image) {
-		gs_effect_set_texture(_param_svg_image, svg_texture);
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+	if (source_space == GS_CS_709_EXTENDED) {
+		obs_source_skip_video_filter(base->context);
 	}
-	if (_param_uv_size) {
-		struct vec2 uv_size;
-		uv_size.x = (float)base->width;
-		uv_size.y = (float)base->height;
-		gs_effect_set_vec2(_param_uv_size, &uv_size);
-	}
-	if (_param_svg_uv_size) {
-		struct vec2 svg_uv_size;
-		svg_uv_size.x = (float)_svg_render_width;
-		svg_uv_size.y = (float)_svg_render_height;
-		gs_effect_set_vec2(_param_svg_uv_size, &svg_uv_size);
-	}
-	if (_param_offset) {
-		struct vec2 offset;
-		offset.x = (float)_offset_x;
-		offset.y = (float)_offset_y;
-		gs_effect_set_vec2(_param_offset, &offset);
-	}
-	if (_param_primary_alpha) {
-		gs_effect_set_float(_param_primary_alpha, _primary_alpha);
-	}
-	if (_param_secondary_alpha) {
-		gs_effect_set_float(_param_secondary_alpha, _secondary_alpha);
-	}
+	else {
+		const char* technique = base->mask_effect == MASK_EFFECT_ALPHA
+			? "DrawFA"
+			: "DrawFAAdjustments";
+		const enum gs_color_format format = gs_get_format_from_space(source_space);
+		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
+			OBS_ALLOW_DIRECT_RENDERING)) {
+			gs_effect_set_texture(_param_svg_image, svg_texture);
+			struct vec2 uv_size;
+			uv_size.x = (float)base->width;
+			uv_size.y = (float)base->height;
+			gs_effect_set_vec2(_param_uv_size, &uv_size);
 
+			struct vec2 svg_uv_size;
+			svg_uv_size.x = (float)_svg_render_width;
+			svg_uv_size.y = (float)_svg_render_height;
+			gs_effect_set_vec2(_param_svg_uv_size, &svg_uv_size);
 
-	set_render_parameters();
-	set_blending_parameters();
-	const char* technique = "DrawFA";
+			struct vec2 offset;
+			offset.x = (float)_offset_x;
+			offset.y = (float)_offset_y;
+			gs_effect_set_vec2(_param_offset, &offset);
 
-	if (gs_texrender_begin(base->output_texrender, base->width,
-		base->height)) {
-		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
-			-100.0f, 100.0f);
-		while (gs_effect_loop(effect, technique))
-			gs_draw_sprite(texture, 0, base->width, base->height);
-		gs_texrender_end(base->output_texrender);
+			gs_effect_set_float(_param_primary_alpha, _primary_alpha);
+			gs_effect_set_float(_param_secondary_alpha, _secondary_alpha);
+			gs_effect_set_float(_param_invert, _invert ? 1.0f : 0.0f);
+			gs_effect_set_vec2(_param_anchor, &_anchor);
+			gs_effect_set_matrix4(_param_rotation_matrix, &_rotation_matrix);
+			if (base->mask_effect == MASK_EFFECT_ADJUSTMENT) {
+				const float min_brightness = color_adj->adj_brightness
+					? color_adj->min_brightness
+					: 0.0f;
+				gs_effect_set_float(_param_min_brightness,
+					min_brightness);
+				const float max_brightness = color_adj->adj_brightness
+					? color_adj->max_brightness
+					: 0.0f;
+				gs_effect_set_float(_param_max_brightness, max_brightness);
+
+				const float min_contrast = color_adj->adj_contrast
+					? color_adj->min_contrast
+					: 0.0f;
+				gs_effect_set_float(_param_min_contrast, min_contrast);
+				const float max_contrast = color_adj->adj_contrast
+					? color_adj->max_contrast
+					: 0.0f;
+				gs_effect_set_float(_param_max_contrast, max_contrast);
+
+				const float min_saturation = color_adj->adj_saturation
+					? color_adj->min_saturation
+					: 1.0f;
+				gs_effect_set_float(_param_min_saturation, min_saturation);
+				const float max_saturation = color_adj->adj_saturation
+					? color_adj->max_saturation
+					: 1.0f;
+				gs_effect_set_float(_param_max_saturation, max_saturation);
+
+				const float min_hue_shift = color_adj->adj_hue_shift
+					? color_adj->min_hue_shift
+					: 0.0f;
+				gs_effect_set_float(_param_min_hue_shift, min_hue_shift);
+				const float max_hue_shift = color_adj->adj_hue_shift
+					? color_adj->max_hue_shift
+					: 1.0f;
+				gs_effect_set_float(_param_max_hue_shift, max_hue_shift);
+			}
+
+			gs_blend_state_push();
+			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+			obs_source_process_filter_tech_end(base->context, _effect_svg_mask, 0, 0, technique);
+
+			gs_blend_state_pop();
+		}
 	}
-
-	gs_blend_state_pop();
 }
 
 void MaskFontAwesomeFilter::_loadEffectFiles()
@@ -448,6 +718,45 @@ void MaskFontAwesomeFilter::_loadSvgEffect()
 			else if (strcmp(info.name, "secondary_alpha") == 0) {
 				_param_secondary_alpha = param;
 			}
+			else if (strcmp(info.name, "sin_rot") == 0) {
+				_param_sin_rot = param;
+			}
+			else if (strcmp(info.name, "cos_rot") == 0) {
+				_param_cos_rot = param;
+			}
+			else if (strcmp(info.name, "invert") == 0) {
+				_param_invert = param;
+			}
+			else if (strcmp(info.name, "anchor") == 0) {
+				_param_anchor = param;
+			}
+			else if (strcmp(info.name, "rotation_matrix") == 0) {
+				_param_rotation_matrix = param;
+			}
+			else if (strcmp(info.name, "min_brightness") == 0) {
+				_param_min_brightness = param;
+			}
+			else if (strcmp(info.name, "max_brightness") == 0) {
+				_param_max_brightness = param;
+			}
+			else if (strcmp(info.name, "min_contrast") == 0) {
+				_param_min_contrast = param;
+			}
+			else if (strcmp(info.name, "max_contrast") == 0) {
+				_param_max_contrast = param;
+			}
+			else if (strcmp(info.name, "min_saturation") == 0) {
+				_param_min_saturation = param;
+			}
+			else if (strcmp(info.name, "max_saturation") == 0) {
+				_param_max_saturation = param;
+			}
+			else if (strcmp(info.name, "min_hue_shift") == 0) {
+				_param_min_hue_shift = param;
+			}
+			else if (strcmp(info.name, "max_hue_shift") == 0) {
+				_param_max_hue_shift = param;
+			}
 		}
 	}
 }
@@ -464,11 +773,26 @@ void MaskFontAwesomeFilter::_renderSvgToTextures()
 	QString primary = "#FFFFFF";
 	QString secondary = "#000000";
 	QString processedSvg = preprocessSvg(_svg.c_str(), primary, secondary);
+	int lastTexture = 100000;
 	for (int i = 8; i <= _maxTextureSize; i *= 2) {
 		gs_texture_t* tex = gs_texture_from_svg(
 			processedSvg.toStdString().c_str(),
 			i,
 			i,
+			_scale_by
+		);
+		_textures.push_back(tex);
+		obs_enter_graphics();
+		_texture_width = gs_texture_get_width(tex);
+		_texture_height = gs_texture_get_height(tex);
+		obs_leave_graphics();
+		lastTexture = i;
+	}
+	if (lastTexture < _maxTextureSize) {
+		gs_texture_t* tex = gs_texture_from_svg(
+			processedSvg.toStdString().c_str(),
+			_maxTextureSize,
+			_maxTextureSize,
 			_scale_by
 		);
 		_textures.push_back(tex);
@@ -483,24 +807,35 @@ void MaskFontAwesomeFilter::_renderSvgToTextures()
 FontAwesomePicker::FontAwesomePicker(QWidget* parent)
   : QDialog(parent)
 {
+	auto api = FontAwesomeApi::getInstance();
+
 	auto layout = new QVBoxLayout(this);
 	QTabWidget* tabWidget = new QTabWidget(this);
 
 	// Create instances of your existing widgets
 	auto searchWidget = new FontAwesomeSearchTab;
 	auto settingsWidget = new FontAwesomeSettingsTab;
-
+	
 	connect(searchWidget, &FontAwesomeSearchTab::selectButtonClicked, this, &QDialog::accept);
 	connect(searchWidget, &FontAwesomeSearchTab::cancelButtonClicked, this, &QDialog::reject);
 	connect(searchWidget, &FontAwesomeSearchTab::iconSelected, [&](FAIconData icon) {
 		_selectedIcon = icon;
 	});
 	// Add the widgets to the tab widget
-	tabWidget->addTab(searchWidget, "Icon Search");
-	tabWidget->addTab(settingsWidget, "Account Settings");
+	bool validToken = api->validApiToken();
+	tabWidget->addTab(searchWidget, obs_module_text("AdvancedMasks.FontAwesome.IconSearch"));
+	tabWidget->addTab(settingsWidget, obs_module_text("AdvancedMasks.FontAwesome.AccountSettings"));
 	tabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	tabWidget->setTabEnabled(0, validToken);
+	tabWidget->setCurrentIndex(validToken ? 0 : 1);
+
+	connect(api, &FontAwesomeApi::validToken, this, [tabWidget](bool valid) {
+		tabWidget->setTabEnabled(0, valid);
+	});
+
 	layout->addWidget(tabWidget);
 	resize(800, 600);
+	setWindowTitle(obs_module_text("AdvancedMasks.FontAwesome.PickerWindowTitle"));
 }
 
 FontAwesomeSettingsTab::FontAwesomeSettingsTab(QWidget* parent)
@@ -509,17 +844,41 @@ FontAwesomeSettingsTab::FontAwesomeSettingsTab(QWidget* parent)
 	_apiToken = _api->getApiToken();
 	auto layout = new QVBoxLayout(this);
 	auto header = new QLabel(obs_module_text("AdvancedMasks.FontAwesome.SettingsHeader"), this);
-	auto subText = new QLabel(obs_module_text("AdvancedMasks.FontAwesome.SettingsSubText"), this);
+	std::string description = "<html>";
+	description += obs_module_text("AdvancedMasks.FontAwesome.SettingsSubText");
+	description += "</html>";
+	auto subText = new QLabel(description.c_str(), this);
+	subText->setWordWrap(true);
+	subText->setOpenExternalLinks(true);
 
 	auto tokenLabel = new QLabel(obs_module_text("AdvancedMasks.FontAwesome.ApiToken"), this);
+	auto tokenGood = new QLabel(obs_module_text("AdvancedMAsks.FontAwesome.ValidApiToken"), this);
+	tokenGood->setStyleSheet("QLabel { color: #00BB00; }");
+	auto tokenBad = new QLabel(obs_module_text("AdvancedMAsks.FontAwesome.InvalidApiToken"), this);
+	tokenBad->setStyleSheet("QLabel { color: #FF0000; }");
+
+	tokenGood->setVisible(_api->validApiToken());
+	tokenBad->setHidden(_api->validApiToken());
+
+	auto tokenLabelLayout = new QHBoxLayout();
+	tokenLabelLayout->addWidget(tokenLabel);
+	tokenLabelLayout->addWidget(tokenGood);
+	tokenLabelLayout->addWidget(tokenBad);
+	tokenLabelLayout->addStretch();
+
 	auto tokenField = new QLineEdit(this);
 	tokenField->setEchoMode(QLineEdit::Password);
 	tokenField->setText(_apiToken.c_str());
 
 	auto applyButton = new QPushButton(obs_module_text("AdvancedMasks.FontAwesome.Apply"), this);
 
-	connect(applyButton, &QPushButton::clicked, [this, tokenField]() {
+	connect(applyButton, &QPushButton::clicked, [this, tokenField, tokenGood, tokenBad]() {
 		_api->setApiToken(tokenField->text().toStdString());
+	});
+
+	connect(_api, &FontAwesomeApi::validToken, [tokenGood, tokenBad](bool valid) {
+		tokenGood->setVisible(valid);
+		tokenBad->setHidden(valid);
 	});
 
 	auto tokenFieldLayout = new QHBoxLayout();
@@ -528,7 +887,7 @@ FontAwesomeSettingsTab::FontAwesomeSettingsTab(QWidget* parent)
 
 	layout->addWidget(header);
 	layout->addWidget(subText);
-	layout->addWidget(tokenLabel);
+	layout->addLayout(tokenLabelLayout);
 	layout->addLayout(tokenFieldLayout);
 	layout->addStretch();
 }
@@ -536,6 +895,23 @@ FontAwesomeSettingsTab::FontAwesomeSettingsTab(QWidget* parent)
 FontAwesomeSearchTab::FontAwesomeSearchTab(QWidget* parent)
  : QWidget(parent), _api(FontAwesomeApi::getInstance())
 {
+	auto releasesJson = _api->releases();
+	std::vector<std::string> releases;
+	if (releasesJson.contains("data") && releasesJson["data"].contains("releases")) {
+		for (auto release : releasesJson["data"]["releases"]) {
+			releases.push_back(release["version"]);
+		}
+	}
+	std::string latestVersion = "";
+
+	std::regex pattern("^[0-9.]+$");  // matches strings with only digits and periods
+	for (auto it = releases.rbegin(); it != releases.rend(); ++it) {
+		if (std::regex_match(*it, pattern)) {
+			latestVersion = *it;
+			break;
+		}
+	}
+
 	auto layout = new QVBoxLayout(this);
 	auto header = new QLabel(obs_module_text("AdvancedMasks.FontAwesome.IconSearch"), this);
 
@@ -554,10 +930,20 @@ FontAwesomeSearchTab::FontAwesomeSearchTab(QWidget* parent)
 
 	auto searchField = new QLineEdit(this);
 
+	auto versionSelect = new QComboBox(this);
+	size_t  i = 0;
+	for (auto version : releases) {
+		versionSelect->addItem(version.c_str());
+	}
+
+	versionSelect->setCurrentText(latestVersion.c_str());
+
 	auto searchButton = new QPushButton(obs_module_text("AdvancedMasks.FontAwesome.Search"), this);
 
-	connect(searchButton, &QPushButton::clicked, [this, searchField]() {
-		auto result = _api->search(searchField->text().toStdString());
+	connect(searchButton, &QPushButton::clicked, [this, searchField, versionSelect]() {
+		auto searchTerm = searchField->text().toStdString();
+		auto version = versionSelect->currentText().toStdString();
+		auto result = _api->search(searchTerm, version);
 		
 		if (result.contains("data") && result["data"].contains("search")) {
 			_icons.clear();
@@ -577,6 +963,7 @@ FontAwesomeSearchTab::FontAwesomeSearchTab(QWidget* parent)
 
 	auto searchFieldLayout = new QHBoxLayout();
 	searchFieldLayout->addWidget(searchField);
+	searchFieldLayout->addWidget(versionSelect);
 	searchFieldLayout->addWidget(searchButton);
 
 	auto buttons = new QHBoxLayout();

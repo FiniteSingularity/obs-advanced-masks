@@ -30,7 +30,6 @@ void update_svg_textures(
 	uint32_t small_width = previous_power_of_2(width - 1);
 	uint32_t small_height = previous_power_of_2(height - 1);
 	gs_texture_t* to_delete;
-	blog(LOG_INFO, "Updating Texture...");
 	QFuture<void> future;
 	switch (update_type) {
 	case SVG_GENERATE_NEW_SMALL:
@@ -79,7 +78,6 @@ void update_svg_textures(
 gs_texture_t* gs_texture_from_svg_path(const char* path, int width, int height, int scale_by)
 {
 	//std::string svgPath(path);
-	blog(LOG_INFO, "gs_texture_from_svg...");
 	int large = 1000000;
 	QSvgRenderer svgRenderer(QString(path), nullptr);
 	if (!svgRenderer.isValid()) {
@@ -113,18 +111,15 @@ gs_texture_t* gs_texture_from_svg_path(const char* path, int width, int height, 
 	std::vector<uint8_t> rawData(ptr, ptr + (bytesPerLine * cy));
 
 	enum gs_color_format format = GS_RGBA;
-	blog(LOG_INFO, "Generating texture...");
 	obs_enter_graphics();
 	gs_texture_t* tex = gs_texture_create(cx, cy, format, 1, (const uint8_t**)&ptr, 0);
 	obs_leave_graphics();
-	blog(LOG_INFO, "COMPLETE!");
 	return tex;
 }
 
 gs_texture_t* gs_texture_from_svg(const char* svg, int width, int height, int scale_by)
 {
 	//std::string svgPath(path);
-	blog(LOG_INFO, "gs_texture_from_svg...");
 	int large = 1000000;
 	QSvgRenderer svgRenderer(QString(svg).toUtf8());
 	if (!svgRenderer.isValid()) {
@@ -160,10 +155,8 @@ gs_texture_t* gs_texture_from_svg(const char* svg, int width, int height, int sc
 	std::vector<uint8_t> rawData(ptr, ptr + (bytesPerLine * cy));
 
 	enum gs_color_format format = GS_RGBA;
-	blog(LOG_INFO, "Generating texture...");
 	obs_enter_graphics();
 	gs_texture_t* tex = gs_texture_create(cx, cy, format, 1, (const uint8_t**)&ptr, 0);
 	obs_leave_graphics();
-	blog(LOG_INFO, "COMPLETE!");
 	return tex;
 }
