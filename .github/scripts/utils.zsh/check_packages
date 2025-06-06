@@ -30,7 +30,7 @@ if (( ! ${+commands[packagesbuild]} )) {
 
   if [[ ! -f Packages.dmg ]] {
     log_status 'Download Packages.app'
-    curl ${curl_opts} ${packages_url} -o Packages.dmg
+    curl ${curl_opts} -o Packages.dmg ${packages_url}
   }
 
   local image_checksum
