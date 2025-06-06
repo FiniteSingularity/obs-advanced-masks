@@ -7,12 +7,16 @@
 #ifndef _WIN32
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define max(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef da_clear
 #define da_clear(v) darray_clear(&(v).da)
 static void darray_clear(struct darray *dst)
 {
 	dst->num = 0;
 }
 #endif
+
 
 gs_texture_t* gs_texture_from_svg_path(const char* path, int width, int height, int scale_by);
 gs_texture_t* gs_texture_from_svg(const char* path, int width, int height, int scale_by);
