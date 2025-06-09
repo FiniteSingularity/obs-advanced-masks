@@ -1315,6 +1315,24 @@ void save_api_token(std::string token)
 }
 #endif
 
+#ifdef __linux__
+std::string get_api_token()
+{
+	obs_data_t* config = load_module_config();
+	std::string token = obs_data_get_string(config, "apiToken");
+	obs_data_release(config);
+	return token;
+}
+
+void save_api_token(std::string token)
+{
+	obs_data_t* config = load_module_config();
+	obs_data_set_string(config, "apiToken", token.c_str());
+	save_module_config(config);
+	obs_data_release(config);
+}
+#endif
+
 #ifdef __APPLE__
 class KeychainHelper {
 public:
