@@ -182,6 +182,7 @@ if(OS_POSIX)
       -Wswitch
       -Wunused-parameter
       -Wno-unused-function
+      -Wno-missing-braces
       -Wno-missing-field-initializers
       -Wno-unused-command-line-argument
       -fno-strict-aliasing

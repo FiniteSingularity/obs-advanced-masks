@@ -1,0 +1,163 @@
+#include "common.effect"
+
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform float2 uv_size;
+
+uniform float2 mask_position;
+uniform float zoom;
+
+uniform float m;
+uniform float n1;
+uniform float n2;
+uniform float n3;
+uniform float a;
+uniform float b;
+uniform float min_r;
+
+//uniform float2 aspect_ratio;
+uniform float2 global_position;
+uniform float global_scale;
+uniform float sin_theta;
+uniform float cos_theta;
+uniform float invert;
+uniform float alpha_zero;
+
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Border;
+    AddressV = Border;
+    BorderColor = 0x00000000;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+
+float super(float r, float phi)
+{
+    float s_angle = m * phi / 4.0;
+    float super_i = pow(pow(abs(cos(s_angle) / a), n2) + pow(abs(sin(s_angle) / b), n3), 1.0 / n1);
+    return super_i > 1.0e-6 ? 1.0/super_i : 1.e6;
+}
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 alphaImage(VertData v_in) : TARGET
+{
+    float2 coord = v_in.uv * uv_size;
+    float2 shift = global_position - mask_position;
+    float2 coord_p = coord - shift;
+
+    float2 dist = coord_p - mask_position;
+    float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
+    sample_dist = sample_dist / global_scale;
+    float phi = atan2(sample_dist.y, sample_dist.x);
+    float r = length(sample_dist) / uv_size.y;
+
+    float val = super(r, phi) - r;
+    val = saturate(val / fwidth(val) + (1.0 - step(min_r, r)));
+    float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
+    //float4 color = image.Sample(textureSampler, (coord_p / zoom / global_scale) / uv_size);
+    //return color;
+    return float4(color.rgb, (1.0f - invert) * color.a * val + invert * color.a * (1.0f - val));
+}
+
+float4 alphaFrameCheckImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
+	float phi = atan2(sample_dist.y, sample_dist.x);
+	float r = length(sample_dist) / uv_size.y;
+
+	float d = super(r, phi) - r;
+	d = saturate(d / fwidth(d) + (1.0 - step(min_r, r)));
+
+	d = (1.0f - invert) * d + invert * (1.0 - d);
+	d = (d + alpha_zero) / (1.0 + alpha_zero);
+	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
+
+	return float4(color.rgb, color.a * d);
+}
+
+float4 adjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 shift = global_position - mask_position;
+	float2 coord_p = coord - shift;
+
+	float2 dist = coord_p - mask_position;
+	float2 sample_dist = float2(dist.x * cos_theta - dist.y * sin_theta, dist.x * sin_theta + dist.y * cos_theta);
+	float phi = atan2(sample_dist.y, sample_dist.x);
+	float r = length(sample_dist) / uv_size.y;
+
+	float d = super(r, phi) - r;
+	d = saturate(d / fwidth(d) + (1.0 - step(min_r, r)));
+
+	d = (1.0f - invert) * d + invert * (1.0 - d);
+
+	float4 color = image.Sample(textureSampler, v_in.uv);	
+	float4 color_adj_min = adjustments(
+	 	color,
+	 	min_brightness,
+	 	min_contrast,
+	 	min_saturation,
+	 	min_hue_shift
+	 );
+	float4 color_adj_max = adjustments(
+	 	color,
+	 	max_brightness,
+	 	max_contrast,
+	 	max_saturation,
+	 	max_hue_shift
+	 );
+	return (color_adj_min * (1.0 - d) + color_adj_max * d);
+}
+
+technique Alpha
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaImage(v_in);
+	}
+}
+
+technique AlphaFrameCheck
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = alphaFrameCheckImage(v_in);
+	}
+}
+
+technique Adjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = adjustmentsImage(v_in);
+	}
+}

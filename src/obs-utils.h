@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 extern gs_texrender_t *create_or_reset_texrender(gs_texrender_t *render);
+gs_texrender_t* create_or_reset_texrender_high(gs_texrender_t* render);
 extern void set_blending_parameters();
 extern void label_indent(char *label, const char *label_text);
 extern void set_render_parameters();

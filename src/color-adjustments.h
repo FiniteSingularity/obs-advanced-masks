@@ -2,6 +2,10 @@
 
 #include <obs-module.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct color_adjustments_data;
 typedef struct color_adjustments_data color_adjustments_data_t;
 
@@ -32,3 +36,7 @@ extern void color_adjustments_defaults(obs_data_t *settings);
 static bool setting_mask_adjustment_modified(obs_properties_t *props,
 					     obs_property_t *p,
 					     obs_data_t *settings);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,15 +1,15 @@
 # --- Detect if the plugin is build out of tree or not ---
 if(CMAKE_PROJECT_NAME STREQUAL "obs-studio")
   set(BUILD_OUT_OF_TREE OFF)
-  if(OBS_CMAKE_VERSION VERSION_GREATER_EQUAL 3.0.0)
-    legacy_check()
-  endif()
+#   if(OBS_CMAKE_VERSION VERSION_GREATER_EQUAL 3.0.0)
+#     legacy_check()
+#   endif()
 else()
   set(BUILD_OUT_OF_TREE ON)
   cmake_minimum_required(VERSION 3.18)
 endif()
 
-project(obs-advanced-masks VERSION 1.1.0)
+project(obs-advanced-masks VERSION 1.5.0)
 set(PROJECT_FULL_NAME "Advanced Masks")
 
 # Set new UUIDs when you start to create a new plugin.
@@ -30,21 +30,56 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/advanced-masks.h
 	src/mask-bsm.c
 	src/mask-bsm.h
+	src/mask-chroma-key.c
+	src/mask-chroma-key.h
+	src/mask-feather.c
+	src/mask-feather.h
+	src/mask-font-awesome.cpp
+	src/mask-font-awesome.hpp
 	src/mask-gradient.c
 	src/mask-gradient.h
 	src/mask-shape.c
 	src/mask-shape.h
 	src/mask-source.c
 	src/mask-source.h
+	src/mask-svg.c
+	src/mask-svg.h
 	src/obs-utils.c
 	src/obs-utils.h
+	src/svg-utils.cpp
+	src/svg-utils.hpp
+	src/utils.c
+	src/utils.h
 	src/version.h)
 
 if(BUILD_OUT_OF_TREE)
 	find_package(libobs REQUIRED)
+	find_package(obs-frontend-api REQUIRED)
 	include(cmake/ObsPluginHelpers.cmake)
+	find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
+	set(OBS_FRONTEND_API_NAME "obs-frontend-api")
+
+	include(FetchContent)
+	FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+	FetchContent_MakeAvailable(json)
+else()
+	if(OBS_VERSION VERSION_GREATER_EQUAL 30.1.0)
+		find_package(Qt6 COMPONENTS Core Widgets Svg Xml)
+		# find_package(nlohmann_json REQUIRED)
+		include(FetchContent)
+		FetchContent_Declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+		FetchContent_MakeAvailable(nlohmann_json)
+	else()
+		find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
+		if(OS_WINDOWS)
+			include(FetchContent)
+			FetchContent_Declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+			FetchContent_MakeAvailable(nlohmann_json)
+		endif()
+	endif()
+	set(OBS_FRONTEND_API_NAME "frontend-api")
 endif()
-  
+
 if(OS_WINDOWS)
 	get_filename_component(ISS_FILES_DIR "${CMAKE_BINARY_DIR}\\..\\package" ABSOLUTE)
 	file(TO_NATIVE_PATH "${ISS_FILES_DIR}" ISS_FILES_DIR)
@@ -59,16 +94,38 @@ if(OS_WINDOWS)
 	target_sources(${PROJECT_NAME} PRIVATE 
 		${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.rc)
 elseif(OS_MACOS)
-		set(MACOS_BUNDLEID "com.finitesingularity.${PROJECT_NAME}")
-		set(MACOSX_PLUGIN_GUI_IDENTIFIER "${MACOS_BUNDLEID}")
-		set(MACOSX_PLUGIN_BUNDLE_VERSION "${PROJECT_VERSION}")
-		set(MACOSX_PLUGIN_SHORT_VERSION_STRING "1")
-		configure_file(cmake/bundle/macos/installer-macos.pkgproj.in ${CMAKE_BINARY_DIR}/installer-macos.generated.pkgproj)
-		target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
+	set(MACOS_BUNDLEID "com.finitesingularity.${PROJECT_NAME}")
+	set(MACOSX_PLUGIN_GUI_IDENTIFIER "${MACOS_BUNDLEID}")
+	set(MACOSX_PLUGIN_BUNDLE_VERSION "${PROJECT_VERSION}")
+	set(MACOSX_PLUGIN_SHORT_VERSION_STRING "1")
+	configure_file(cmake/bundle/macos/installer-macos.pkgproj.in ${CMAKE_BINARY_DIR}/installer-macos.generated.pkgproj)
+	target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 endif()
 
-target_link_libraries(${PROJECT_NAME}
-	OBS::libobs)
+find_package(CURL REQUIRED)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
+
+if(OS_MACOS)
+	target_link_libraries(${PROJECT_NAME}
+		Qt::Widgets
+		Qt::Svg
+		Qt::Xml
+		nlohmann_json
+		CURL::libcurl
+		OBS::libobs
+		OBS::${OBS_FRONTEND_API_NAME}
+		"-framework Security")
+else()
+	target_link_libraries(${PROJECT_NAME}
+		Qt::Widgets
+		Qt::Svg
+		Qt::Xml
+		nlohmann_json
+		CURL::libcurl
+		OBS::libobs
+		OBS::${OBS_FRONTEND_API_NAME})
+endif()
 
 if(BUILD_OUT_OF_TREE)
     if(NOT LIB_OUT_DIR)

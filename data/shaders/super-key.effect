@@ -1,0 +1,77 @@
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform float k;
+uniform float k2;
+uniform float veil;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+	float4 base = image.Sample(textureSampler, v_in.uv);
+
+	float E_c = clamp(k * base.g - k2 * (base.b + base.r) / 2.0, 0.0, 1.0);
+	float4 keyed = (1.0 - E_c) * base;
+
+	float g = clamp(keyed.g, 0.0,
+		1.0 * keyed.b
+		+ 1.0 * max(keyed.b - keyed.r, 0.0)
+		+ 0.3 * max(keyed.r - keyed.b, 0.0)
+		+ 0.0 * min(keyed.b, keyed.r)
+	);
+	return float4(keyed.r, g, keyed.b, 1.0 - E_c) - veil * E_c;
+}
+
+float4 mainImageMatte(VertData v_in) : TARGET
+{
+	float4 base = image.Sample(textureSampler, v_in.uv);
+
+	float E_c = clamp(k * base.g - k2 * (base.b + base.r) / 2.0, 0.0, 1.0);
+	//float4 keyed = (1.0 - E_c) * base;
+
+	//float g = clamp(keyed.g, 0.0,
+	//	1.0 * keyed.b
+	//	+ 1.0 * max(keyed.b - keyed.r, 0.0)
+	//	+ 0.3 * max(keyed.r - keyed.b, 0.0)
+	//	+ 0.0 * min(keyed.b, keyed.r)
+	//);
+	//return float4(keyed.r, g, keyed.b, 1.0 - E_c) - veil * E_c;
+	float matte = 1.0 - (1.0 - E_c - veil * E_c);
+	return float4(matte, matte, matte, 1.0);
+
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImage(v_in);
+	}
+}
+
+technique DrawMatte
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImageMatte(v_in);
+	}
+}

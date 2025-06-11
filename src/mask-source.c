@@ -737,13 +737,8 @@ bool setting_mask_source_filter_modified(obs_properties_t *props,
 
 
 static void set_render_params(mask_source_data_t *data,
-			      color_adjustments_data_t *color_adj,
-			      gs_texture_t *texture)
+			      color_adjustments_data_t *color_adj)
 {
-	if (data->param_source_mask_image) {
-		gs_effect_set_texture(data->param_source_mask_image, texture);
-	}
-
 	if (data->param_source_mask_positional_offset) {
 		gs_effect_set_vec2(data->param_source_mask_positional_offset,
 				   &data->positional_alignment);
@@ -854,30 +849,16 @@ static void set_render_params(mask_source_data_t *data,
 	}
 }
 
-void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
-			color_adjustments_data_t *color_adj)
+gs_texrender_t* get_mask_source_texrender(mask_source_data_t* data, base_filter_data_t* base)
 {
-	gs_effect_t *effect = data->effect_source_mask;
-	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
-	if (!effect || !texture || data->loading_effect) {
-		return;
-	}
-
-	base->output_texrender =
-		create_or_reset_texrender(base->output_texrender);
-
-	set_render_params(data, color_adj, texture);
-
-	gs_texrender_t *mask_source_render = NULL;
-	obs_source_t *source =
+	gs_texrender_t* mask_source_render = NULL;
+	obs_source_t* source =
 		data->mask_source_source
-			? obs_weak_source_get_source(data->mask_source_source)
-			: NULL;
+		? obs_weak_source_get_source(data->mask_source_source)
+		: NULL;
 	if (!source) {
-		gs_texrender_t *tmp = base->output_texrender;
-		base->output_texrender = base->input_texrender;
-		base->input_texrender = tmp;
-		return;
+		obs_source_release(source);
+		return NULL;
 	}
 
 	const enum gs_color_space preferred_spaces[] = {
@@ -904,14 +885,14 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 	case MASK_SOURCE_SCALE_BY_WIDTH:
 		data->mask_source_size.x = data->mask_scale_width;
 		data->mask_source_size.y = (float)base_height *
-					   data->mask_scale_width /
-					   (float)base_width;
+			data->mask_scale_width /
+			(float)base_width;
 		break;
 	case MASK_SOURCE_SCALE_BY_HEIGHT:
 		data->mask_source_size.y = data->mask_scale_height;
 		data->mask_source_size.x = (float)base_width *
-					   data->mask_scale_height /
-					   (float)base_height;
+			data->mask_scale_height /
+			(float)base_height;
 		break;
 	case MASK_SOURCE_SCALE_BY_WIDTH_HEIGHT:
 		data->mask_source_size.x = data->mask_scale_width;
@@ -922,23 +903,23 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 
 	if (data->param_source_source_image_size) {
 		gs_effect_set_vec2(data->param_source_source_image_size,
-				   &data->source_size);
+			&data->source_size);
 	}
 
 	if (data->param_source_mask_image_size) {
 		gs_effect_set_vec2(data->param_source_mask_image_size,
-				   &data->mask_source_size);
+			&data->mask_source_size);
 	}
 
 	if (data->param_source_mask_offset) {
 		gs_effect_set_vec2(data->param_source_mask_offset,
-				   &data->mask_offset);
+			&data->mask_offset);
 	}
 
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 	if (gs_texrender_begin_with_color_space(mask_source_render, base_width,
-						base_height, space)) {
+		base_height, space)) {
 		const float w = (float)base_width;
 		const float h = (float)base_height;
 		struct vec4 clear_color;
@@ -951,137 +932,178 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 	}
 	gs_blend_state_pop();
 	obs_source_release(source);
-	gs_texture_t *source_texture =
-		gs_texrender_get_texture(mask_source_render);
+	return mask_source_render;
+}
 
-	if (data->param_source_mask_source_image) {
-		gs_effect_set_texture(data->param_source_mask_source_image,
-				      source_texture);
+void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
+			color_adjustments_data_t *color_adj)
+{
+	obs_source_t* target = obs_filter_get_target(base->context);
+	uint32_t width = obs_source_get_base_width(target);
+	uint32_t height = obs_source_get_base_height(target);
+	base->width = width;
+	base->height = height;
+
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+	if (source_space == GS_CS_709_EXTENDED) {
+		obs_source_skip_video_filter(base->context);
 	}
+	else {
+		set_render_params(data, color_adj);
 
-	set_blending_parameters();
+		gs_texrender_t* mask_source_render = get_mask_source_texrender(data, base);
 
-	char technique[32];
-	strcpy(technique, base->mask_effect == MASK_EFFECT_ADJUSTMENT
-				  ? "Adjustments"
-				  : "Alpha");
-	char *techniqueType =
-		data->compression_type == MASK_SOURCE_COMPRESSION_THRESHOLD
-			? "Threshold"
-		: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
-			? "Range"
-			: "";
-	strcat(technique, techniqueType);
+		if (mask_source_render == NULL) {
+			obs_source_skip_video_filter(base->context);
+			return;
+		}
 
-	if (gs_texrender_begin(base->output_texrender, base->width,
-			       base->height)) {
-		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
-			 -100.0f, 100.0f);
-		while (gs_effect_loop(effect, technique))
-			gs_draw_sprite(texture, 0, base->width, base->height);
-		gs_texrender_end(base->output_texrender);
+		gs_texture_t *source_texture = gs_texrender_get_texture(mask_source_render);
+
+		if (data->param_source_mask_source_image) {
+			gs_effect_set_texture(data->param_source_mask_source_image,
+					      source_texture);
+		}
+
+		char technique[32];
+		strcpy(technique, base->mask_effect == MASK_EFFECT_ADJUSTMENT
+					  ? "Adjustments"
+					  : "Alpha");
+		char *techniqueType =
+			data->compression_type == MASK_SOURCE_COMPRESSION_THRESHOLD
+				? "Threshold"
+			: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
+				? "Range"
+				: "";
+		strcat(technique, techniqueType);
+		const enum gs_color_format format = gs_get_format_from_space(source_space);
+		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
+			OBS_ALLOW_DIRECT_RENDERING)) {
+			gs_blend_state_push();
+			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+			obs_source_process_filter_tech_end(base->context, data->effect_source_mask, 0, 0, technique);
+
+			gs_blend_state_pop();
+		}
+		gs_texrender_destroy(mask_source_render);
 	}
-	gs_texrender_destroy(mask_source_render);
-	gs_blend_state_pop();
 }
 
 void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
 		       color_adjustments_data_t *color_adj)
 {
-	gs_effect_t *effect = data->effect_source_mask;
-	gs_texture_t *texture = gs_texrender_get_texture(base->input_texrender);
-	if (!effect || !texture) {
-		return;
-	}
+	obs_source_t* target = obs_filter_get_target(base->context);
+	uint32_t width = obs_source_get_base_width(target);
+	uint32_t height = obs_source_get_base_height(target);
+	base->width = width;
+	base->height = height;
 
-	base->output_texrender =
-		create_or_reset_texrender(base->output_texrender);
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
 
-	set_render_params(data, color_adj, texture);
-
-	gs_texture_t *source_texture = NULL;
-	if (data->mask_image) {
-		source_texture = data->mask_image->texture;
-	}
-
-	uint32_t base_width = gs_texture_get_width(source_texture);
-	uint32_t base_height = gs_texture_get_height(source_texture);
-	data->source_size.x = (float)base->width;
-	data->source_size.y = (float)base->height;
-
-	switch (data->mask_source_scale_by) {
-	case MASK_SOURCE_SCALE_BY_PERCENT:
-		data->mask_source_size.x =
-			(float)base_width * data->mask_scale_pct;
-		data->mask_source_size.y =
-			(float)base_height * data->mask_scale_pct;
-		break;
-	case MASK_SOURCE_SCALE_BY_WIDTH:
-		data->mask_source_size.x = data->mask_scale_width;
-		data->mask_source_size.y = (float)base_height *
-					   data->mask_scale_width /
-					   (float)base_width;
-		break;
-	case MASK_SOURCE_SCALE_BY_HEIGHT:
-		data->mask_source_size.y = data->mask_scale_height;
-		data->mask_source_size.x = (float)base_width *
-					   data->mask_scale_height /
-					   (float)base_height;
-		break;
-	case MASK_SOURCE_SCALE_BY_WIDTH_HEIGHT:
-		data->mask_source_size.x = data->mask_scale_width;
-		data->mask_source_size.y = data->mask_scale_height;
-		break;
-	}
-
-	if (data->param_source_source_image_size) {
-		gs_effect_set_vec2(data->param_source_source_image_size,
-				   &data->source_size);
-	}
-
-	if (data->param_source_mask_image_size) {
-		gs_effect_set_vec2(data->param_source_mask_image_size,
-				   &data->mask_source_size);
-	}
-
-	if (data->param_source_mask_offset) {
-		gs_effect_set_vec2(data->param_source_mask_offset,
-				   &data->mask_offset);
-	}
-
-	if (data->param_source_mask_source_image && source_texture) {
-		gs_effect_set_texture(data->param_source_mask_source_image,
-				      source_texture);
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+	if (source_space == GS_CS_709_EXTENDED) {
+		obs_source_skip_video_filter(base->context);
 	} else {
-		gs_texrender_t *tmp = base->output_texrender;
-		base->output_texrender = base->input_texrender;
-		base->input_texrender = tmp;
-		return;
-	}
+		set_render_params(data, color_adj);
 
-	set_blending_parameters();
+		gs_texture_t *source_texture = NULL;
+		if (data->mask_image) {
+			source_texture = data->mask_image->texture;
+		}
+		else {
+			obs_source_skip_video_filter(base->context);
+		}
 
-	char technique[32];
-	strcpy(technique, base->mask_effect == MASK_EFFECT_ADJUSTMENT
-				  ? "Adjustments"
-				  : "Alpha");
-	char *techniqueType =
-		data->compression_type == MASK_SOURCE_COMPRESSION_THRESHOLD
+		uint32_t base_width = gs_texture_get_width(source_texture);
+		uint32_t base_height = gs_texture_get_height(source_texture);
+		data->source_size.x = (float)base->width;
+		data->source_size.y = (float)base->height;
+
+		switch (data->mask_source_scale_by) {
+		case MASK_SOURCE_SCALE_BY_PERCENT:
+			data->mask_source_size.x =
+				(float)base_width * data->mask_scale_pct;
+			data->mask_source_size.y =
+				(float)base_height * data->mask_scale_pct;
+			break;
+		case MASK_SOURCE_SCALE_BY_WIDTH:
+			data->mask_source_size.x = data->mask_scale_width;
+			data->mask_source_size.y = (float)base_height *
+						   data->mask_scale_width /
+						   (float)base_width;
+			break;
+		case MASK_SOURCE_SCALE_BY_HEIGHT:
+			data->mask_source_size.y = data->mask_scale_height;
+			data->mask_source_size.x = (float)base_width *
+						   data->mask_scale_height /
+						   (float)base_height;
+			break;
+		case MASK_SOURCE_SCALE_BY_WIDTH_HEIGHT:
+			data->mask_source_size.x = data->mask_scale_width;
+			data->mask_source_size.y = data->mask_scale_height;
+			break;
+		}
+
+		if (data->param_source_source_image_size) {
+			gs_effect_set_vec2(data->param_source_source_image_size,
+					   &data->source_size);
+		}
+
+		if (data->param_source_mask_image_size) {
+			gs_effect_set_vec2(data->param_source_mask_image_size,
+					   &data->mask_source_size);
+		}
+
+		if (data->param_source_mask_offset) {
+			gs_effect_set_vec2(data->param_source_mask_offset,
+					   &data->mask_offset);
+		}
+
+		if (data->param_source_mask_source_image && source_texture) {
+			gs_effect_set_texture(data->param_source_mask_source_image,
+					      source_texture);
+		} else {
+			gs_texrender_t *tmp = base->output_texrender;
+			base->output_texrender = base->input_texrender;
+			base->input_texrender = tmp;
+			return;
+		}
+
+		char technique[32];
+		strcpy(technique, base->mask_effect == MASK_EFFECT_ADJUSTMENT
+			? "Adjustments"
+			: "Alpha");
+		char* techniqueType =
+			data->compression_type == MASK_SOURCE_COMPRESSION_THRESHOLD
 			? "Threshold"
-		: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
+			: data->compression_type == MASK_SOURCE_COMPRESSION_RANGE
 			? "Range"
 			: "";
-	strcat(technique, techniqueType);
+		strcat(technique, techniqueType);
+		const enum gs_color_format format = gs_get_format_from_space(source_space);
+		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
+			OBS_ALLOW_DIRECT_RENDERING)) {
+			gs_blend_state_push();
+			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
-	if (gs_texrender_begin(base->output_texrender, base->width,
-			       base->height)) {
-		gs_ortho(0.0f, (float)base->width, 0.0f, (float)base->height,
-			 -100.0f, 100.0f);
-		while (gs_effect_loop(effect, technique))
-			gs_draw_sprite(texture, 0, base->width, base->height);
-		gs_texrender_end(base->output_texrender);
+			obs_source_process_filter_tech_end(base->context, data->effect_source_mask, 0, 0, technique);
+
+			gs_blend_state_pop();
+		}
 	}
-	gs_blend_state_pop();
 }
 
 static void load_source_effect_files(mask_source_data_t *data)
@@ -1128,7 +1150,9 @@ gs_effect_t *load_source_mask_file(gs_effect_t *effect,
 			: "";
 
 	dstr_cat(&shader_text, defines);
-	dstr_cat(&shader_text, load_shader_from_file(filename.array));
+	char* file_contents = load_shader_from_file(filename.array);
+	dstr_cat(&shader_text, file_contents);
+	bfree(file_contents);
 
 	dstr_replace(&shader_text, "<ADDR_U>", get_addr_mode(data->boundary_horizontal));
 	dstr_replace(&shader_text, "<ADDR_V>", get_addr_mode(data->boundary_vertical));
@@ -1139,7 +1163,7 @@ gs_effect_t *load_source_mask_file(gs_effect_t *effect,
 
 	if (effect == NULL) {
 		blog(LOG_WARNING,
-		     "[obs-composite-blur] Unable to load .effect file.  Errors:\n%s",
+		     "[Advanced Masks] Unable to load .effect file.  Errors:\n%s",
 		     (errors == NULL || strlen(errors) == 0 ? "(None)"
 							    : errors));
 		bfree(errors);

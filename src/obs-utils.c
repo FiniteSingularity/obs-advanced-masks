@@ -10,6 +10,17 @@ gs_texrender_t *create_or_reset_texrender(gs_texrender_t *render)
 	return render;
 }
 
+gs_texrender_t* create_or_reset_texrender_high(gs_texrender_t* render)
+{
+	if (!render) {
+		render = gs_texrender_create(GS_RG32F, GS_ZS_NONE);
+	}
+	else {
+		gs_texrender_reset(render);
+	}
+	return render;
+}
+
 void label_indent(char *label, const char *label_text)
 {
 	strcpy(label, "\t");

@@ -1,0 +1,133 @@
+#include "common.effect"
+
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+uniform float2 uv_size;
+uniform texture2d svg_image;
+uniform float2 svg_uv_size;
+uniform float2 offset;
+uniform float2 anchor;
+uniform float primary_alpha;
+uniform float secondary_alpha;
+uniform float invert;
+uniform float4x4 rotation_matrix;
+
+uniform float min_brightness;
+uniform float max_brightness;
+uniform float min_contrast;
+uniform float max_contrast;
+uniform float min_saturation;
+uniform float max_saturation;
+uniform float min_hue_shift;
+uniform float max_hue_shift;
+
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+sampler_state svgSampler {
+    Filter = Linear;
+    AddressU = Border;
+    AddressV = Border;
+    BorderColor = 0x00000000;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 uv_svg = (coord - offset + svg_uv_size/2.0f) / svg_uv_size;
+	float4 svg = svg_image.Sample(svgSampler, uv_svg);
+	float4 c = image.Sample(textureSampler, v_in.uv);
+	c.a = c.a * svg.a;
+	return c;
+}
+
+float4 faImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+
+	float2 coord_p = coord - offset + anchor * svg_uv_size;
+	float2 coord_rot = mul(rotation_matrix, float4(coord_p, 1.0f, 1.0f)).xy;
+	
+	float2 uv_svg = coord_rot / svg_uv_size;
+	float4 svg = svg_image.Sample(svgSampler, uv_svg);
+	float4 c = image.Sample(textureSampler, v_in.uv);
+	svg.a = svg.a * (svg.r * (primary_alpha - secondary_alpha) + secondary_alpha);
+	svg.a = lerp(svg.a, (1.0 - svg.a), invert);
+	c.a = c.a * svg.a;
+	return c;
+}
+
+float4 faAdjustmentsImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+
+	float2 coord_p = coord - offset + anchor * svg_uv_size;
+	float2 coord_rot = mul(rotation_matrix, float4(coord_p, 1.0f, 1.0f)).xy;
+	
+	float2 uv_svg = coord_rot / svg_uv_size;
+	float4 svg = svg_image.Sample(svgSampler, uv_svg);
+	float4 c = image.Sample(textureSampler, v_in.uv);
+	svg.a = svg.a * (svg.r * (primary_alpha - secondary_alpha) + secondary_alpha);
+	svg.a = lerp(svg.a, (1.0 - svg.a), invert);
+	//c.a = c.a * svg.a;
+	float4 color_adj_min = adjustments(
+		c,
+		min_brightness,
+		min_contrast,
+		min_saturation,
+		min_hue_shift
+	);
+	float4 color_adj_max = adjustments(
+		c,
+		max_brightness,
+		max_contrast,
+		max_saturation,
+		max_hue_shift
+	);
+	return (color_adj_min * (1.0 - svg.a) + color_adj_max * svg.a);
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImage(v_in);
+	}
+}
+
+
+technique DrawFA
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = faImage(v_in);
+	}
+}
+
+technique DrawFAAdjustments
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = faAdjustmentsImage(v_in);
+	}
+}

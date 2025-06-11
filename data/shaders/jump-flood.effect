@@ -1,0 +1,85 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 uv_size;
+uniform float offset;
+
+sampler_state sdfSampler{
+    Filter = Point;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+    //BorderColor = 0xFFFFFFFF;
+};
+
+sampler_state textureSampler {
+	Filter    = Linear;
+	AddressU  = Clamp;
+	AddressV  = Clamp;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 drawThresholdImageInner(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float4 c = image.Sample(textureSampler, v_in.uv);
+	float a = c.a == 0.0 ? 1.0 : 0.0;
+	//return float4(a, a, a, 1.0);
+	return lerp(float4(32000.0, 32000.0, 0.0, 0.0), float4(coord, 0.0, 0.0), float4(a, a, a, a));
+}
+
+float4 drawJumpFloodImage(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float minDist = 1.0e9;
+	float4 nearest = float4(32000.0, 32000.0, 0.0, 0.0);
+
+	for (int x = -1; x <= 1; x++)
+	{
+		for (int y = -1; y <= 1; y++)
+		{
+			float4 coord_s = image.Sample(sdfSampler, (coord + (offset * float2(x, y))) / uv_size);
+			float2 d = coord - coord_s.xy;
+			float d2 = dot(d, d);
+			//float d2 = distance(coord, coord_s.xy);
+			if (d2 < minDist)
+			{
+				minDist = d2;
+				nearest = float4(coord_s.xy, 0.0, 0.0);
+			}
+
+		}
+
+	}
+   
+	return nearest;
+}
+
+technique DrawThresholdInner
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = drawThresholdImageInner(v_in);
+	}
+}
+
+technique DrawJumpFloodStep
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = drawJumpFloodImage(v_in);
+	}
+}
