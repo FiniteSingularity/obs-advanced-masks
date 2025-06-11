@@ -209,6 +209,8 @@ void mask_shape_destroy(mask_shape_data_t *data)
 static float mask_width(obs_data_t * settings)
 {
 	float num_sides = (float)obs_data_get_int(settings, "shape_num_sides");
+	uint32_t mode = (uint32_t)obs_data_get_int(settings, "super_mode");
+
 	switch ((uint32_t)obs_data_get_int(settings, "shape_type")) {
 	case SHAPE_RECTANGLE:
 		return (float)obs_data_get_double(settings, "rectangle_width");
@@ -226,7 +228,6 @@ static float mask_width(obs_data_t * settings)
 	case SHAPE_HEART:
 		return (float)obs_data_get_double(settings, "heart_size");
 	case SHAPE_SUPERFORMULA:
-		uint32_t mode = (uint32_t)obs_data_get_int(settings, "super_mode");
 		return mode == SHAPE_SUPER_SQUIRCLE ? (float)obs_data_get_double(settings, "super_squircle_size") : (float)obs_data_get_double(settings, "super_ellipse_width");
 	}
 	return 0.0f;
@@ -235,6 +236,8 @@ static float mask_width(obs_data_t * settings)
 static float mask_height(obs_data_t *settings)
 {
 	float num_sides = (float)obs_data_get_int(settings, "shape_num_sides");
+	uint32_t mode = (uint32_t)obs_data_get_int(settings, "shape_mode");
+
 	switch ((uint32_t)obs_data_get_int(settings, "shape_type")) {
 	case SHAPE_RECTANGLE:
 		return (float)obs_data_get_double(settings, "rectangle_height");
@@ -252,7 +255,6 @@ static float mask_height(obs_data_t *settings)
 	case SHAPE_HEART:
 		return (float)obs_data_get_double(settings, "heart_size");
 	case SHAPE_SUPERFORMULA:
-		uint32_t mode = (uint32_t)obs_data_get_int(settings, "shape_mode");
 		return mode == SHAPE_SUPER_SQUIRCLE ? (float)obs_data_get_double(settings, "super_squircle_size") : (float)obs_data_get_double(settings, "super_ellipse_height");
 	}
 	return 0.0f;
