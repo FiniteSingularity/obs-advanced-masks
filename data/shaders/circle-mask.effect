@@ -55,7 +55,7 @@ float4 alphaImage(VertData v_in) : TARGET
 	float d = SDF(dist, radius);
 	d = feather_amount > 0.0f ? smoothstep(0.0f, feather_amount, -d + feather_amount) : saturate(-(d - 1.0) * zero);
 	
-	float4 color = image.Sample(textureSampler, (coord_p / zoom / global_scale) / uv_size);
+	float4 color = image.Sample(textureSampler, (mask_position + dist / zoom / global_scale) / uv_size);
 	return float4(color.rgb, (1.0f - invert) * color.a * d + invert * color.a * (1.0f - d));
 }
 

@@ -201,7 +201,7 @@ void mask_chroma_key_properties(obs_properties_t* props)
 
 	obs_properties_add_group(
 		props, "mask_super_key_group",
-		obs_module_text("AdvancedMasks.ChromaKey.Label"),
+		obs_module_text("AdvancedMasks.ChromaKey.Super"),
 		OBS_GROUP_NORMAL, mask_super_key_group);
 
 	obs_property_set_modified_callback(key_type_list,

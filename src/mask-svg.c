@@ -61,6 +61,7 @@ void mask_svg_destroy(mask_svg_data_t* data)
 	da_free(data->textures);
 
 	dstr_free(&data->svg_image_path);
+	dstr_free(&data->svg_text);
 	obs_leave_graphics();
 
 	bfree(data);

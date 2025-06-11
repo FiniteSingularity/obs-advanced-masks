@@ -218,13 +218,16 @@ static float mask_width(obs_data_t * settings)
 		return (float)obs_data_get_double(settings, "shape_ellipse_a") * 2.0f;
 	case SHAPE_POLYGON:
 		return (float)obs_data_get_double(settings, "circle_radius") *
-		       (float)cos(M_PI / num_sides) * 2.0f;
+			(float)cos(M_PI / num_sides) * 2.0f;
 	case SHAPE_STAR:
 		return (float)obs_data_get_double(settings,
-						  "shape_star_outer_radius") *
-		       2.0f;
+			"shape_star_outer_radius") *
+			2.0f;
 	case SHAPE_HEART:
 		return (float)obs_data_get_double(settings, "heart_size");
+	case SHAPE_SUPERFORMULA:
+		uint32_t mode = (uint32_t)obs_data_get_int(settings, "super_mode");
+		return mode == SHAPE_SUPER_SQUIRCLE ? (float)obs_data_get_double(settings, "super_squircle_size") : (float)obs_data_get_double(settings, "super_ellipse_width");
 	}
 	return 0.0f;
 }
@@ -248,6 +251,9 @@ static float mask_height(obs_data_t *settings)
 		       2.0f;
 	case SHAPE_HEART:
 		return (float)obs_data_get_double(settings, "heart_size");
+	case SHAPE_SUPERFORMULA:
+		uint32_t mode = (uint32_t)obs_data_get_int(settings, "shape_mode");
+		return mode == SHAPE_SUPER_SQUIRCLE ? (float)obs_data_get_double(settings, "super_squircle_size") : (float)obs_data_get_double(settings, "super_ellipse_height");
 	}
 	return 0.0f;
 }
@@ -255,8 +261,15 @@ static float mask_height(obs_data_t *settings)
 void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		       obs_data_t *settings, int version)
 {
+	obs_source_t* target = obs_filter_get_target(base->context);
+	uint32_t iWidth = obs_source_get_base_width(target);
+	uint32_t iHeight = obs_source_get_base_height(target);
+
 	data->mask_shape_type =
 		(uint32_t)obs_data_get_int(settings, "shape_type");
+
+	data->fWidth = (float)iWidth;
+	data->fHeight = (float)iHeight;
 
 	data->shape_relative = obs_data_get_bool(settings, "shape_relative");
 	data->frame_check = obs_data_get_bool(settings, "shape_frame_check");
@@ -292,12 +305,18 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 	if (data->shape_relative) {
 		if (base->mask_effect == MASK_EFFECT_ALPHA &&
 		    data->scale_type == MASK_SCALE_WIDTH) {
+			uint32_t sfMode = (uint32_t)obs_data_get_int(settings, "super_mode");
+			bool isSuperForumula = data->mask_shape_type == SHAPE_SUPERFORMULA && sfMode == SHAPE_SUPER_SUPERFORMULA;
+			float width = isSuperForumula ? data->fWidth : mask_width(settings);
 			data->global_scale = 100.0f * data->global_scale /
-					     mask_width(settings);
+				width;
 		} else if (base->mask_effect == MASK_EFFECT_ALPHA &&
 			   data->scale_type == MASK_SCALE_HEIGHT) {
+			uint32_t sfMode = (uint32_t)obs_data_get_int(settings, "super_mode");
+			bool isSuperForumula = data->mask_shape_type == SHAPE_SUPERFORMULA && sfMode == SHAPE_SUPER_SUPERFORMULA;
+			float height = isSuperForumula ? data->fHeight : mask_height(settings);
 			data->global_scale = 100.0f * data->global_scale /
-					     mask_height(settings);
+					     height;
 		}
 	} else {
 		data->global_scale = 100.0f;
@@ -356,16 +375,16 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 
 	switch (super_mode) {
 	case SHAPE_SUPER_SQUIRCLE:
-		data->a = 0.5f * (float)obs_data_get_double(settings, "super_squircle_size") / (float)base->height;
-		data->b = 0.5f * (float)obs_data_get_double(settings, "super_squircle_size") / (float)base->height;
+		data->a = 0.5f * (float)obs_data_get_double(settings, "super_squircle_size") / data->fHeight;
+		data->b = 0.5f * (float)obs_data_get_double(settings, "super_squircle_size") / data->fHeight;
 		data->m = 4.0f;
 		data->n1 = (float)obs_data_get_double(settings, "super_squircle_curvature");
 		data->n2 = (float)obs_data_get_double(settings, "super_squircle_curvature");
 		data->n3 = (float)obs_data_get_double(settings, "super_squircle_curvature");
 		break;
 	case SHAPE_SUPER_SUPERELLIPSE:
-		data->a = 0.5f * (float)obs_data_get_double(settings, "super_ellipse_width") / (float)base->height;
-		data->b = 0.5f * (float)obs_data_get_double(settings, "super_ellipse_height") / (float)base->height;
+		data->a = 0.5f * (float)obs_data_get_double(settings, "super_ellipse_width") / data->fHeight;
+		data->b = 0.5f * (float)obs_data_get_double(settings, "super_ellipse_height") / data->fHeight;
 		data->m = 4.0f;
 		data->n1 = (float)obs_data_get_double(settings, "super_ellipse_curvature");
 		data->n2 = (float)obs_data_get_double(settings, "super_ellipse_curvature");
@@ -685,7 +704,7 @@ static void shape_properties(obs_properties_t *props, obs_source_t *context,
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.Mode"));
 	p = obs_properties_add_list(
-		props, "super_mode", label,
+		mask_geometry_group, "super_mode", label,
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(p,
@@ -700,6 +719,9 @@ static void shape_properties(obs_properties_t *props, obs_source_t *context,
 
 	obs_property_set_modified_callback(p,
 		setting_super_mode_modified);
+
+	obs_properties_add_text(mask_geometry_group, "super_info", SUPER_INFO,
+		OBS_TEXT_INFO);
 
 	// Squircle
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.SquircleSize"));
@@ -1037,6 +1059,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("rectangle_rounded_corners_group", true,
 				   props);
 		setting_visibility("super_mode", false, props);
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_squircle_size", false, props);
 		setting_visibility("super_squircle_curvature", false, props);
 		setting_visibility("super_width", false, props);
@@ -1065,6 +1088,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 		setting_visibility("super_mode", false, props);
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_squircle_size", false, props);
 		setting_visibility("super_squircle_curvature", false, props);
 		setting_visibility("super_width", false, props);
@@ -1092,6 +1116,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 		setting_visibility("super_mode", false, props);
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_squircle_size", false, props);
 		setting_visibility("super_squircle_curvature", false, props);
 		setting_visibility("super_width", false, props);
@@ -1119,6 +1144,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 		setting_visibility("super_mode", false, props);
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_squircle_size", false, props);
 		setting_visibility("super_squircle_curvature", false, props);
 		setting_visibility("super_width", false, props);
@@ -1146,6 +1172,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 		setting_visibility("super_mode", false, props);
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_squircle_size", false, props);
 		setting_visibility("super_squircle_curvature", false, props);
 		setting_visibility("super_width", false, props);
@@ -1173,6 +1200,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("rectangle_rounded_corners_group", false,
 				   props);
 		setting_visibility("super_mode", false, props);
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_squircle_size", false, props);
 		setting_visibility("super_squircle_curvature", false, props);
 		setting_visibility("super_width", false, props);
@@ -1200,6 +1228,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("rectangle_rounded_corners_group", false,
 			props);
 		setting_visibility("super_mode", true, props);
+		setting_visibility("super_info", true, props);
 		setting_visibility("super_width", true, props);
 		setting_visibility("super_height", true, props);
 		setting_visibility("super_m", true, props);
@@ -1250,6 +1279,7 @@ bool setting_super_mode_modified(obs_properties_t* props, obs_property_t* p,
 		setting_visibility("super_ellipse_height", false, props);
 		setting_visibility("super_ellipse_curvature", false, props);
 
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_width", false, props);
 		setting_visibility("super_height", false, props);
 		setting_visibility("super_m", false, props);
@@ -1265,6 +1295,7 @@ bool setting_super_mode_modified(obs_properties_t* props, obs_property_t* p,
 		setting_visibility("super_ellipse_height", true, props);
 		setting_visibility("super_ellipse_curvature", true, props);
 
+		setting_visibility("super_info", false, props);
 		setting_visibility("super_width", false, props);
 		setting_visibility("super_height", false, props);
 		setting_visibility("super_m", false, props);
@@ -1280,6 +1311,7 @@ bool setting_super_mode_modified(obs_properties_t* props, obs_property_t* p,
 		setting_visibility("super_ellipse_height", false, props);
 		setting_visibility("super_ellipse_curvature", false, props);
 
+		setting_visibility("super_info", true, props);
 		setting_visibility("super_width", true, props);
 		setting_visibility("super_height", true, props);
 		setting_visibility("super_m", true, props);
@@ -1354,8 +1386,11 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 	mask_shape_data_t *filter = data;
 	uint32_t type = (uint32_t)obs_data_get_int(settings, "scale_type");
 	uint32_t last_type = filter->last_scale_type;
-	float width = mask_width(settings);
-	float height = mask_height(settings);
+
+	uint32_t sfMode = (uint32_t)obs_data_get_int(settings, "super_mode");
+	bool isSuperForumula = filter->mask_shape_type == SHAPE_SUPERFORMULA && sfMode == SHAPE_SUPER_SUPERFORMULA;
+	float width = filter->mask_shape_type == isSuperForumula ? filter->fWidth : mask_width(settings);
+	float height = filter->mask_shape_type == isSuperForumula ? filter->fHeight : mask_height(settings);
 	float pct =
 		filter->last_scale_type == MASK_SCALE_WIDTH
 			? (float)obs_data_get_double(settings,

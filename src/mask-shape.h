@@ -4,6 +4,10 @@
 #include "base-filter.h"
 #include "color-adjustments.h"
 
+#define SUPER_INFO \
+	"<a href=\"https://en.wikipedia.org/wiki/Superformula/\">Click here for more information on the Superformula parameters</a>"
+
+
 #define SHAPE_RECTANGLE 1
 #define SHAPE_RECTANGLE_LABEL "AdvancedMasks.Shape.Rectangle"
 #define SHAPE_CIRCLE 2
@@ -58,6 +62,9 @@ struct mask_shape_data {
 	gs_effect_t *effect_star_mask;
 	gs_effect_t *effect_heart_mask;
 	gs_effect_t* effect_super_mask;
+
+	float fWidth;
+	float fHeight;
 
 	// General Shape Parameters
 	uint32_t mask_shape_type;
