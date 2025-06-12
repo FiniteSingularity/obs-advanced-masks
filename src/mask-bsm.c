@@ -43,6 +43,7 @@ void mask_bsm_destroy(mask_bsm_data_t *data)
 
 void mask_bsm_update(mask_bsm_data_t *data, obs_data_t *settings)
 {
+	mask_bsm_defaults(settings);
 	const char *mask_source_name =
 		obs_data_get_string(settings, "bsm_mask_source");
 	obs_source_t *mask_source =

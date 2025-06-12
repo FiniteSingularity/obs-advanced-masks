@@ -822,7 +822,7 @@ static void draw_output(advanced_masks_data_t *filter)
 
 	if (!obs_source_process_filter_begin_with_color_space(
 		    filter->base->context, format, source_space,
-		    OBS_ALLOW_DIRECT_RENDERING)) {
+		    OBS_NO_DIRECT_RENDERING)) {
 		return;
 	}
 	//gs_blend_state_push();
