@@ -298,11 +298,16 @@ extern void shape_mask_bot_properties(obs_properties_t *props,
 				      obs_source_t *context,
 				      mask_shape_data_t *data);
 extern void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
-		       color_adjustments_data_t *color_adj);
+			      color_adjustments_data_t *color_adj,
+			      mask_shape_data_t *data_to,
+			      color_adjustments_data_t *color_adj_to, float f);
 
 static void render_rectangle_mask(mask_shape_data_t *data,
 				  base_filter_data_t *base,
-				  color_adjustments_data_t *color_adj);
+				  color_adjustments_data_t *color_adj,
+				  mask_shape_data_t *data_to,
+				  color_adjustments_data_t *color_adj_to,
+				  float f);
 static void render_circle_mask(mask_shape_data_t *data,
 			       base_filter_data_t *base,
 			       color_adjustments_data_t *color_adj);

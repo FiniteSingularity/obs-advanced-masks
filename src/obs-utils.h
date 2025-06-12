@@ -20,3 +20,5 @@ extern char *load_shader_from_file(const char *file_name);
 extern void setting_visibility(const char *prop_name, bool visible,
 			       obs_properties_t *props);
 extern void texrender_set_texture(gs_texture_t *source, gs_texrender_t *dest);
+extern float (*move_get_transition_filter)(obs_source_t *filter_from,
+					   obs_source_t **filter_to);

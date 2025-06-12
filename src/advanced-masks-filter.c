@@ -274,10 +274,29 @@ static bool advanced_masks_multi_pass(advanced_masks_data_t* filter)
 
 static void render_mask(advanced_masks_data_t *filter)
 {
+	float f = 0.0f;
+	obs_source_t *filter_to_source = NULL;
+	if (move_get_transition_filter)
+		f = move_get_transition_filter(filter->base->context,
+					       &filter_to_source);
+	advanced_masks_data_t *filter_to = obs_obj_get_data(filter_to_source);
+	if (filter_to &&
+	    filter_to->base->mask_type != filter->base->mask_type) {
+		if (f > 0.5f) {
+			f = (f - 0.5f) * 2.0f;
+		} else {
+			f *= 2.0f;
+		}
+		filter_to = NULL;
+	}
+
 	switch (filter->base->mask_type) {
 	case MASK_TYPE_SHAPE:
 		render_shape_mask(filter->shape_data, filter->base,
-				  filter->color_adj_data);
+				  filter->color_adj_data,
+				  filter_to ? filter_to->shape_data : NULL,
+				  filter_to ? filter_to->color_adj_data : NULL,
+				  f);
 		break;
 	case MASK_TYPE_SOURCE:
 		render_source_mask(filter->source_data, filter->base,
