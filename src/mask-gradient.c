@@ -181,7 +181,7 @@ void render_gradient_mask(mask_gradient_data_t *data,
 
 		const enum gs_color_format format = gs_get_format_from_space(source_space);
 		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_ALLOW_DIRECT_RENDERING)) {
+			OBS_NO_DIRECT_RENDERING)) {
 
 			gs_effect_set_float(data->param_gradient_width,
 				data->gradient_width);

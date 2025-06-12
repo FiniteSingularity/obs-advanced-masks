@@ -985,7 +985,7 @@ void render_source_mask(mask_source_data_t *data, base_filter_data_t *base,
 		strcat(technique, techniqueType);
 		const enum gs_color_format format = gs_get_format_from_space(source_space);
 		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_ALLOW_DIRECT_RENDERING)) {
+			OBS_NO_DIRECT_RENDERING)) {
 			gs_blend_state_push();
 			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
@@ -1095,7 +1095,7 @@ void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
 		strcat(technique, techniqueType);
 		const enum gs_color_format format = gs_get_format_from_space(source_space);
 		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_ALLOW_DIRECT_RENDERING)) {
+			OBS_NO_DIRECT_RENDERING)) {
 			gs_blend_state_push();
 			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 

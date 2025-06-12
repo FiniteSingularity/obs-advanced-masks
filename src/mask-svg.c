@@ -624,7 +624,7 @@ void render_mask_svg(mask_svg_data_t* data,
 			: "DrawFAAdjustments";
 		const enum gs_color_format format = gs_get_format_from_space(source_space);
 		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_ALLOW_DIRECT_RENDERING)) {
+			OBS_NO_DIRECT_RENDERING)) {
 			gs_effect_set_texture(data->param_svg_image, svg_texture);
 			struct vec2 uv_size;
 			uv_size.x = (float)base->width;

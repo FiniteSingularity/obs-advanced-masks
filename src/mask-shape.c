@@ -1500,7 +1500,7 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 			: "Adjustments";
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_ALLOW_DIRECT_RENDERING)) {
+		OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->shape_relative ? data->global_scale / 100.0f : 1.0f;
 		gs_effect_set_float(data->param_rectangle_zoom,
@@ -1641,7 +1641,7 @@ static void render_polygon_mask(mask_shape_data_t *data,
 		: "Adjustments";
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_ALLOW_DIRECT_RENDERING)) {
+		OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
@@ -1766,7 +1766,7 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		: "Adjustments";
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_ALLOW_DIRECT_RENDERING)) {
+		OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
@@ -1886,7 +1886,7 @@ static void render_circle_mask(mask_shape_data_t *data,
 		: "Adjustments";
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_ALLOW_DIRECT_RENDERING)) {
+		OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
@@ -1997,7 +1997,7 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		: "Adjustments";
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_ALLOW_DIRECT_RENDERING)) {
+		OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
@@ -2115,7 +2115,7 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 		: "Adjustments";
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_ALLOW_DIRECT_RENDERING)) {
+		OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
@@ -2230,7 +2230,7 @@ static void render_superfunction_mask(mask_shape_data_t* data,
 		: "Adjustments";
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_ALLOW_DIRECT_RENDERING)) {
+		OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 

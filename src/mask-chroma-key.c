@@ -322,7 +322,7 @@ void render_super_key_mask(mask_chroma_key_data_t* data,
 		const char* technique = data->showMatte ? "DrawMatte" : "Draw";
 		const enum gs_color_format format = gs_get_format_from_space(source_space);
 		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_ALLOW_DIRECT_RENDERING)) {
+			OBS_NO_DIRECT_RENDERING)) {
 			gs_effect_set_float(data->param_super_key_k, data->k);
 			gs_effect_set_float(data->param_super_key_k2, data->k2);
 			gs_effect_set_float(data->param_super_key_veil, data->veil);
@@ -363,7 +363,7 @@ void render_advanced_key_mask(mask_chroma_key_data_t* data,
 		const char* technique = data->showMatte ? "DrawMatte" : "Draw";
 		const enum gs_color_format format = gs_get_format_from_space(source_space);
 		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_ALLOW_DIRECT_RENDERING)) {
+			OBS_NO_DIRECT_RENDERING)) {
 			vec2_set(&pixel_size, 1.0f / (float)width, 1.0f / (float)height);
 
 			gs_effect_set_float(data->param_advanced_key_opacity, data->opacity);
