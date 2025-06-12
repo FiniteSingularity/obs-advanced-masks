@@ -281,7 +281,8 @@ static void render_mask(advanced_masks_data_t *filter)
 					       &filter_to_source);
 	advanced_masks_data_t *filter_to = obs_obj_get_data(filter_to_source);
 	if (filter_to &&
-	    filter_to->base->mask_type != filter->base->mask_type) {
+	    (filter->base->mask_effect != filter_to->base->mask_effect ||
+	     filter_to->base->mask_type != filter->base->mask_type)) {
 		if (f > 0.5f) {
 			f = (f - 0.5f) * 2.0f;
 		} else {
