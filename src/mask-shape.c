@@ -206,7 +206,7 @@ void mask_shape_destroy(mask_shape_data_t *data)
 	bfree(data);
 }
 
-static float mask_width(obs_data_t * settings)
+static float mask_width(obs_data_t *settings)
 {
 	float num_sides = (float)obs_data_get_int(settings, "shape_num_sides");
 	uint32_t mode = (uint32_t)obs_data_get_int(settings, "super_mode");
@@ -215,20 +215,26 @@ static float mask_width(obs_data_t * settings)
 	case SHAPE_RECTANGLE:
 		return (float)obs_data_get_double(settings, "rectangle_width");
 	case SHAPE_CIRCLE:
-		return (float)obs_data_get_double(settings, "circle_radius") * 2.0f;
+		return (float)obs_data_get_double(settings, "circle_radius") *
+		       2.0f;
 	case SHAPE_ELLIPSE:
-		return (float)obs_data_get_double(settings, "shape_ellipse_a") * 2.0f;
+		return (float)obs_data_get_double(settings, "shape_ellipse_a") *
+		       2.0f;
 	case SHAPE_POLYGON:
 		return (float)obs_data_get_double(settings, "circle_radius") *
-			(float)cos(M_PI / num_sides) * 2.0f;
+		       (float)cos(M_PI / num_sides) * 2.0f;
 	case SHAPE_STAR:
 		return (float)obs_data_get_double(settings,
-			"shape_star_outer_radius") *
-			2.0f;
+						  "shape_star_outer_radius") *
+		       2.0f;
 	case SHAPE_HEART:
 		return (float)obs_data_get_double(settings, "heart_size");
 	case SHAPE_SUPERFORMULA:
-		return mode == SHAPE_SUPER_SQUIRCLE ? (float)obs_data_get_double(settings, "super_squircle_size") : (float)obs_data_get_double(settings, "super_ellipse_width");
+		return mode == SHAPE_SUPER_SQUIRCLE
+			       ? (float)obs_data_get_double(
+					 settings, "super_squircle_size")
+			       : (float)obs_data_get_double(
+					 settings, "super_ellipse_width");
 	}
 	return 0.0f;
 }
@@ -242,9 +248,11 @@ static float mask_height(obs_data_t *settings)
 	case SHAPE_RECTANGLE:
 		return (float)obs_data_get_double(settings, "rectangle_height");
 	case SHAPE_CIRCLE:
-		return (float)obs_data_get_double(settings, "circle_radius") * 2.0f;
+		return (float)obs_data_get_double(settings, "circle_radius") *
+		       2.0f;
 	case SHAPE_ELLIPSE:
-		return (float)obs_data_get_double(settings, "shape_ellipse_b") * 2.0f;
+		return (float)obs_data_get_double(settings, "shape_ellipse_b") *
+		       2.0f;
 	case SHAPE_POLYGON:
 		return (float)obs_data_get_double(settings, "circle_radius") *
 		       (float)cos(M_PI / num_sides) * 2.0f;
@@ -255,7 +263,11 @@ static float mask_height(obs_data_t *settings)
 	case SHAPE_HEART:
 		return (float)obs_data_get_double(settings, "heart_size");
 	case SHAPE_SUPERFORMULA:
-		return mode == SHAPE_SUPER_SQUIRCLE ? (float)obs_data_get_double(settings, "super_squircle_size") : (float)obs_data_get_double(settings, "super_ellipse_height");
+		return mode == SHAPE_SUPER_SQUIRCLE
+			       ? (float)obs_data_get_double(
+					 settings, "super_squircle_size")
+			       : (float)obs_data_get_double(
+					 settings, "super_ellipse_height");
 	}
 	return 0.0f;
 }
@@ -263,7 +275,7 @@ static float mask_height(obs_data_t *settings)
 void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		       obs_data_t *settings, int version)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t iWidth = obs_source_get_base_width(target);
 	uint32_t iHeight = obs_source_get_base_height(target);
 
@@ -292,7 +304,8 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 				: 100.0f;
 	} else {
 		data->global_scale =
-			base->mask_effect == MASK_EFFECT_ALPHA && data->shape_relative
+			base->mask_effect == MASK_EFFECT_ALPHA &&
+					data->shape_relative
 				? (float)obs_data_get_double(settings,
 							     "position_scale")
 				: 100.0f;
@@ -307,23 +320,30 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 	if (data->shape_relative) {
 		if (base->mask_effect == MASK_EFFECT_ALPHA &&
 		    data->scale_type == MASK_SCALE_WIDTH) {
-			uint32_t sfMode = (uint32_t)obs_data_get_int(settings, "super_mode");
-			bool isSuperForumula = data->mask_shape_type == SHAPE_SUPERFORMULA && sfMode == SHAPE_SUPER_SUPERFORMULA;
-			float width = isSuperForumula ? data->fWidth : mask_width(settings);
-			data->global_scale = 100.0f * data->global_scale /
-				width;
+			uint32_t sfMode = (uint32_t)obs_data_get_int(
+				settings, "super_mode");
+			bool isSuperForumula =
+				data->mask_shape_type == SHAPE_SUPERFORMULA &&
+				sfMode == SHAPE_SUPER_SUPERFORMULA;
+			float width = isSuperForumula ? data->fWidth
+						      : mask_width(settings);
+			data->global_scale =
+				100.0f * data->global_scale / width;
 		} else if (base->mask_effect == MASK_EFFECT_ALPHA &&
 			   data->scale_type == MASK_SCALE_HEIGHT) {
-			uint32_t sfMode = (uint32_t)obs_data_get_int(settings, "super_mode");
-			bool isSuperForumula = data->mask_shape_type == SHAPE_SUPERFORMULA && sfMode == SHAPE_SUPER_SUPERFORMULA;
-			float height = isSuperForumula ? data->fHeight : mask_height(settings);
-			data->global_scale = 100.0f * data->global_scale /
-					     height;
+			uint32_t sfMode = (uint32_t)obs_data_get_int(
+				settings, "super_mode");
+			bool isSuperForumula =
+				data->mask_shape_type == SHAPE_SUPERFORMULA &&
+				sfMode == SHAPE_SUPER_SUPERFORMULA;
+			float height = isSuperForumula ? data->fHeight
+						       : mask_height(settings);
+			data->global_scale =
+				100.0f * data->global_scale / height;
 		}
 	} else {
 		data->global_scale = 100.0f;
 	}
-
 
 	data->corner_radius_type =
 		(uint32_t)obs_data_get_int(settings, "rectangle_corner_type");
@@ -351,7 +371,7 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		}
 		data->rectangle_max_corner_radius = max_radius;
 	}
-	
+
 	const double rotation = obs_data_get_double(settings, "shape_rotation");
 	data->rotation = (float)(rotation * M_PI / 180.0f);
 
@@ -377,24 +397,44 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 
 	switch (super_mode) {
 	case SHAPE_SUPER_SQUIRCLE:
-		data->a = 0.5f * (float)obs_data_get_double(settings, "super_squircle_size") / data->fHeight;
-		data->b = 0.5f * (float)obs_data_get_double(settings, "super_squircle_size") / data->fHeight;
+		data->a = 0.5f *
+			  (float)obs_data_get_double(settings,
+						     "super_squircle_size") /
+			  data->fHeight;
+		data->b = 0.5f *
+			  (float)obs_data_get_double(settings,
+						     "super_squircle_size") /
+			  data->fHeight;
 		data->m = 4.0f;
-		data->n1 = (float)obs_data_get_double(settings, "super_squircle_curvature");
-		data->n2 = (float)obs_data_get_double(settings, "super_squircle_curvature");
-		data->n3 = (float)obs_data_get_double(settings, "super_squircle_curvature");
+		data->n1 = (float)obs_data_get_double(
+			settings, "super_squircle_curvature");
+		data->n2 = (float)obs_data_get_double(
+			settings, "super_squircle_curvature");
+		data->n3 = (float)obs_data_get_double(
+			settings, "super_squircle_curvature");
 		break;
 	case SHAPE_SUPER_SUPERELLIPSE:
-		data->a = 0.5f * (float)obs_data_get_double(settings, "super_ellipse_width") / data->fHeight;
-		data->b = 0.5f * (float)obs_data_get_double(settings, "super_ellipse_height") / data->fHeight;
+		data->a = 0.5f *
+			  (float)obs_data_get_double(settings,
+						     "super_ellipse_width") /
+			  data->fHeight;
+		data->b = 0.5f *
+			  (float)obs_data_get_double(settings,
+						     "super_ellipse_height") /
+			  data->fHeight;
 		data->m = 4.0f;
-		data->n1 = (float)obs_data_get_double(settings, "super_ellipse_curvature");
-		data->n2 = (float)obs_data_get_double(settings, "super_ellipse_curvature");
-		data->n3 = (float)obs_data_get_double(settings, "super_ellipse_curvature");
+		data->n1 = (float)obs_data_get_double(
+			settings, "super_ellipse_curvature");
+		data->n2 = (float)obs_data_get_double(
+			settings, "super_ellipse_curvature");
+		data->n3 = (float)obs_data_get_double(
+			settings, "super_ellipse_curvature");
 		break;
 	case SHAPE_SUPER_SUPERFORMULA:
-		data->a = 0.5f * (float)obs_data_get_double(settings, "super_width");
-		data->b = 0.5f * (float)obs_data_get_double(settings, "super_height");
+		data->a = 0.5f *
+			  (float)obs_data_get_double(settings, "super_width");
+		data->b = 0.5f *
+			  (float)obs_data_get_double(settings, "super_height");
 		data->m = (float)obs_data_get_double(settings, "super_m");
 		data->n1 = (float)obs_data_get_double(settings, "super_n1");
 		data->n2 = (float)obs_data_get_double(settings, "super_n2");
@@ -402,11 +442,18 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		break;
 	}
 
-	if (data->mask_shape_type == SHAPE_SUPERFORMULA)
-	{
+	if (data->mask_shape_type == SHAPE_SUPERFORMULA) {
 		float min_r = 1.e9f;
 		for (float phi = 0.0f; phi < 6.2831853f; phi += 0.0062831853f) {
-			float r = 1.0f / powf(powf(fabsf(cosf(data->m * phi /4.0f))/data->a, data->n2) + powf(fabsf(sinf(data->m * phi / 4.0f)) / data->b, data->n3), 1.0f / data->n1);
+			float r = 1.0f /
+				  powf(powf(fabsf(cosf(data->m * phi / 4.0f)) /
+						    data->a,
+					    data->n2) +
+					       powf(fabsf(sinf(data->m * phi /
+							       4.0f)) /
+							    data->b,
+						    data->n3),
+				       1.0f / data->n1);
 			min_r = r < min_r ? r : min_r;
 		}
 		min_r *= 0.95f;
@@ -502,7 +549,8 @@ void mask_shape_defaults(obs_data_t *settings, int version)
 	obs_data_set_default_double(settings, "position_x", -1.e9);
 	obs_data_set_default_double(settings, "position_y", -1.e9);
 	obs_data_set_default_double(settings, "position_scale", position_scale);
-	obs_data_set_default_double(settings, "mask_source_filter_multiplier", 1.0);
+	obs_data_set_default_double(settings, "mask_source_filter_multiplier",
+				    1.0);
 	obs_data_set_default_double(settings, "source_zoom", 100.0);
 	obs_data_set_default_bool(settings, "shape_relative", false);
 	obs_data_set_default_int(settings, "shape_num_sides", 6);
@@ -592,214 +640,206 @@ static void shape_properties(obs_properties_t *props, obs_source_t *context,
 	obs_properties_add_bool(mask_geometry_group, "shape_invert", label);
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.X"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_center_x",
-		label, -2000.0, 6000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_center_x", label, -2000.0,
+					    6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Center.Y"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_center_y",
-		label, -2000.0, 6000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_center_y", label, -2000.0,
+					    6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
-
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.RecenterButton"));
-	p = obs_properties_add_button2(mask_geometry_group, "recenter_mask_button", label,
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.RecenterButton"));
+	p = obs_properties_add_button2(mask_geometry_group,
+				       "recenter_mask_button", label,
 				       recenter_button_clicked, context);
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Rotation"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_rotation",
-		label, -360.0, 360.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_rotation", label, -360.0,
+					    360.0, 1.0);
 	obs_property_float_set_suffix(p, "deg");
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.NumSides"));
-	p = obs_properties_add_int_slider(
-		mask_geometry_group, "shape_num_sides",
-		label, 3, 100, 1);
+	p = obs_properties_add_int_slider(mask_geometry_group,
+					  "shape_num_sides", label, 3, 100, 1);
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.Rectangle.Width"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "rectangle_width",
-		label, -2000.0,
-		6000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "rectangle_width", label, -2000.0,
+					    6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.Rectangle.Height"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "rectangle_height",
-		label,
-		-2000.0, 6000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "rectangle_height", label, -2000.0,
+					    6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.Circle.Radius"));
 	p = obs_properties_add_float_slider(
-		mask_geometry_group, "circle_radius",
-		label, 0.0,
-		6000.0, 1.0);
+		mask_geometry_group, "circle_radius", label, 0.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.Ellipse.Width"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_ellipse_a",
-		label, 0.0,
-		6000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_ellipse_a", label, 0.0,
+					    6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.Ellipse.Height"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_ellipse_b",
-		label, 0.0,
-		6000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_ellipse_b", label, 0.0,
+					    6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.Star.NumPoints"));
 	p = obs_properties_add_int_slider(
-		mask_geometry_group, "shape_star_num_points",
-		label, 3, 100,
-		1);
+		mask_geometry_group, "shape_star_num_points", label, 3, 100, 1);
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.Star.OuterRadius"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_star_outer_radius",
-		label, 0.0,
-		2500.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_star_outer_radius", label,
+					    0.0, 2500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_star_inner_radius",
-		label, 0.0,
-		100.0, 0.1);
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Star.InnerRadius"));
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_star_inner_radius", label,
+					    0.0, 100.0, 0.1);
 	obs_property_float_set_suffix(p, "%");
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.CornerRadius"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "shape_corner_radius",
-		label, 0.0,
-		1000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "shape_corner_radius", label, 0.0,
+					    1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label,
 		     obs_module_text("AdvancedMasks.Shape.CornerRadius"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "star_corner_radius",
-		label, 0.0,
-		1000.0, 1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "star_corner_radius", label, 0.0,
+					    1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.Heart.Size"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "heart_size",
-		label, 0.0, 6000.0,
-		1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group, "heart_size",
+					    label, 0.0, 6000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.Mode"));
-	p = obs_properties_add_list(
-		mask_geometry_group, "super_mode", label,
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Superformula.Mode"));
+	p = obs_properties_add_list(mask_geometry_group, "super_mode", label,
+				    OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(p,
-		obs_module_text(SHAPE_SUPER_SQUIRCLE_LABEL),
-		SHAPE_SUPER_SQUIRCLE);
-	obs_property_list_add_int(p,
-		obs_module_text(SHAPE_SUPER_SUPERELLIPSE_LABEL),
+				  obs_module_text(SHAPE_SUPER_SQUIRCLE_LABEL),
+				  SHAPE_SUPER_SQUIRCLE);
+	obs_property_list_add_int(
+		p, obs_module_text(SHAPE_SUPER_SUPERELLIPSE_LABEL),
 		SHAPE_SUPER_SUPERELLIPSE);
-	obs_property_list_add_int(p,
-		obs_module_text(SHAPE_SUPER_SUPERFORMULA_LABEL),
+	obs_property_list_add_int(
+		p, obs_module_text(SHAPE_SUPER_SUPERFORMULA_LABEL),
 		SHAPE_SUPER_SUPERFORMULA);
 
-	obs_property_set_modified_callback(p,
-		setting_super_mode_modified);
+	obs_property_set_modified_callback(p, setting_super_mode_modified);
 
 	obs_properties_add_text(mask_geometry_group, "super_info", SUPER_INFO,
-		OBS_TEXT_INFO);
+				OBS_TEXT_INFO);
 
 	// Squircle
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.SquircleSize"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_squircle_size",
-		label, 0.0, 15000.0, 1.0);
+	label_indent(label,
+		     obs_module_text(
+			     "AdvancedMasks.Shape.Superformula.SquircleSize"));
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "super_squircle_size", label, 0.0,
+					    15000.0, 1.0);
 
 	obs_property_float_set_suffix(p, "px");
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.Curvature"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_squircle_curvature",
-		label, 0.0, 50.0, 0.001);
+	label_indent(
+		label,
+		obs_module_text("AdvancedMasks.Shape.Superformula.Curvature"));
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "super_squircle_curvature", label,
+					    0.0, 50.0, 0.001);
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.EllipseWidth"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_ellipse_width",
-		label, 0.0, 15000.0, 1.0);
-
-	obs_property_float_set_suffix(p, "px");
-
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.EllipseHeight"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_ellipse_height",
-		label, 0.0, 15000.0, 1.0);
+	label_indent(label,
+		     obs_module_text(
+			     "AdvancedMasks.Shape.Superformula.EllipseWidth"));
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "super_ellipse_width", label, 0.0,
+					    15000.0, 1.0);
 
 	obs_property_float_set_suffix(p, "px");
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.Curvature"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_ellipse_curvature",
-		label, 0.0, 50.0, 0.001);
+	label_indent(label,
+		     obs_module_text(
+			     "AdvancedMasks.Shape.Superformula.EllipseHeight"));
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "super_ellipse_height", label, 0.0,
+					    15000.0, 1.0);
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.Width"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_width",
-		label, 0.0, 5.0, 0.001);
+	obs_property_float_set_suffix(p, "px");
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.Height"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_height",
-		label, 0.0, 5.0, 0.001);
+	label_indent(
+		label,
+		obs_module_text("AdvancedMasks.Shape.Superformula.Curvature"));
+	p = obs_properties_add_float_slider(mask_geometry_group,
+					    "super_ellipse_curvature", label,
+					    0.0, 50.0, 0.001);
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.m"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_m",
-		label, 0.0, 50.0, 0.01);
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Superformula.Width"));
+	p = obs_properties_add_float_slider(mask_geometry_group, "super_width",
+					    label, 0.0, 5.0, 0.001);
 
+	label_indent(label, obs_module_text(
+				    "AdvancedMasks.Shape.Superformula.Height"));
+	p = obs_properties_add_float_slider(mask_geometry_group, "super_height",
+					    label, 0.0, 5.0, 0.001);
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.n1"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_n1",
-		label, 0.0, 50.0, 0.01);
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Superformula.m"));
+	p = obs_properties_add_float_slider(mask_geometry_group, "super_m",
+					    label, 0.0, 50.0, 0.01);
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.n2"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_n2",
-		label, 0.0, 50.0, 0.01);
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Superformula.n1"));
+	p = obs_properties_add_float_slider(mask_geometry_group, "super_n1",
+					    label, 0.0, 50.0, 0.01);
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Superformula.n3"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "super_n3",
-		label, 0.0, 50.0, 0.01);
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Superformula.n2"));
+	p = obs_properties_add_float_slider(mask_geometry_group, "super_n2",
+					    label, 0.0, 50.0, 0.01);
+
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Superformula.n3"));
+	p = obs_properties_add_float_slider(mask_geometry_group, "super_n3",
+					    label, 0.0, 50.0, 0.01);
 
 	label_indent(label, obs_module_text("AdvancedMasks.Shape.SourceZoom"));
-	p = obs_properties_add_float_slider(
-		mask_geometry_group, "source_zoom",
-		label, 1.0, 5000.0,
-		1.0);
+	p = obs_properties_add_float_slider(mask_geometry_group, "source_zoom",
+					    label, 1.0, 5000.0, 1.0);
 	obs_property_float_set_suffix(p, "%");
 
 	obs_properties_add_group(
 		source_rect_mask_group, "mask_geometry_group",
 		obs_module_text("AdvancedMasks.Shape.MaskGeometry"),
 		OBS_GROUP_NORMAL, mask_geometry_group);
-
 
 	rectangle_corner_radius_properties(source_rect_mask_group);
 	feather_properties(source_rect_mask_group);
@@ -816,10 +856,11 @@ static void feather_properties(obs_properties_t *props)
 	obs_properties_t *shape_feather_group = obs_properties_create();
 
 	char label[255];
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Feather.Type"));
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Feather.Type"));
 	obs_property_t *feather_type = obs_properties_add_list(
-		shape_feather_group, "shape_feather_type",
-		label, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+		shape_feather_group, "shape_feather_type", label,
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(
 		feather_type, obs_module_text(MASK_SHAPE_FEATHER_NONE_LABEL),
@@ -837,10 +878,11 @@ static void feather_properties(obs_properties_t *props)
 	obs_property_set_modified_callback(feather_type,
 					   setting_feather_type_modified);
 
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Feather.Amount"));
-	p = obs_properties_add_float_slider(
-		shape_feather_group, "shape_feather_amount",
-		label, 0.0, 500.0, 1.0);
+	label_indent(label,
+		     obs_module_text("AdvancedMasks.Shape.Feather.Amount"));
+	p = obs_properties_add_float_slider(shape_feather_group,
+					    "shape_feather_amount", label, 0.0,
+					    500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
@@ -855,10 +897,12 @@ static void rectangle_corner_radius_properties(obs_properties_t *props)
 	obs_properties_t *corner_radius_group = obs_properties_create();
 
 	char label[255];
-	label_indent(label, obs_module_text("AdvancedMasks.Shape.Rectangle.CornerRadius"));
+	label_indent(
+		label,
+		obs_module_text("AdvancedMasks.Shape.Rectangle.CornerRadius"));
 	obs_property_t *corner_type_list = obs_properties_add_list(
-		corner_radius_group, "rectangle_corner_type",
-		label, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+		corner_radius_group, "rectangle_corner_type", label,
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	obs_property_list_add_int(corner_type_list,
 				  obs_module_text(MASK_CORNER_UNIFORM_LABEL),
@@ -871,45 +915,45 @@ static void rectangle_corner_radius_properties(obs_properties_t *props)
 					   setting_corner_type_modified);
 
 	label_indent(label, obs_module_text(""));
-	p = obs_properties_add_float_slider(
-		corner_radius_group, "rectangle_corner_radius",
-		label, 0.0, 1000.0, 1.0);
+	p = obs_properties_add_float_slider(corner_radius_group,
+					    "rectangle_corner_radius", label,
+					    0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(
 		label,
 		obs_module_text(
 			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopLeft"));
-	p = obs_properties_add_float_slider(
-		corner_radius_group, "rectangle_corner_radius_tl",
-		label, 0.0, 1000.0, 1.0);
+	p = obs_properties_add_float_slider(corner_radius_group,
+					    "rectangle_corner_radius_tl", label,
+					    0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(
 		label,
 		obs_module_text(
 			"AdvancedMasks.Shape.Rectangle.CornerRadius.TopRight"));
-	p = obs_properties_add_float_slider(
-		corner_radius_group, "rectangle_corner_radius_tr",
-		label, 0.0, 1000.0, 1.0);
+	p = obs_properties_add_float_slider(corner_radius_group,
+					    "rectangle_corner_radius_tr", label,
+					    0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(
 		label,
 		obs_module_text(
 			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomLeft"));
-	p = obs_properties_add_float_slider(
-		corner_radius_group, "rectangle_corner_radius_bl",
-		label, 0.0, 1000.0, 1.0);
+	p = obs_properties_add_float_slider(corner_radius_group,
+					    "rectangle_corner_radius_bl", label,
+					    0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	label_indent(
 		label,
 		obs_module_text(
 			"AdvancedMasks.Shape.Rectangle.CornerRadius.BottomRight"));
-	p = obs_properties_add_float_slider(
-		corner_radius_group, "rectangle_corner_radius_br",
-		label, 0.0, 1000.0, 1.0);
+	p = obs_properties_add_float_slider(corner_radius_group,
+					    "rectangle_corner_radius_br", label,
+					    0.0, 1000.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
@@ -998,7 +1042,7 @@ static bool recenter_button_clicked(obs_properties_t *props,
 	obs_data_t *settings = obs_source_get_settings(source);
 	double width = (double)obs_source_get_width(source);
 	double height = (double)obs_source_get_height(source);
-	obs_data_set_double(settings, "shape_center_x", width/2.0);
+	obs_data_set_double(settings, "shape_center_x", width / 2.0);
 	obs_data_set_double(settings, "shape_center_y", height / 2.0);
 	obs_source_update(source, settings);
 	obs_data_release(settings);
@@ -1228,7 +1272,7 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 		setting_visibility("shape_rotation", true, props);
 		setting_visibility("shape_num_sides", false, props);
 		setting_visibility("rectangle_rounded_corners_group", false,
-			props);
+				   props);
 		setting_visibility("super_mode", true, props);
 		setting_visibility("super_info", true, props);
 		setting_visibility("super_width", true, props);
@@ -1262,8 +1306,8 @@ bool setting_shape_type_modified(obs_properties_t *props, obs_property_t *p,
 	return true;
 }
 
-bool setting_super_mode_modified(obs_properties_t* props, obs_property_t* p,
-	obs_data_t* settings)
+bool setting_super_mode_modified(obs_properties_t *props, obs_property_t *p,
+				 obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
 	uint32_t mask_type = (uint32_t)obs_data_get_int(settings, "mask_type");
@@ -1324,7 +1368,6 @@ bool setting_super_mode_modified(obs_properties_t* props, obs_property_t* p,
 	}
 
 	return true;
-
 }
 
 bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
@@ -1332,7 +1375,8 @@ bool setting_shape_relative_modified(obs_properties_t *props, obs_property_t *p,
 {
 	UNUSED_PARAMETER(p);
 	uint32_t mask_type = (uint32_t)obs_data_get_int(settings, "mask_type");
-	if (mask_type != MASK_TYPE_SHAPE && mask_type != MASK_TYPE_FONT_AWESOME) {
+	if (mask_type != MASK_TYPE_SHAPE &&
+	    mask_type != MASK_TYPE_FONT_AWESOME) {
 		return false;
 	}
 	bool relative = obs_data_get_bool(settings, "shape_relative");
@@ -1390,21 +1434,26 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 	uint32_t last_type = filter->last_scale_type;
 
 	uint32_t sfMode = (uint32_t)obs_data_get_int(settings, "super_mode");
-	bool isSuperForumula = filter->mask_shape_type == SHAPE_SUPERFORMULA && sfMode == SHAPE_SUPER_SUPERFORMULA;
-	float width = filter->mask_shape_type == isSuperForumula ? filter->fWidth : mask_width(settings);
-	float height = filter->mask_shape_type == isSuperForumula ? filter->fHeight : mask_height(settings);
-	float pct =
-		filter->last_scale_type == MASK_SCALE_WIDTH
-			? (float)obs_data_get_double(settings,
-							     "position_scale") /
-				  width
-		: filter->last_scale_type == MASK_SCALE_HEIGHT
-			? (float)obs_data_get_double(settings,
-							     "position_scale") /
-				  height
-			: (float)obs_data_get_double(settings,
-						     "position_scale") / 100.0f;
-			  
+	bool isSuperForumula = filter->mask_shape_type == SHAPE_SUPERFORMULA &&
+			       sfMode == SHAPE_SUPER_SUPERFORMULA;
+	float width = filter->mask_shape_type == isSuperForumula
+			      ? filter->fWidth
+			      : mask_width(settings);
+	float height = filter->mask_shape_type == isSuperForumula
+			       ? filter->fHeight
+			       : mask_height(settings);
+	float pct = filter->last_scale_type == MASK_SCALE_WIDTH
+			    ? (float)obs_data_get_double(settings,
+							 "position_scale") /
+				      width
+		    : filter->last_scale_type == MASK_SCALE_HEIGHT
+			    ? (float)obs_data_get_double(settings,
+							 "position_scale") /
+				      height
+			    : (float)obs_data_get_double(settings,
+							 "position_scale") /
+				      100.0f;
+
 	if (last_type == 0 || type == last_type) {
 		filter->last_scale_type = type;
 		return false;
@@ -1414,14 +1463,17 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 			obs_properties_get(props, "position_scale");
 
 		obs_property_float_set_limits(scale_p, (double)0.0,
-					      100.0 * (double)width, (double)1.0);
-		obs_data_set_double(settings, "position_scale", (double)width * pct);
+					      100.0 * (double)width,
+					      (double)1.0);
+		obs_data_set_double(settings, "position_scale",
+				    (double)width * pct);
 		obs_property_float_set_suffix(scale_p, "px");
 	} else if (type == MASK_SCALE_HEIGHT) {
 		obs_property_t *scale_p =
 			obs_properties_get(props, "position_scale");
 		obs_property_float_set_limits(scale_p, (double)0.0,
-					      100.0 * (double)height, (double)1.0);
+					      100.0 * (double)height,
+					      (double)1.0);
 		obs_data_set_double(settings, "position_scale", height * pct);
 		obs_property_float_set_suffix(scale_p, "px");
 	} else {
@@ -1437,11 +1489,23 @@ static bool setting_scale_type_modified(void *data, obs_properties_t *props,
 }
 
 void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
-		       color_adjustments_data_t *color_adj)
+		       color_adjustments_data_t *color_adj,
+		       mask_shape_data_t *data_to,
+		       color_adjustments_data_t *color_adj_to, float f)
 {
+	if (data_to && (data->mask_shape_type != data_to->mask_shape_type ||
+			data->invert_mask != data_to->invert_mask)) {
+		if (f > 0.5f) {
+			f = (f - 0.5f) * 2.0f;
+		} else {
+			f *= 2.0f;
+		}
+		data_to = NULL;
+	}
 	switch (data->mask_shape_type) {
 	case SHAPE_RECTANGLE:
-		render_rectangle_mask(data, base, color_adj);
+		render_rectangle_mask(data, base, color_adj, data_to,
+				      color_adj_to, f);
 		break;
 	case SHAPE_CIRCLE:
 		render_circle_mask(data, base, color_adj);
@@ -1473,9 +1537,12 @@ void render_shape_mask(mask_shape_data_t *data, base_filter_data_t *base,
 
 static void render_rectangle_mask(mask_shape_data_t *data,
 				  base_filter_data_t *base,
-				  color_adjustments_data_t *color_adj)
+				  color_adjustments_data_t *color_adj,
+				  mask_shape_data_t *data_to,
+				  color_adjustments_data_t *color_adj_to,
+				  float f)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t width = obs_source_get_base_width(target);
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
@@ -1488,7 +1555,8 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+		obs_filter_get_target(base->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	if (source_space == GS_CS_709_EXTENDED) {
 		obs_source_skip_video_filter(base->context);
 	}
@@ -1498,107 +1566,525 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
 			? "AlphaFrameCheck"
 			: "Adjustments";
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_NO_DIRECT_RENDERING)) {
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
+		if (f != 0.0f) {
+			if (data_to) {
+				float scale_factor =
+					(data->shape_relative
+						 ? data->global_scale / 100.0f
+						 : 1.0f) *
+						(1.0f - f) +
+					(data_to->shape_relative
+						 ? data_to->global_scale /
+							   100.0f
+						 : 1.0f) *
+						f;
 
-		float scale_factor = data->shape_relative ? data->global_scale / 100.0f : 1.0f;
-		gs_effect_set_float(data->param_rectangle_zoom,
-					data->zoom / 100.0f);
-		gs_effect_set_vec2(data->param_rectangle_mask_position,
-					&data->mask_center);
-		gs_effect_set_float(data->param_rectangle_width,
-					data->rectangle_width);
-		gs_effect_set_float(data->param_rectangle_alpha_zero,
-					data->frame_check ? 0.3f : 0.0f);
-		gs_effect_set_float(data->param_rectangle_height,
-					data->rectangle_height);
-		gs_effect_set_float(data->param_rectangle_sin_theta,
-					(float)sin(data->rotation));
-		gs_effect_set_float(data->param_rectangle_cos_theta,
-					(float)cos(data->rotation));
-		gs_effect_set_float(data->param_rectangle_feather_amount,
-					data->feather_amount);
-		gs_effect_set_float(data->param_rectangle_feather_shift,
-					data->feather_shift);
-		gs_effect_set_float(data->param_rectangle_invert, data->invert_mask ? 1.0f : 0.0f);
+				gs_effect_set_float(
+					data->param_rectangle_zoom,
+					data->zoom / 100.0f * (1.0f - f) +
+						data_to->zoom / 100.f * f);
+				struct vec2 mask_center;
+				mask_center.x =
+					data->mask_center.x * (1.0f - f) +
+					data_to->mask_center.x * f;
+				mask_center.y =
+					data->mask_center.y * (1.0f - f) +
+					data_to->mask_center.y * f;
+				gs_effect_set_vec2(
+					data->param_rectangle_mask_position,
+					&mask_center);
+				gs_effect_set_float(
+					data->param_rectangle_width,
+					data->rectangle_width * (1.0f - f) +
+						data_to->rectangle_width * f);
+				gs_effect_set_float(
+					data->param_rectangle_alpha_zero,
+					(data->frame_check ? 0.3f : 0.0f) *
+							(1.0f - f) +
+						(data_to->frame_check ? 0.3f
+								      : 0.0f) *
+							f);
+				gs_effect_set_float(
+					data->param_rectangle_height,
+					data->rectangle_height * (1.0f - f) +
+						data_to->rectangle_height * f);
+				gs_effect_set_float(
+					data->param_rectangle_sin_theta,
+					sinf(data->rotation) * (1.0f - f) +
+						sinf(data_to->rotation) * f);
+				gs_effect_set_float(
+					data->param_rectangle_cos_theta,
+					cosf(data->rotation) * (1.0f - f) +
+						cosf(data_to->rotation) * f);
+				gs_effect_set_float(
+					data->param_rectangle_feather_amount,
+					data->feather_amount * (1.0f - f) +
+						data_to->feather_amount * f);
+				gs_effect_set_float(
+					data->param_rectangle_feather_shift,
+					data->feather_shift * (1.0f - f) +
+						data_to->feather_shift * f);
+				struct vec2 global_position;
+				if (data->shape_relative) {
+					global_position.x =
+						data->global_position.x *
+						(1.0f - f);
+					global_position.y =
+						data->global_position.y *
+						(1.0f - f);
+				} else {
+					global_position.x =
+						data->mask_center.x *
+						(1.0f - f);
+					global_position.y =
+						data->mask_center.y *
+						(1.0f - f);
+				}
+				if (data_to->shape_relative) {
+					global_position.x +=
+						data_to->global_position.x * f;
+					global_position.y +=
+						data_to->global_position.y * f;
+				} else {
+					global_position.x +=
+						data_to->mask_center.x * f;
+					global_position.y +=
+						data_to->mask_center.y * f;
+				}
+				gs_effect_set_vec2(data->param_global_position,
+						   &global_position);
 
-		if (data->shape_relative) {
-			gs_effect_set_vec2(data->param_global_position,
-						&data->global_position);
+				gs_effect_set_float(data->param_global_scale,
+						    scale_factor);
+
+				struct vec4 rectangle_corner_radius;
+				rectangle_corner_radius.x =
+					data->rectangle_corner_radius.x *
+						(1.0f - f) +
+					data_to->rectangle_corner_radius.x * f;
+				rectangle_corner_radius.y =
+					data->rectangle_corner_radius.y *
+						(1.0f - f) +
+					data_to->rectangle_corner_radius.y * f;
+				rectangle_corner_radius.z =
+					data->rectangle_corner_radius.z *
+						(1.0f - f) +
+					data_to->rectangle_corner_radius.z * f;
+				rectangle_corner_radius.w =
+					data->rectangle_corner_radius.w *
+						(1.0f - f) +
+					data_to->rectangle_corner_radius.w * f;
+				gs_effect_set_vec4(data->param_corner_radius,
+						   &rectangle_corner_radius);
+
+				float max_corner_radius =
+					(data->rectangle_max_corner_radius /
+					 scale_factor * (data->zoom / 100.0f)) *
+						(1.0f - f) +
+					(data_to->rectangle_max_corner_radius /
+					 scale_factor *
+					 (data_to->zoom / 100.0f)) *
+						f;
+				gs_effect_set_float(
+					data->param_max_corner_radius,
+					max_corner_radius);
+			} else {
+				float scale_factor =
+					(data->shape_relative
+						 ? data->global_scale / 100.0f
+						 : 1.0f) *
+						(1.0f - f) +
+					f;
+
+				gs_effect_set_float(
+					data->param_rectangle_zoom,
+					data->zoom / 100.0f * (1.0f - f) + f);
+				struct vec2 mask_center;
+				mask_center.x =
+					data->mask_center.x * (1.0f - f) +
+					base->width / 2.0f * f;
+				mask_center.y =
+					data->mask_center.y * (1.0f - f) +
+					base->height / 2.0f * f;
+				gs_effect_set_vec2(
+					data->param_rectangle_mask_position,
+					&mask_center);
+				gs_effect_set_float(data->param_rectangle_width,
+						    data->rectangle_width *
+								    (1.0f - f) +
+							    base->width * f);
+				gs_effect_set_float(
+					data->param_rectangle_alpha_zero,
+					(data->frame_check ? 0.3f : 0.0f) *
+						(1.0f - f));
+				gs_effect_set_float(
+					data->param_rectangle_height,
+					data->rectangle_height * (1.0f - f) +
+						base->height * f);
+				gs_effect_set_float(
+					data->param_rectangle_sin_theta,
+					sinf(data->rotation) * (1.0f - f));
+				gs_effect_set_float(
+					data->param_rectangle_cos_theta,
+					cosf(data->rotation) * (1.0f - f) + f);
+				gs_effect_set_float(
+					data->param_rectangle_feather_amount,
+					data->feather_amount * (1.0f - f));
+				gs_effect_set_float(
+					data->param_rectangle_feather_shift,
+					data->feather_shift * (1.0f - f));
+				struct vec2 global_position;
+				if (data->shape_relative) {
+					global_position.x =
+						data->global_position.x *
+						(1.0f - f);
+					global_position.y =
+						data->global_position.y *
+						(1.0f - f);
+				} else {
+					global_position.x =
+						data->mask_center.x *
+							(1.0f - f) +
+						base->width / 2.0f * f;
+					global_position.y =
+						data->mask_center.y *
+							(1.0f - f) +
+						base->height / 2.0f * f;
+				}
+				gs_effect_set_vec2(data->param_global_position,
+						   &global_position);
+
+				gs_effect_set_float(data->param_global_scale,
+						    scale_factor);
+
+				struct vec4 rectangle_corner_radius;
+				rectangle_corner_radius.x =
+					data->rectangle_corner_radius.x *
+					(1.0f - f);
+				rectangle_corner_radius.y =
+					data->rectangle_corner_radius.y *
+					(1.0f - f);
+				rectangle_corner_radius.z =
+					data->rectangle_corner_radius.z *
+					(1.0f - f);
+				rectangle_corner_radius.w =
+					data->rectangle_corner_radius.w *
+					(1.0f - f);
+				gs_effect_set_vec4(data->param_corner_radius,
+						   &rectangle_corner_radius);
+
+				float max_corner_radius =
+					(data->rectangle_max_corner_radius /
+					 scale_factor * (data->zoom / 100.0f)) *
+					(1.0f - f);
+				gs_effect_set_float(
+					data->param_max_corner_radius,
+					max_corner_radius);
+			}
+			if (color_adj_to) {
+				const float min_brightness =
+					(color_adj->adj_brightness
+						 ? color_adj->min_brightness
+						 : 0.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_brightness
+						 ? color_adj_to->min_brightness
+						 : 0.0f) *
+						f;
+				gs_effect_set_float(
+					data->param_rectangle_min_brightness,
+					min_brightness);
+
+				const float max_brightness =
+					(color_adj->adj_brightness
+						 ? color_adj->max_brightness
+						 : 0.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_brightness
+						 ? color_adj_to->max_brightness
+						 : 0.0f) *
+						f;
+				gs_effect_set_float(
+					data->param_rectangle_max_brightness,
+					max_brightness);
+
+				const float min_contrast =
+					(color_adj->adj_contrast
+						 ? color_adj->min_contrast
+						 : 0.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_contrast
+						 ? color_adj_to->min_contrast
+						 : 0.0f) *
+						f;
+				gs_effect_set_float(
+					data->param_rectangle_min_contrast,
+					min_contrast);
+
+				const float max_contrast =
+					(color_adj->adj_contrast
+						 ? color_adj->max_contrast
+						 : 0.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_contrast
+						 ? color_adj_to->max_contrast
+						 : 0.0f);
+				gs_effect_set_float(
+					data->param_rectangle_max_contrast,
+					max_contrast);
+
+				const float min_saturation =
+					(color_adj->adj_saturation
+						 ? color_adj->min_saturation
+						 : 1.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_saturation
+						 ? color_adj_to->min_saturation
+						 : 1.0f) *
+						f;
+				gs_effect_set_float(
+					data->param_rectangle_min_saturation,
+					min_saturation);
+
+				const float max_saturation =
+					(color_adj->adj_saturation
+						 ? color_adj->max_saturation
+						 : 1.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_saturation
+						 ? color_adj_to->max_saturation
+						 : 1.0f) *
+						f;
+				gs_effect_set_float(
+					data->param_rectangle_max_saturation,
+					max_saturation);
+
+				const float min_hue_shift =
+					(color_adj->adj_hue_shift
+						 ? color_adj->min_hue_shift
+						 : 0.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_hue_shift
+						 ? color_adj_to->min_hue_shift
+						 : 0.0f) *
+						f;
+				gs_effect_set_float(
+					data->param_rectangle_min_hue_shift,
+					min_hue_shift);
+
+				const float max_hue_shift =
+					(color_adj->adj_hue_shift
+						 ? color_adj->max_hue_shift
+						 : 1.0f) *
+						(1.0f - f) +
+					(color_adj_to->adj_hue_shift
+						 ? color_adj_to->max_hue_shift
+						 : 1.0f) *
+						f;
+				gs_effect_set_float(
+					data->param_rectangle_max_hue_shift,
+					max_hue_shift);
+			} else {
+				const float min_brightness =
+					(color_adj->adj_brightness
+						 ? color_adj->min_brightness
+						 : 0.0f) *
+					(1.0f - f);
+				gs_effect_set_float(
+					data->param_rectangle_min_brightness,
+					min_brightness);
+
+				const float max_brightness =
+					(color_adj->adj_brightness
+						 ? color_adj->max_brightness
+						 : 0.0f) *
+					(1.0f - f);
+				gs_effect_set_float(
+					data->param_rectangle_max_brightness,
+					max_brightness);
+
+				const float min_contrast =
+					(color_adj->adj_contrast
+						 ? color_adj->min_contrast
+						 : 0.0f) *
+					(1.0f - f);
+				gs_effect_set_float(
+					data->param_rectangle_min_contrast,
+					min_contrast);
+
+				const float max_contrast =
+					(color_adj->adj_contrast
+						 ? color_adj->max_contrast
+						 : 0.0f) *
+					(1.0f - f);
+				gs_effect_set_float(
+					data->param_rectangle_max_contrast,
+					max_contrast);
+
+				const float min_saturation =
+					(color_adj->adj_saturation
+						 ? color_adj->min_saturation
+						 : 1.0f) *
+						(1.0f - f) +
+					f;
+				gs_effect_set_float(
+					data->param_rectangle_min_saturation,
+					min_saturation);
+
+				const float max_saturation =
+					(color_adj->adj_saturation
+						 ? color_adj->max_saturation
+						 : 1.0f) *
+						(1.0f - f) +
+					f;
+				gs_effect_set_float(
+					data->param_rectangle_max_saturation,
+					max_saturation);
+
+				const float min_hue_shift =
+					(color_adj->adj_hue_shift
+						 ? color_adj->min_hue_shift
+						 : 0.0f) *
+					(1.0f - f);
+				gs_effect_set_float(
+					data->param_rectangle_min_hue_shift,
+					min_hue_shift);
+
+				const float max_hue_shift =
+					(color_adj->adj_hue_shift
+						 ? color_adj->max_hue_shift
+						 : 1.0f) *
+						(1.0f - f) +
+					f;
+				gs_effect_set_float(
+					data->param_rectangle_max_hue_shift,
+					max_hue_shift);
+			}
 		} else {
-			gs_effect_set_vec2(data->param_global_position,
-						&data->mask_center);
+			float scale_factor =
+				data->shape_relative
+					? data->global_scale / 100.0f
+					: 1.0f;
+			gs_effect_set_float(data->param_rectangle_zoom,
+					    data->zoom / 100.0f);
+			gs_effect_set_vec2(data->param_rectangle_mask_position,
+					   &data->mask_center);
+			gs_effect_set_float(data->param_rectangle_width,
+					    data->rectangle_width);
+			gs_effect_set_float(data->param_rectangle_alpha_zero,
+					    data->frame_check ? 0.3f : 0.0f);
+			gs_effect_set_float(data->param_rectangle_height,
+					    data->rectangle_height);
+			gs_effect_set_float(data->param_rectangle_sin_theta,
+					    (float)sin(data->rotation));
+			gs_effect_set_float(data->param_rectangle_cos_theta,
+					    (float)cos(data->rotation));
+			gs_effect_set_float(
+				data->param_rectangle_feather_amount,
+				data->feather_amount);
+			gs_effect_set_float(data->param_rectangle_feather_shift,
+					    data->feather_shift);
+
+			if (data->shape_relative) {
+				gs_effect_set_vec2(data->param_global_position,
+						   &data->global_position);
+			} else {
+				gs_effect_set_vec2(data->param_global_position,
+						   &data->mask_center);
+			}
+
+			gs_effect_set_float(data->param_global_scale,
+					    scale_factor);
+			gs_effect_set_vec4(data->param_corner_radius,
+					   &data->rectangle_corner_radius);
+
+			float max_corner_radius =
+				data->rectangle_max_corner_radius /
+				scale_factor * (data->zoom / 100.0f);
+			gs_effect_set_float(data->param_max_corner_radius,
+					    max_corner_radius);
+
+			const float min_brightness =
+				color_adj->adj_brightness
+					? color_adj->min_brightness
+					: 0.0f;
+			gs_effect_set_float(
+				data->param_rectangle_min_brightness,
+				min_brightness);
+
+			const float max_brightness =
+				color_adj->adj_brightness
+					? color_adj->max_brightness
+					: 0.0f;
+			gs_effect_set_float(
+				data->param_rectangle_max_brightness,
+				max_brightness);
+
+			const float min_contrast =
+				color_adj->adj_contrast
+					? color_adj->min_contrast
+					: 0.0f;
+			gs_effect_set_float(data->param_rectangle_min_contrast,
+					    min_contrast);
+
+			const float max_contrast =
+				color_adj->adj_contrast
+					? color_adj->max_contrast
+					: 0.0f;
+			gs_effect_set_float(data->param_rectangle_max_contrast,
+					    max_contrast);
+
+			const float min_saturation =
+				color_adj->adj_saturation
+					? color_adj->min_saturation
+					: 1.0f;
+			gs_effect_set_float(
+				data->param_rectangle_min_saturation,
+				min_saturation);
+
+			const float max_saturation =
+				color_adj->adj_saturation
+					? color_adj->max_saturation
+					: 1.0f;
+			gs_effect_set_float(
+				data->param_rectangle_max_saturation,
+				max_saturation);
+
+			const float min_hue_shift =
+				color_adj->adj_hue_shift
+					? color_adj->min_hue_shift
+					: 0.0f;
+			gs_effect_set_float(data->param_rectangle_min_hue_shift,
+					    min_hue_shift);
+
+			const float max_hue_shift =
+				color_adj->adj_hue_shift
+					? color_adj->max_hue_shift
+					: 1.0f;
+			gs_effect_set_float(data->param_rectangle_max_hue_shift,
+					    max_hue_shift);
 		}
 
-		gs_effect_set_float(data->param_global_scale,
-					scale_factor);
-		gs_effect_set_vec4(data->param_corner_radius,
-					&data->rectangle_corner_radius);
-
-		float max_corner_radius = data->rectangle_max_corner_radius /
-						scale_factor * (data->zoom / 100.0f);
-		gs_effect_set_float(data->param_max_corner_radius,
-					max_corner_radius);
+		gs_effect_set_float(data->param_rectangle_invert,
+				    data->invert_mask ? 1.0f : 0.0f);
 
 		struct vec2 box_ar;
-		box_ar.x = (float)base->width /
-			   (float)fmin((double)base->width, (double)base->height);
-		box_ar.y = (float)base->height /
-			   (float)fmin((double)base->width, (double)base->height);
+		box_ar.x =
+			(float)base->width /
+			(float)fmin((double)base->width, (double)base->height);
+		box_ar.y =
+			(float)base->height /
+			(float)fmin((double)base->width, (double)base->height);
 
 		gs_effect_set_vec2(data->param_rect_aspect_ratio, &box_ar);
 
 		float aa_scale = 5.0f / (float)base->height;
 		gs_effect_set_float(data->param_rectangle_aa_scale, aa_scale);
-
-		const float min_brightness = color_adj->adj_brightness
-							? color_adj->min_brightness
-							: 0.0f;
-		gs_effect_set_float(data->param_rectangle_min_brightness,
-					min_brightness);
-
-		const float max_brightness = color_adj->adj_brightness
-							? color_adj->max_brightness
-							: 0.0f;
-		gs_effect_set_float(data->param_rectangle_max_brightness,
-					max_brightness);
-
-		const float min_contrast = color_adj->adj_contrast
-							? color_adj->min_contrast
-							: 0.0f;
-		gs_effect_set_float(data->param_rectangle_min_contrast,
-					min_contrast);
-
-		const float max_contrast = color_adj->adj_contrast
-							? color_adj->max_contrast
-							: 0.0f;
-		gs_effect_set_float(data->param_rectangle_max_contrast,
-					max_contrast);
-
-		const float min_saturation = color_adj->adj_saturation
-							? color_adj->min_saturation
-							: 1.0f;
-		gs_effect_set_float(data->param_rectangle_min_saturation,
-					min_saturation);
-
-		const float max_saturation = color_adj->adj_saturation
-							? color_adj->max_saturation
-							: 1.0f;
-		gs_effect_set_float(data->param_rectangle_max_saturation,
-					max_saturation);
-
-		const float min_hue_shift = color_adj->adj_hue_shift
-							? color_adj->min_hue_shift
-							: 0.0f;
-		gs_effect_set_float(data->param_rectangle_min_hue_shift,
-					min_hue_shift);
-
-		const float max_hue_shift = color_adj->adj_hue_shift
-							? color_adj->max_hue_shift
-							: 1.0f;
-		gs_effect_set_float(data->param_rectangle_max_hue_shift,
-					max_hue_shift);
 
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
@@ -1606,8 +2092,12 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_rectangle_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-		obs_source_process_filter_tech_end(base->context, data->effect_rectangle_mask, 0, 0, technique);
+		gs_blend_function_separate(GS_BLEND_SRCALPHA,
+					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
+					   GS_BLEND_INVSRCALPHA);
+		obs_source_process_filter_tech_end(base->context,
+						   data->effect_rectangle_mask,
+						   0, 0, technique);
 		gs_blend_state_pop();
 	}
 }
@@ -1616,7 +2106,7 @@ static void render_polygon_mask(mask_shape_data_t *data,
 				base_filter_data_t *base,
 				color_adjustments_data_t *color_adj)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t width = obs_source_get_base_width(target);
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
@@ -1629,102 +2119,105 @@ static void render_polygon_mask(mask_shape_data_t *data,
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+		obs_filter_get_target(base->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	if (source_space == GS_CS_709_EXTENDED) {
 		obs_source_skip_video_filter(base->context);
 	}
-	const char* technique =
+	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
-		? "Alpha"
+			? "Alpha"
 		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
-		? "AlphaFrameCheck"
-		: "Adjustments";
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_NO_DIRECT_RENDERING)) {
+			? "AlphaFrameCheck"
+			: "Adjustments";
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
-		gs_effect_set_float(data->param_polygon_invert, data->invert_mask ? 1.0f : 0.0f);
+		gs_effect_set_float(data->param_polygon_invert,
+				    data->invert_mask ? 1.0f : 0.0f);
 		gs_effect_set_float(data->param_polygon_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_vec2(data->param_polygon_mask_position,
-			&data->mask_center);
+				   &data->mask_center);
 		gs_effect_set_float(data->param_polygon_sin_rot,
-			(float)sin(data->rotation));
+				    (float)sin(data->rotation));
 		gs_effect_set_float(data->param_polygon_cos_rot,
-			(float)cos(data->rotation));
+				    (float)cos(data->rotation));
 		gs_effect_set_float(data->param_polygon_alpha_zero,
-			data->frame_check ? 0.3f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 		gs_effect_set_float(data->param_polygon_theta, data->theta);
 		gs_effect_set_float(data->param_polygon_theta_2,
-			2.0f * data->theta);
+				    2.0f * data->theta);
 		gs_effect_set_vec2(data->param_polygon_theta_s, &data->theta_s);
 		gs_effect_set_float(data->param_polygon_corner_radius,
-			data->shape_corner_radius);
+				    data->shape_corner_radius);
 		gs_effect_set_float(data->param_polygon_feather_amount,
-			data->feather_amount);
+				    data->feather_amount);
 		gs_effect_set_float(data->param_polygon_radius, data->radius);
 		gs_effect_set_float(data->param_polygon_num_sides,
-			data->num_sides);
+				    data->num_sides);
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_polygon_global_position,
-				&data->global_position);
-		}
-		else {
+					   &data->global_position);
+		} else {
 			gs_effect_set_vec2(data->param_polygon_global_position,
-				&data->mask_center);
+					   &data->mask_center);
 		}
 		gs_effect_set_float(data->param_polygon_global_scale,
-			data->shape_relative ? scale_factor : 1.0f);
+				    data->shape_relative ? scale_factor : 1.0f);
 
 		const float min_brightness = color_adj->adj_brightness
-			? color_adj->min_brightness
-			: 0.0f;
+						     ? color_adj->min_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_polygon_min_brightness,
-			min_brightness);
+				    min_brightness);
 
 		const float max_brightness = color_adj->adj_brightness
-			? color_adj->max_brightness
-			: 0.0f;
+						     ? color_adj->max_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_polygon_max_brightness,
-			max_brightness);
+				    max_brightness);
 
 		const float min_contrast = color_adj->adj_contrast
-			? color_adj->min_contrast
-			: 0.0f;
+						   ? color_adj->min_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_polygon_min_contrast,
-			min_contrast);
+				    min_contrast);
 
 		const float max_contrast = color_adj->adj_contrast
-			? color_adj->max_contrast
-			: 0.0f;
+						   ? color_adj->max_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_polygon_max_contrast,
-			max_contrast);
+				    max_contrast);
 
 		const float min_saturation = color_adj->adj_saturation
-			? color_adj->min_saturation
-			: 1.0f;
+						     ? color_adj->min_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_polygon_min_saturation,
-			min_saturation);
+				    min_saturation);
 
 		const float max_saturation = color_adj->adj_saturation
-			? color_adj->max_saturation
-			: 1.0f;
+						     ? color_adj->max_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_polygon_max_saturation,
-			max_saturation);
+				    max_saturation);
 
 		const float min_hue_shift = color_adj->adj_hue_shift
-			? color_adj->min_hue_shift
-			: 0.0f;
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
 		gs_effect_set_float(data->param_polygon_min_hue_shift,
-			min_hue_shift);
+				    min_hue_shift);
 
 		const float max_hue_shift = color_adj->adj_hue_shift
-			? color_adj->max_hue_shift
-			: 1.0f;
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
 		gs_effect_set_float(data->param_polygon_max_hue_shift,
-			max_hue_shift);
+				    max_hue_shift);
 
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
@@ -1732,8 +2225,12 @@ static void render_polygon_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_polygon_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-		obs_source_process_filter_tech_end(base->context, data->effect_polygon_mask, 0, 0, technique);
+		gs_blend_function_separate(GS_BLEND_SRCALPHA,
+					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
+					   GS_BLEND_INVSRCALPHA);
+		obs_source_process_filter_tech_end(base->context,
+						   data->effect_polygon_mask, 0,
+						   0, technique);
 		gs_blend_state_pop();
 	}
 }
@@ -1741,7 +2238,7 @@ static void render_polygon_mask(mask_shape_data_t *data,
 static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 			     color_adjustments_data_t *color_adj)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t width = obs_source_get_base_width(target);
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
@@ -1754,96 +2251,99 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+		obs_filter_get_target(base->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	if (source_space == GS_CS_709_EXTENDED) {
 		obs_source_skip_video_filter(base->context);
 	}
-	const char* technique =
+	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
-		? "Alpha"
+			? "Alpha"
 		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
-		? "AlphaFrameCheck"
-		: "Adjustments";
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_NO_DIRECT_RENDERING)) {
+			? "AlphaFrameCheck"
+			: "Adjustments";
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
-		gs_effect_set_float(data->param_star_invert, data->invert_mask ? 1.0f : 0.0f);
+		gs_effect_set_float(data->param_star_invert,
+				    data->invert_mask ? 1.0f : 0.0f);
 		gs_effect_set_float(data->param_star_zoom, data->zoom / 100.0f);
 		gs_effect_set_vec2(data->param_star_mask_position,
-			&data->mask_center);
+				   &data->mask_center);
 		gs_effect_set_float(data->param_star_sin_rot,
-			(float)sin(data->rotation));
+				    (float)sin(data->rotation));
 		gs_effect_set_float(data->param_star_cos_rot,
-			(float)cos(data->rotation));
+				    (float)cos(data->rotation));
 		gs_effect_set_float(data->param_star_alpha_zero,
-			data->frame_check ? 0.3f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 		gs_effect_set_float(data->param_star_corner_radius,
-			data->star_corner_radius);
+				    data->star_corner_radius);
 		gs_effect_set_float(data->param_star_an, data->an);
 		gs_effect_set_float(data->param_star_en, data->en);
 		gs_effect_set_vec2(data->param_star_acs, &data->acs);
 		gs_effect_set_vec2(data->param_star_ecs, &data->ecs);
 		gs_effect_set_float(data->param_star_feather_amount,
-			data->feather_amount);
+				    data->feather_amount);
 		gs_effect_set_float(data->param_star_radius,
-			data->star_outer_radius);
+				    data->star_outer_radius);
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_star_global_position,
-				&data->global_position);
-		}
-		else {
+					   &data->global_position);
+		} else {
 			gs_effect_set_vec2(data->param_star_global_position,
-				&data->mask_center);
+					   &data->mask_center);
 		}
 		gs_effect_set_float(data->param_star_global_scale,
-			data->shape_relative ? scale_factor : 1.0f);
+				    data->shape_relative ? scale_factor : 1.0f);
 
 		const float min_brightness = color_adj->adj_brightness
-			? color_adj->min_brightness
-			: 0.0f;
+						     ? color_adj->min_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_star_min_brightness,
-			min_brightness);
+				    min_brightness);
 		const float max_brightness = color_adj->adj_brightness
-			? color_adj->max_brightness
-			: 0.0f;
+						     ? color_adj->max_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_star_max_brightness,
-			max_brightness);
+				    max_brightness);
 
 		const float min_contrast = color_adj->adj_contrast
-			? color_adj->min_contrast
-			: 0.0f;
+						   ? color_adj->min_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_star_min_contrast,
-			min_contrast);
+				    min_contrast);
 		const float max_contrast = color_adj->adj_contrast
-			? color_adj->max_contrast
-			: 0.0f;
+						   ? color_adj->max_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_star_max_contrast,
-			max_contrast);
+				    max_contrast);
 
 		const float min_saturation = color_adj->adj_saturation
-			? color_adj->min_saturation
-			: 1.0f;
+						     ? color_adj->min_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_star_min_saturation,
-			min_saturation);
+				    min_saturation);
 		const float max_saturation = color_adj->adj_saturation
-			? color_adj->max_saturation
-			: 1.0f;
+						     ? color_adj->max_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_star_max_saturation,
-			max_saturation);
+				    max_saturation);
 
 		const float min_hue_shift = color_adj->adj_hue_shift
-			? color_adj->min_hue_shift
-			: 0.0f;
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
 		gs_effect_set_float(data->param_star_min_hue_shift,
-			min_hue_shift);
+				    min_hue_shift);
 		const float max_hue_shift = color_adj->adj_hue_shift
-			? color_adj->max_hue_shift
-			: 1.0f;
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
 		gs_effect_set_float(data->param_star_max_hue_shift,
-			max_hue_shift);
+				    max_hue_shift);
 
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
@@ -1851,8 +2351,11 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		gs_effect_set_vec2(data->param_star_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-		obs_source_process_filter_tech_end(base->context, data->effect_star_mask, 0, 0, technique);
+		gs_blend_function_separate(GS_BLEND_SRCALPHA,
+					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
+					   GS_BLEND_INVSRCALPHA);
+		obs_source_process_filter_tech_end(
+			base->context, data->effect_star_mask, 0, 0, technique);
 		gs_blend_state_pop();
 	}
 }
@@ -1861,7 +2364,7 @@ static void render_circle_mask(mask_shape_data_t *data,
 			       base_filter_data_t *base,
 			       color_adjustments_data_t *color_adj)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t width = obs_source_get_base_width(target);
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
@@ -1874,88 +2377,91 @@ static void render_circle_mask(mask_shape_data_t *data,
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+		obs_filter_get_target(base->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	if (source_space == GS_CS_709_EXTENDED) {
 		obs_source_skip_video_filter(base->context);
 	}
-	const char* technique =
+	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
-		? "Alpha"
+			? "Alpha"
 		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
-		? "AlphaFrameCheck"
-		: "Adjustments";
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_NO_DIRECT_RENDERING)) {
+			? "AlphaFrameCheck"
+			: "Adjustments";
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
-		gs_effect_set_float(data->param_circle_invert, data->invert_mask ? 1.0f : 0.0f);
+		gs_effect_set_float(data->param_circle_invert,
+				    data->invert_mask ? 1.0f : 0.0f);
 		gs_effect_set_float(data->param_circle_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_float(data->param_circle_alpha_zero,
-			data->frame_check ? 0.3f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 		gs_effect_set_vec2(data->param_circle_mask_position,
-			&data->mask_center);
+				   &data->mask_center);
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_circle_global_position,
-				&data->global_position);
-		}
-		else {
+					   &data->global_position);
+		} else {
 			gs_effect_set_vec2(data->param_circle_global_position,
-				&data->mask_center);
+					   &data->mask_center);
 		}
 		gs_effect_set_float(data->param_circle_global_scale,
-			data->shape_relative ? scale_factor : 1.0f);
+				    data->shape_relative ? scale_factor : 1.0f);
 		gs_effect_set_float(data->param_circle_radius, data->radius);
 		gs_effect_set_float(data->param_circle_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_float(data->param_circle_feather_amount,
-			data->feather_amount);
+				    data->feather_amount);
 
 		const float min_brightness = color_adj->adj_brightness
-			? color_adj->min_brightness
-			: 0.0f;
+						     ? color_adj->min_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_circle_min_brightness,
-			min_brightness);
+				    min_brightness);
 		const float max_brightness = color_adj->adj_brightness
-			? color_adj->max_brightness
-			: 0.0f;
+						     ? color_adj->max_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_circle_max_brightness,
-			max_brightness);
+				    max_brightness);
 
 		const float min_contrast = color_adj->adj_contrast
-			? color_adj->min_contrast
-			: 0.0f;
+						   ? color_adj->min_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_circle_min_contrast,
-			min_contrast);
+				    min_contrast);
 		const float max_contrast = color_adj->adj_contrast
-			? color_adj->max_contrast
-			: 0.0f;
+						   ? color_adj->max_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_circle_max_contrast,
-			max_contrast);
+				    max_contrast);
 
 		const float min_saturation = color_adj->adj_saturation
-			? color_adj->min_saturation
-			: 1.0f;
+						     ? color_adj->min_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_circle_min_saturation,
-			min_saturation);
+				    min_saturation);
 		const float max_saturation = color_adj->adj_saturation
-			? color_adj->max_saturation
-			: 1.0f;
+						     ? color_adj->max_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_circle_max_saturation,
-			max_saturation);
+				    max_saturation);
 
 		const float min_hue_shift = color_adj->adj_hue_shift
-			? color_adj->min_hue_shift
-			: 0.0f;
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
 		gs_effect_set_float(data->param_circle_min_hue_shift,
-			min_hue_shift);
+				    min_hue_shift);
 		const float max_hue_shift = color_adj->adj_hue_shift
-			? color_adj->max_hue_shift
-			: 1.0f;
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
 		gs_effect_set_float(data->param_circle_max_hue_shift,
-			max_hue_shift);
+				    max_hue_shift);
 
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
@@ -1963,8 +2469,12 @@ static void render_circle_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_circle_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-		obs_source_process_filter_tech_end(base->context, data->effect_circle_mask, 0, 0, technique);
+		gs_blend_function_separate(GS_BLEND_SRCALPHA,
+					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
+					   GS_BLEND_INVSRCALPHA);
+		obs_source_process_filter_tech_end(base->context,
+						   data->effect_circle_mask, 0,
+						   0, technique);
 		gs_blend_state_pop();
 	}
 }
@@ -1972,7 +2482,7 @@ static void render_circle_mask(mask_shape_data_t *data,
 static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 			      color_adjustments_data_t *color_adj)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t width = obs_source_get_base_width(target);
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
@@ -1985,94 +2495,97 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+		obs_filter_get_target(base->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	if (source_space == GS_CS_709_EXTENDED) {
 		obs_source_skip_video_filter(base->context);
 	}
-	const char* technique =
+	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
-		? "Alpha"
+			? "Alpha"
 		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
-		? "AlphaFrameCheck"
-		: "Adjustments";
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_NO_DIRECT_RENDERING)) {
+			? "AlphaFrameCheck"
+			: "Adjustments";
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
-		gs_effect_set_float(data->param_heart_invert, data->invert_mask ? 1.0f : 0.0f);
+		gs_effect_set_float(data->param_heart_invert,
+				    data->invert_mask ? 1.0f : 0.0f);
 		gs_effect_set_float(data->param_heart_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_float(data->param_heart_alpha_zero,
-			data->frame_check ? 0.3f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 		gs_effect_set_vec2(data->param_heart_mask_position,
-			&data->mask_center);
+				   &data->mask_center);
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_heart_global_position,
-				&data->global_position);
-		}
-		else {
+					   &data->global_position);
+		} else {
 			gs_effect_set_vec2(data->param_heart_global_position,
-				&data->mask_center);
+					   &data->mask_center);
 		}
 		gs_effect_set_float(data->param_heart_global_scale,
-			data->shape_relative ? scale_factor : 1.0f);
+				    data->shape_relative ? scale_factor : 1.0f);
 		gs_effect_set_float(data->param_heart_size, data->heart_size);
 		gs_effect_set_float(data->param_heart_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_float(data->param_heart_sin_rot,
-			(float)sin(data->rotation));
+				    (float)sin(data->rotation));
 		gs_effect_set_float(data->param_heart_cos_rot,
-			(float)cos(data->rotation));
+				    (float)cos(data->rotation));
 		gs_effect_set_float(data->param_heart_corner_radius,
-			data->star_corner_radius);
+				    data->star_corner_radius);
 		gs_effect_set_float(data->param_heart_feather_amount,
-			data->feather_amount);
+				    data->feather_amount);
 
 		const float min_brightness = color_adj->adj_brightness
-			? color_adj->min_brightness
-			: 0.0f;
+						     ? color_adj->min_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_heart_min_brightness,
-			min_brightness);
+				    min_brightness);
 		const float max_brightness = color_adj->adj_brightness
-			? color_adj->max_brightness
-			: 0.0f;
+						     ? color_adj->max_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_heart_max_brightness,
-			max_brightness);
+				    max_brightness);
 
 		const float min_contrast = color_adj->adj_contrast
-			? color_adj->min_contrast
-			: 0.0f;
+						   ? color_adj->min_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_heart_min_contrast,
-			min_contrast);
+				    min_contrast);
 		const float max_contrast = color_adj->adj_contrast
-			? color_adj->max_contrast
-			: 0.0f;
+						   ? color_adj->max_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_heart_max_contrast,
-			max_contrast);
+				    max_contrast);
 
 		const float min_saturation = color_adj->adj_saturation
-			? color_adj->min_saturation
-			: 1.0f;
+						     ? color_adj->min_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_heart_min_saturation,
-			min_saturation);
+				    min_saturation);
 		const float max_saturation = color_adj->adj_saturation
-			? color_adj->max_saturation
-			: 1.0f;
+						     ? color_adj->max_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_heart_max_saturation,
-			max_saturation);
+				    max_saturation);
 
 		const float min_hue_shift = color_adj->adj_hue_shift
-			? color_adj->min_hue_shift
-			: 0.0f;
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
 		gs_effect_set_float(data->param_heart_min_hue_shift,
-			min_hue_shift);
+				    min_hue_shift);
 		const float max_hue_shift = color_adj->adj_hue_shift
-			? color_adj->max_hue_shift
-			: 1.0f;
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
 		gs_effect_set_float(data->param_heart_max_hue_shift,
-			max_hue_shift);
+				    max_hue_shift);
 
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
@@ -2080,8 +2593,12 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		gs_effect_set_vec2(data->param_heart_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-		obs_source_process_filter_tech_end(base->context, data->effect_heart_mask, 0, 0, technique);
+		gs_blend_function_separate(GS_BLEND_SRCALPHA,
+					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
+					   GS_BLEND_INVSRCALPHA);
+		obs_source_process_filter_tech_end(base->context,
+						   data->effect_heart_mask, 0,
+						   0, technique);
 		gs_blend_state_pop();
 	}
 }
@@ -2090,7 +2607,7 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 				base_filter_data_t *base,
 				color_adjustments_data_t *color_adj)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t width = obs_source_get_base_width(target);
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
@@ -2103,91 +2620,95 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+		obs_filter_get_target(base->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	if (source_space == GS_CS_709_EXTENDED) {
 		obs_source_skip_video_filter(base->context);
 	}
-	const char* technique =
+	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
-		? "Alpha"
+			? "Alpha"
 		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
-		? "AlphaFrameCheck"
-		: "Adjustments";
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_NO_DIRECT_RENDERING)) {
+			? "AlphaFrameCheck"
+			: "Adjustments";
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
-		gs_effect_set_float(data->param_ellipse_invert, data->invert_mask ? 1.0f : 0.0f);
+		gs_effect_set_float(data->param_ellipse_invert,
+				    data->invert_mask ? 1.0f : 0.0f);
 		gs_effect_set_float(data->param_ellipse_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_vec2(data->param_ellipse_mask_position,
-			&data->mask_center);
+				   &data->mask_center);
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_ellipse_global_position,
-				&data->global_position);
+					   &data->global_position);
 		} else {
 			gs_effect_set_vec2(data->param_ellipse_global_position,
-				&data->mask_center);
+					   &data->mask_center);
 		}
 		gs_effect_set_float(data->param_ellipse_global_scale,
-			data->shape_relative ? scale_factor : 1.0f);
+				    data->shape_relative ? scale_factor : 1.0f);
 		gs_effect_set_float(data->param_ellipse_sin_rot,
-			(float)sin(data->rotation));
+				    (float)sin(data->rotation));
 		gs_effect_set_float(data->param_ellipse_cos_rot,
-			(float)cos(data->rotation));
+				    (float)cos(data->rotation));
 		gs_effect_set_float(data->param_ellipse_alpha_zero,
-			data->frame_check ? 0.3f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 		gs_effect_set_vec2(data->param_ellipse_ellipse, &data->ellipse);
 		gs_effect_set_float(data->param_ellipse_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_float(data->param_ellipse_feather_amount,
-			data->feather_amount);
+				    data->feather_amount);
 
 		const float min_brightness = color_adj->adj_brightness
-			? color_adj->min_brightness
-			: 0.0f;
+						     ? color_adj->min_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_ellipse_min_brightness,
-			min_brightness);
+				    min_brightness);
 		const float max_brightness = color_adj->adj_brightness
-			? color_adj->max_brightness
-			: 0.0f;
+						     ? color_adj->max_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_ellipse_max_brightness,
-			max_brightness);
+				    max_brightness);
 
 		const float min_contrast = color_adj->adj_contrast
-			? color_adj->min_contrast
-			: 0.0f;
+						   ? color_adj->min_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_ellipse_min_contrast,
-			min_contrast);
+				    min_contrast);
 		const float max_contrast = color_adj->adj_contrast
-			? color_adj->max_contrast
-			: 0.0f;
+						   ? color_adj->max_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_ellipse_max_contrast,
-			max_contrast);
+				    max_contrast);
 
 		const float min_saturation = color_adj->adj_saturation
-			? color_adj->min_saturation
-			: 1.0f;
+						     ? color_adj->min_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_ellipse_min_saturation,
-			min_saturation);
+				    min_saturation);
 		const float max_saturation = color_adj->adj_saturation
-			? color_adj->max_saturation
-			: 1.0f;
+						     ? color_adj->max_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_ellipse_max_saturation,
-			max_saturation);
+				    max_saturation);
 
 		const float min_hue_shift = color_adj->adj_hue_shift
-			? color_adj->min_hue_shift
-			: 0.0f;
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
 		gs_effect_set_float(data->param_ellipse_min_hue_shift,
-			min_hue_shift);
+				    min_hue_shift);
 		const float max_hue_shift = color_adj->adj_hue_shift
-			? color_adj->max_hue_shift
-			: 1.0f;
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
 		gs_effect_set_float(data->param_ellipse_max_hue_shift,
-			max_hue_shift);
+				    max_hue_shift);
 
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
@@ -2195,17 +2716,21 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_ellipse_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-		obs_source_process_filter_tech_end(base->context, data->effect_ellipse_mask, 0, 0, technique);
+		gs_blend_function_separate(GS_BLEND_SRCALPHA,
+					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
+					   GS_BLEND_INVSRCALPHA);
+		obs_source_process_filter_tech_end(base->context,
+						   data->effect_ellipse_mask, 0,
+						   0, technique);
 		gs_blend_state_pop();
 	}
 }
 
-static void render_superfunction_mask(mask_shape_data_t* data,
-	base_filter_data_t* base,
-	color_adjustments_data_t* color_adj)
+static void render_superfunction_mask(mask_shape_data_t *data,
+				      base_filter_data_t *base,
+				      color_adjustments_data_t *color_adj)
 {
-	obs_source_t* target = obs_filter_get_target(base->context);
+	obs_source_t *target = obs_filter_get_target(base->context);
 	uint32_t width = obs_source_get_base_width(target);
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
@@ -2218,102 +2743,100 @@ static void render_superfunction_mask(mask_shape_data_t* data,
 	};
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
+		obs_filter_get_target(base->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	if (source_space == GS_CS_709_EXTENDED) {
 		obs_source_skip_video_filter(base->context);
 	}
-	const char* technique =
+	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
-		? "Alpha"
+			? "Alpha"
 		: base->mask_effect == MASK_EFFECT_ALPHA && data->frame_check
-		? "AlphaFrameCheck"
-		: "Adjustments";
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-		OBS_NO_DIRECT_RENDERING)) {
+			? "AlphaFrameCheck"
+			: "Adjustments";
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
 
 		float scale_factor = data->global_scale / 100.0f;
 
-		gs_effect_set_float(data->param_super_invert, data->invert_mask ? 1.0f : 0.0f);
+		gs_effect_set_float(data->param_super_invert,
+				    data->invert_mask ? 1.0f : 0.0f);
 		gs_effect_set_float(data->param_super_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 		gs_effect_set_vec2(data->param_super_mask_position,
-			&data->mask_center);
+				   &data->mask_center);
 		if (data->shape_relative) {
 			gs_effect_set_vec2(data->param_super_global_position,
-				&data->global_position);
+					   &data->global_position);
 		} else {
 			gs_effect_set_vec2(data->param_super_global_position,
-				&data->mask_center);
+					   &data->mask_center);
 		}
 		gs_effect_set_float(data->param_super_global_scale,
-			data->shape_relative ? scale_factor : 1.0f);
+				    data->shape_relative ? scale_factor : 1.0f);
 		gs_effect_set_float(data->param_super_sin_theta,
-			(float)sin(data->rotation));
+				    (float)sin(data->rotation));
 		gs_effect_set_float(data->param_super_cos_theta,
-			(float)cos(data->rotation));
+				    (float)cos(data->rotation));
 		gs_effect_set_float(data->param_super_alpha_zero,
-			data->frame_check ? 0.3f : 0.0f);
+				    data->frame_check ? 0.3f : 0.0f);
 		gs_effect_set_float(data->param_super_zoom,
-			data->zoom / 100.0f);
+				    data->zoom / 100.0f);
 
-		gs_effect_set_float(data->param_super_a,
-			data->a);
-		gs_effect_set_float(data->param_super_b,
-			data->b);
-		gs_effect_set_float(data->param_super_m,
-			data->m);
-		gs_effect_set_float(data->param_super_n1,
-			data->n1);
-		gs_effect_set_float(data->param_super_n2,
-			data->n2);
-		gs_effect_set_float(data->param_super_n3,
-			data->n3);
+		gs_effect_set_float(data->param_super_a, data->a);
+		gs_effect_set_float(data->param_super_b, data->b);
+		gs_effect_set_float(data->param_super_m, data->m);
+		gs_effect_set_float(data->param_super_n1, data->n1);
+		gs_effect_set_float(data->param_super_n2, data->n2);
+		gs_effect_set_float(data->param_super_n3, data->n3);
 		gs_effect_set_float(data->param_super_min_r, data->min_r);
 
 		const float min_brightness = color_adj->adj_brightness
-			? color_adj->min_brightness
-			: 0.0f;
+						     ? color_adj->min_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_super_min_brightness,
-			min_brightness);
+				    min_brightness);
 		const float max_brightness = color_adj->adj_brightness
-			? color_adj->max_brightness
-			: 0.0f;
+						     ? color_adj->max_brightness
+						     : 0.0f;
 		gs_effect_set_float(data->param_super_max_brightness,
-			max_brightness);
+				    max_brightness);
 
 		const float min_contrast = color_adj->adj_contrast
-			? color_adj->min_contrast
-			: 0.0f;
+						   ? color_adj->min_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_super_min_contrast,
-			min_contrast);
+				    min_contrast);
 		const float max_contrast = color_adj->adj_contrast
-			? color_adj->max_contrast
-			: 0.0f;
+						   ? color_adj->max_contrast
+						   : 0.0f;
 		gs_effect_set_float(data->param_super_max_contrast,
-			max_contrast);
+				    max_contrast);
 
 		const float min_saturation = color_adj->adj_saturation
-			? color_adj->min_saturation
-			: 1.0f;
+						     ? color_adj->min_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_super_min_saturation,
-			min_saturation);
+				    min_saturation);
 		const float max_saturation = color_adj->adj_saturation
-			? color_adj->max_saturation
-			: 1.0f;
+						     ? color_adj->max_saturation
+						     : 1.0f;
 		gs_effect_set_float(data->param_super_max_saturation,
-			max_saturation);
+				    max_saturation);
 
 		const float min_hue_shift = color_adj->adj_hue_shift
-			? color_adj->min_hue_shift
-			: 0.0f;
+						    ? color_adj->min_hue_shift
+						    : 0.0f;
 		gs_effect_set_float(data->param_super_min_hue_shift,
-			min_hue_shift);
+				    min_hue_shift);
 		const float max_hue_shift = color_adj->adj_hue_shift
-			? color_adj->max_hue_shift
-			: 1.0f;
+						    ? color_adj->max_hue_shift
+						    : 1.0f;
 		gs_effect_set_float(data->param_super_max_hue_shift,
-			max_hue_shift);
+				    max_hue_shift);
 
 		struct vec2 uv_size;
 		uv_size.x = (float)base->width;
@@ -2321,8 +2844,12 @@ static void render_superfunction_mask(mask_shape_data_t* data,
 		gs_effect_set_vec2(data->param_super_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-		obs_source_process_filter_tech_end(base->context, data->effect_super_mask, 0, 0, technique);
+		gs_blend_function_separate(GS_BLEND_SRCALPHA,
+					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
+					   GS_BLEND_INVSRCALPHA);
+		obs_source_process_filter_tech_end(base->context,
+						   data->effect_super_mask, 0,
+						   0, technique);
 		gs_blend_state_pop();
 	}
 }
@@ -2379,7 +2906,8 @@ static void load_rectangle_mask_effect(mask_shape_data_t *data)
 				data->param_global_scale = param;
 			} else if (strcmp(info.name, "corner_radius") == 0) {
 				data->param_corner_radius = param;
-			} else if (strcmp(info.name, "max_corner_radius") == 0) {
+			} else if (strcmp(info.name, "max_corner_radius") ==
+				   0) {
 				data->param_max_corner_radius = param;
 			} else if (strcmp(info.name, "aspect_ratio") == 0) {
 				data->param_rect_aspect_ratio = param;
@@ -2728,18 +3256,18 @@ static void load_heart_mask_effect(mask_shape_data_t *data)
 	}
 }
 
-static void load_super_mask_effect(mask_shape_data_t* data)
+static void load_super_mask_effect(mask_shape_data_t *data)
 {
-	const char* effect_file_path = "/shaders/superformula-mask.effect";
+	const char *effect_file_path = "/shaders/superformula-mask.effect";
 
-	data->effect_super_mask = load_shader_effect(
-		data->effect_super_mask, effect_file_path);
+	data->effect_super_mask =
+		load_shader_effect(data->effect_super_mask, effect_file_path);
 	if (data->effect_super_mask) {
 		size_t effect_count =
 			gs_effect_get_num_params(data->effect_super_mask);
 		for (size_t effect_index = 0; effect_index < effect_count;
-			effect_index++) {
-			gs_eparam_t* param = gs_effect_get_param_by_idx(
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
 				data->effect_super_mask, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
