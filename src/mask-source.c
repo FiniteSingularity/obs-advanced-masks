@@ -28,6 +28,9 @@ mask_source_data_t *mask_source_create(obs_data_t *settings)
 	data->param_source_min_hue_shift = NULL;
 	data->param_source_max_hue_shift = NULL;
 	data->loading_effect = false;
+
+	dstr_init_copy(&data->mask_source_name, "");
+
 	mask_source_update(data, settings);
 	load_source_effect_files(data);
 
@@ -53,6 +56,7 @@ void mask_source_destroy(mask_source_data_t *data)
 		bfree(data->mask_image);
 	}
 	obs_leave_graphics();
+	dstr_free(&data->mask_source_name);
 	bfree(data->mask_image_path);
 	bfree(data);
 }
@@ -62,6 +66,7 @@ void mask_source_update(mask_source_data_t *data,
 {
 	const char *mask_source_name =
 		obs_data_get_string(settings, "mask_source");
+	dstr_copy(&data->mask_source_name, mask_source_name);
 	obs_source_t *mask_source =
 		(mask_source_name && strlen(mask_source_name))
 			? obs_get_source_by_name(mask_source_name)
@@ -852,6 +857,25 @@ static void set_render_params(mask_source_data_t *data,
 gs_texrender_t* get_mask_source_texrender(mask_source_data_t* data, base_filter_data_t* base)
 {
 	gs_texrender_t* mask_source_render = NULL;
+
+	// Groups can take a few frames to register, so check to see if there is
+	// a mask source selected by the user (mask_source_name) but no registered
+	// mask source (mask_source_source).  If so, attempt to register the
+	// mask_source_source.
+	if (!data->mask_source_source && !dstr_is_empty(&data->mask_source_name))
+	{
+		obs_source_t* mask_source = obs_get_source_by_name(data->mask_source_name.array);
+		if (mask_source) {
+			obs_weak_source_release(data->mask_source_source);
+			data->mask_source_source =
+				obs_source_get_weak_source(mask_source);
+			obs_source_release(mask_source);
+		}
+		else {
+			data->mask_source_source = NULL;
+		}
+	}
+
 	obs_source_t* source =
 		data->mask_source_source
 		? obs_weak_source_get_source(data->mask_source_source)
