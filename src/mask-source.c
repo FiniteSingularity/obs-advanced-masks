@@ -862,7 +862,8 @@ gs_texrender_t* get_mask_source_texrender(mask_source_data_t* data, base_filter_
 	// a mask source selected by the user (mask_source_name) but no registered
 	// mask source (mask_source_source).  If so, attempt to register the
 	// mask_source_source.
-	if (!data->mask_source_source && !dstr_is_empty(&data->mask_source_name))
+	bool has_mask = !dstr_is_empty(&data->mask_source_name) && dstr_cmp(&data->mask_source_name, obs_module_text("AdvancedMasks.Common.None")) != 0;
+	if (!data->mask_source_source && has_mask)
 	{
 		obs_source_t* mask_source = obs_get_source_by_name(data->mask_source_name.array);
 		if (mask_source) {
