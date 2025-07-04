@@ -21,7 +21,7 @@ add_library(${PROJECT_NAME} MODULE)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/version.h)
 
 # The were the archive is supposed to be installed inside the Flatpak runtime
-set(JSON_TARBALL_PATH "/app/share/json/json.tar.xz")
+set(JSON_TARBALL_PATH "${CMAKE_SOURCE_DIR}/json.tar.xz")
 
 target_sources(${PROJECT_NAME} PRIVATE
 	src/advanced-masks-filter.c
