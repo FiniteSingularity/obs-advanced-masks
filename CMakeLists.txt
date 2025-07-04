@@ -57,6 +57,12 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 if(BUILD_OUT_OF_TREE)
 
+    find_package(libobs REQUIRED)
+    find_package(obs-frontend-api REQUIRED)
+    include(cmake/ObsPluginHelpers.cmake)
+    find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
+    set(OBS_FRONTEND_API_NAME "obs-frontend-api")
+
     # Check if it exists
     if(EXISTS "${JSON_TARBALL_PATH}")
         message(STATUS "Found local json.tar.xz at ${JSON_TARBALL_PATH}")
@@ -76,14 +82,10 @@ if(BUILD_OUT_OF_TREE)
         #
         # Adjust this path depending on the archive structure.
         # Let's assume it's `single_include`.
-        include_directories("${CMAKE_BINARY_DIR}/json/single_include")
+        add_library(nlohmann_json INTERFACE)
+        target_include_directories(nlohmann_json INTERFACE "${CMAKE_BINARY_DIR}/json/json/single_include")
     else()
         message(STATUS "json.tar.xz not found locally, using FetchContent to download")
-        find_package(libobs REQUIRED)
-        find_package(obs-frontend-api REQUIRED)
-        include(cmake/ObsPluginHelpers.cmake)
-        find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
-        set(OBS_FRONTEND_API_NAME "obs-frontend-api")
 
         include(FetchContent)
         FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
