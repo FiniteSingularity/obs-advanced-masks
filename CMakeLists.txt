@@ -20,7 +20,7 @@ add_library(${PROJECT_NAME} MODULE)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/version.h)
 
-# The were the archive is supposed to be installed inside the Flatpak runtime
+# Path were nlohmann_json is supposed to be installed inside the Flatpak runtime
 set(JSON_TARBALL_PATH "${CMAKE_SOURCE_DIR}/json.tar.xz")
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -63,30 +63,16 @@ if(BUILD_OUT_OF_TREE)
     find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
     set(OBS_FRONTEND_API_NAME "obs-frontend-api")
 
-    # Check if it exists
+    # Check if nlohmann_json exists
     if(EXISTS "${JSON_TARBALL_PATH}")
-        message(STATUS "Found local json.tar.xz at ${JSON_TARBALL_PATH}")
-
-        # Option 1: You can unpack it into the build directory yourself
-        #          (you likely want to do this, otherwise you can't use the headers)
-        #          (this will extract into ${CMAKE_BINARY_DIR}/json)
-        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/json")
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}")
         execute_process(
             COMMAND ${CMAKE_COMMAND} -E tar xJf "${JSON_TARBALL_PATH}"
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/json"
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         )
-        # You now have the nlohmann json headers in:
-        #   ${CMAKE_BINARY_DIR}/json/single_include/nlohmann
-        #   or
-        #   ${CMAKE_BINARY_DIR}/json/include/nlohmann
-        #
-        # Adjust this path depending on the archive structure.
-        # Let's assume it's `single_include`.
         add_library(nlohmann_json INTERFACE)
-        target_include_directories(nlohmann_json INTERFACE "${CMAKE_BINARY_DIR}/json/json/single_include")
+        target_include_directories(nlohmann_json INTERFACE "${CMAKE_BINARY_DIR}/json/single_include")
     else()
-        message(STATUS "json.tar.xz not found locally, using FetchContent to download")
-
         include(FetchContent)
         FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
         FetchContent_MakeAvailable(json)
