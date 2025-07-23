@@ -393,72 +393,8 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 		(float)obs_data_get_double(settings, "shape_ellipse_a");
 	data->ellipse.y =
 		(float)obs_data_get_double(settings, "shape_ellipse_b");
-	int super_mode = (int)obs_data_get_int(settings, "super_mode");
 
-	switch (super_mode) {
-	case SHAPE_SUPER_SQUIRCLE:
-		data->a = 0.5f *
-			  (float)obs_data_get_double(settings,
-						     "super_squircle_size") /
-			  data->fHeight;
-		data->b = 0.5f *
-			  (float)obs_data_get_double(settings,
-						     "super_squircle_size") /
-			  data->fHeight;
-		data->m = 4.0f;
-		data->n1 = (float)obs_data_get_double(
-			settings, "super_squircle_curvature");
-		data->n2 = (float)obs_data_get_double(
-			settings, "super_squircle_curvature");
-		data->n3 = (float)obs_data_get_double(
-			settings, "super_squircle_curvature");
-		break;
-	case SHAPE_SUPER_SUPERELLIPSE:
-		data->a = 0.5f *
-			  (float)obs_data_get_double(settings,
-						     "super_ellipse_width") /
-			  data->fHeight;
-		data->b = 0.5f *
-			  (float)obs_data_get_double(settings,
-						     "super_ellipse_height") /
-			  data->fHeight;
-		data->m = 4.0f;
-		data->n1 = (float)obs_data_get_double(
-			settings, "super_ellipse_curvature");
-		data->n2 = (float)obs_data_get_double(
-			settings, "super_ellipse_curvature");
-		data->n3 = (float)obs_data_get_double(
-			settings, "super_ellipse_curvature");
-		break;
-	case SHAPE_SUPER_SUPERFORMULA:
-		data->a = 0.5f *
-			  (float)obs_data_get_double(settings, "super_width");
-		data->b = 0.5f *
-			  (float)obs_data_get_double(settings, "super_height");
-		data->m = (float)obs_data_get_double(settings, "super_m");
-		data->n1 = (float)obs_data_get_double(settings, "super_n1");
-		data->n2 = (float)obs_data_get_double(settings, "super_n2");
-		data->n3 = (float)obs_data_get_double(settings, "super_n3");
-		break;
-	}
-
-	if (data->mask_shape_type == SHAPE_SUPERFORMULA) {
-		float min_r = 1.e9f;
-		for (float phi = 0.0f; phi < 6.2831853f; phi += 0.0062831853f) {
-			float r = 1.0f /
-				  powf(powf(fabsf(cosf(data->m * phi / 4.0f)) /
-						    data->a,
-					    data->n2) +
-					       powf(fabsf(sinf(data->m * phi /
-							       4.0f)) /
-							    data->b,
-						    data->n3),
-				       1.0f / data->n1);
-			min_r = r < min_r ? r : min_r;
-		}
-		min_r *= 0.95f;
-		data->min_r = min_r;
-	}
+	update_super_formula(data, settings);
 
 	float shape_corner_radius =
 		(float)obs_data_get_double(settings, "shape_corner_radius");
@@ -532,6 +468,76 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 	float heart_size = (float)obs_data_get_double(settings, "heart_size");
 	data->heart_size = heart_size * data->global_scale / 100.0f -
 			   (data->feather_shift + data->star_corner_radius);
+}
+
+void update_super_formula(mask_shape_data_t* data, obs_data_t* settings)
+{
+	int super_mode = (int)obs_data_get_int(settings, "super_mode");
+
+	switch (super_mode) {
+	case SHAPE_SUPER_SQUIRCLE:
+		data->a = 0.5f *
+			(float)obs_data_get_double(settings,
+				"super_squircle_size") /
+			data->fHeight;
+		data->b = 0.5f *
+			(float)obs_data_get_double(settings,
+				"super_squircle_size") /
+			data->fHeight;
+		data->m = 4.0f;
+		data->n1 = (float)obs_data_get_double(
+			settings, "super_squircle_curvature");
+		data->n2 = (float)obs_data_get_double(
+			settings, "super_squircle_curvature");
+		data->n3 = (float)obs_data_get_double(
+			settings, "super_squircle_curvature");
+		break;
+	case SHAPE_SUPER_SUPERELLIPSE:
+		data->a = 0.5f *
+			(float)obs_data_get_double(settings,
+				"super_ellipse_width") /
+			data->fHeight;
+		data->b = 0.5f *
+			(float)obs_data_get_double(settings,
+				"super_ellipse_height") /
+			data->fHeight;
+		data->m = 4.0f;
+		data->n1 = (float)obs_data_get_double(
+			settings, "super_ellipse_curvature");
+		data->n2 = (float)obs_data_get_double(
+			settings, "super_ellipse_curvature");
+		data->n3 = (float)obs_data_get_double(
+			settings, "super_ellipse_curvature");
+		break;
+	case SHAPE_SUPER_SUPERFORMULA:
+		data->a = 0.5f *
+			(float)obs_data_get_double(settings, "super_width");
+		data->b = 0.5f *
+			(float)obs_data_get_double(settings, "super_height");
+		data->m = (float)obs_data_get_double(settings, "super_m");
+		data->n1 = (float)obs_data_get_double(settings, "super_n1");
+		data->n2 = (float)obs_data_get_double(settings, "super_n2");
+		data->n3 = (float)obs_data_get_double(settings, "super_n3");
+		break;
+	}
+
+	if (data->mask_shape_type == SHAPE_SUPERFORMULA) {
+		float min_r = 1.e9f;
+		for (float phi = 0.0f; phi < 6.2831853f; phi += 0.0062831853f) {
+			float r = 1.0f /
+				powf(powf(fabsf(cosf(data->m * phi / 4.0f)) /
+					data->a,
+					data->n2) +
+					powf(fabsf(sinf(data->m * phi /
+						4.0f)) /
+						data->b,
+						data->n3),
+					1.0f / data->n1);
+			min_r = r < min_r ? r : min_r;
+		}
+		min_r *= 0.95f;
+		data->min_r = min_r;
+	}
 }
 
 void mask_shape_defaults(obs_data_t *settings, int version)
@@ -2735,6 +2741,15 @@ static void render_superfunction_mask(mask_shape_data_t *data,
 	uint32_t height = obs_source_get_base_height(target);
 	base->width = width;
 	base->height = height;
+
+	if (data->fWidth < 1.e-6f || data->fHeight < 1.e-6f)
+	{
+		obs_data_t* settings = obs_source_get_settings(base->context);
+		data->fWidth = (float)width;
+		data->fHeight = (float)height;
+		update_super_formula(data, settings);
+		obs_data_release(settings);
+	}
 
 	const enum gs_color_space preferred_spaces[] = {
 		GS_CS_SRGB,
