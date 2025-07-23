@@ -51,6 +51,7 @@ Shape Masks in Advanced Masks offer users a selection of [parameterized shapes](
 
 Shape masks also have a selectable [Scene View Transformation](#scene-view-tranformation) option which allows the user to fine tune the masked source's canvas position and scaling directly within the filter. This gives the ability to use plug-ins such as [Exeldro's Move](https://obsproject.com/forum/resources/move.913/) to animate mask changes, while retaining the proper aspect ratio.
 
+
 #### Usage
 ##### 1. Applying the Shape Mask
 - Select the source you want to apply the shape mask to.
@@ -160,3 +161,35 @@ Gradient Masks in Advanced Masks offer users the ability to create smooth transi
 - Preview the scene and make necessary adjustments to achieve your intended result.
 
 Thank you for exploring OBS Advanced Masks! Your feedback and contributions are highly appreciated as we continue to improve and expand this project.
+
+
+### Manual Installation of OBS Advanced Masks Plugin
+
+##### Linux:
+
+1. **Download the Plugin:**
+   - Visit the [OBS Advanced Masks plugin page](https://obsproject.com/forum/resources/advanced-masks.1856/).
+   - Click the "Download" button and select the Linux version of the plugin.
+
+2. **Extract the Downloaded File:**
+   - Locate the downloaded file on your computer.
+   - Extract the contents. You should get a folder named `obs-advanced-masks`.
+
+3. **Move the Plugin Folder:**
+   - Open your file manager and navigate to your home directory.
+   - Go to `.config/obs-studio/plugins`. **If the `plugins` folder does not exist, create it.**
+   - Move the extracted `obs-advanced-masks` folder into the `plugins` directory.
+
+##### For Other Operating Systems (Windows, macOS):
+
+- The installation process is similar, but you need to place the `obs-advanced-masks` folder in the appropriate directory for your operating system.
+
+- For specific paths, refer to the [OBS Plugins Guide](https://obsproject.com/kb/plugins-guide).
+
+**Note:** Make sure to restart OBS Studio after installing the plugin for it to be recognized.
+
+#### Usage:
+1. Create a video source and go to `filters`.
+2. Click on the "`+`" icon to add a filter to the `source`.
+3. Select `Advanced Mask`
+4. Explore it and have fun.
