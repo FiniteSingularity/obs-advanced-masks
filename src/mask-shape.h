@@ -292,6 +292,7 @@ extern mask_shape_data_t *mask_shape_create();
 extern void mask_shape_destroy(mask_shape_data_t *data);
 extern void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 			      obs_data_t *settings, int version);
+void update_super_formula(mask_shape_data_t* data, obs_data_t* settings);
 extern void mask_shape_defaults(obs_data_t *settings, int version);
 extern void shape_mask_top_properties(obs_properties_t *props);
 extern void shape_mask_bot_properties(obs_properties_t *props,
