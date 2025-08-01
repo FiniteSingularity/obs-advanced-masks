@@ -20,6 +20,9 @@ add_library(${PROJECT_NAME} MODULE)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/version.h)
 
+# Path were nlohmann_json is supposed to be installed inside the Flatpak runtime
+set(JSON_TARBALL_PATH "${CMAKE_SOURCE_DIR}/json.tar.xz")
+
 target_sources(${PROJECT_NAME} PRIVATE
 	src/advanced-masks-filter.c
 	src/base-filter.h
@@ -53,15 +56,27 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/version.h)
 
 if(BUILD_OUT_OF_TREE)
-	find_package(libobs REQUIRED)
-	find_package(obs-frontend-api REQUIRED)
-	include(cmake/ObsPluginHelpers.cmake)
-	find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
-	set(OBS_FRONTEND_API_NAME "obs-frontend-api")
 
-	include(FetchContent)
-	FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
-	FetchContent_MakeAvailable(json)
+    find_package(libobs REQUIRED)
+    find_package(obs-frontend-api REQUIRED)
+    include(cmake/ObsPluginHelpers.cmake)
+    find_qt(COMPONENTS Widgets Svg Xml COMPONENTS_LINUX Gui)
+    set(OBS_FRONTEND_API_NAME "obs-frontend-api")
+
+    # Check if nlohmann_json exists
+    if(EXISTS "${JSON_TARBALL_PATH}")
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E tar xJf "${JSON_TARBALL_PATH}"
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        )
+        add_library(nlohmann_json INTERFACE)
+        target_include_directories(nlohmann_json INTERFACE "${CMAKE_BINARY_DIR}/json/single_include")
+    else()
+        include(FetchContent)
+        FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+        FetchContent_MakeAvailable(json)
+    endif()
 else()
 	if(OBS_VERSION VERSION_GREATER_EQUAL 30.1.0)
 		find_package(Qt6 COMPONENTS Core Widgets Svg Xml)
