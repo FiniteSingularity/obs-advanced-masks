@@ -444,11 +444,6 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 			data->global_scale / 100.0f -
 		data->feather_shift;
 
-	data->star_outer_radius =
-		(float)obs_data_get_double(settings,
-					   "shape_star_outer_radius") *
-			data->global_scale / 100.0f -
-		(data->feather_shift + data->star_corner_radius);
 	float star_inner_radius =
 		(float)obs_data_get_double(settings, "shape_star_inner_radius");
 	float points =
@@ -464,6 +459,12 @@ void mask_shape_update(mask_shape_data_t *data, base_filter_data_t *base,
 
 	data->star_corner_radius =
 		(float)obs_data_get_double(settings, "star_corner_radius");
+
+	data->star_outer_radius =
+		(float)obs_data_get_double(settings,
+			"shape_star_outer_radius") *
+		data->global_scale / 100.0f -
+		(data->feather_shift + data->star_corner_radius);
 
 	float heart_size = (float)obs_data_get_double(settings, "heart_size");
 	data->heart_size = heart_size * data->global_scale / 100.0f -
