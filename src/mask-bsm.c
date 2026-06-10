@@ -13,6 +13,7 @@ mask_bsm_data_t *mask_bsm_create()
 	data->effect_bsm_mask = NULL;
 	data->mask_source_source = NULL;
 	data->alpha_reduction = 0.0f;
+	dstr_init_copy(&data->mask_source_name, "");
 
 	load_bsm_effect_files(data);
 
@@ -37,6 +38,8 @@ void mask_bsm_destroy(mask_bsm_data_t *data)
 		obs_weak_source_release(data->mask_source_source);
 	}
 
+	dstr_free(&data->mask_source_name);
+
 	obs_leave_graphics();
 	bfree(data);
 }
@@ -46,6 +49,9 @@ void mask_bsm_update(mask_bsm_data_t *data, obs_data_t *settings)
 	mask_bsm_defaults(settings);
 	const char *mask_source_name =
 		obs_data_get_string(settings, "bsm_mask_source");
+
+	dstr_copy(&data->mask_source_name, mask_source_name);
+
 	obs_source_t *mask_source =
 		(mask_source_name && strlen(mask_source_name))
 			? obs_get_source_by_name(mask_source_name)
@@ -171,6 +177,24 @@ static void setup_adjustment_params(mask_bsm_data_t* data, color_adjustments_dat
 static gs_texrender_t *get_mask_source_render(mask_bsm_data_t *data,
 					 base_filter_data_t *base)
 {
+	// Groups can take a few frames to register, so check to see if there is
+	// a mask source selected by the user (mask_source_name) but no registered
+	// mask source (mask_source_source).  If so, attempt to register the
+	// mask_source_source.
+	if (!data->mask_source_source &&
+	    !dstr_is_empty(&data->mask_source_name)) {
+		obs_source_t *mask_source =
+			obs_get_source_by_name(data->mask_source_name.array);
+		if (mask_source) {
+			obs_weak_source_release(data->mask_source_source);
+			data->mask_source_source =
+				obs_source_get_weak_source(mask_source);
+			obs_source_release(mask_source);
+		} else {
+			data->mask_source_source = NULL;
+		}
+	}
+
 	gs_texrender_t *mask_source_render = NULL;
 	obs_source_t *source =
 		data->mask_source_source

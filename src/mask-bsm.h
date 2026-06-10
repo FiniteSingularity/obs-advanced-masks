@@ -1,6 +1,7 @@
 #pragma once
 
 #include <obs-module.h>
+#include <util/dstr.h>
 #include <graphics/image-file.h>
 #include "base-filter.h"
 #include "color-adjustments.h"
@@ -18,6 +19,8 @@ struct mask_bsm_data {
 	float seconds;
 	float alpha_reduction;
 	bool freeze_frame;
+
+	struct dstr mask_source_name;
 
 	// shader params
 	gs_eparam_t *param_bsm_image;
