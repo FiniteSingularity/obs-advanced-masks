@@ -54,8 +54,7 @@ float4 mainImage(VertData v_in) : TARGET
 	float2 uv_svg = (coord - offset + svg_uv_size/2.0f) / svg_uv_size;
 	float4 svg = svg_image.Sample(svgSampler, uv_svg);
 	float4 c = image.Sample(textureSampler, v_in.uv);
-	c.a = c.a * svg.a;
-	return c;
+	return apply_alpha_mask(c, svg.a);
 }
 
 float4 faImage(VertData v_in) : TARGET
@@ -70,8 +69,7 @@ float4 faImage(VertData v_in) : TARGET
 	float4 c = image.Sample(textureSampler, v_in.uv);
 	svg.a = svg.a * (svg.r * (primary_alpha - secondary_alpha) + secondary_alpha);
 	svg.a = lerp(svg.a, (1.0 - svg.a), invert);
-	c.a = c.a * svg.a;
-	return c;
+	return apply_alpha_mask(c, svg.a);
 }
 
 float4 faAdjustmentsImage(VertData v_in) : TARGET

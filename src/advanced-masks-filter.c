@@ -20,6 +20,7 @@ struct obs_source_info advanced_masks_filter = {
 	.destroy = advanced_masks_destroy,
 	.update = advanced_masks_update,
 	.video_render = advanced_masks_video_render,
+	.video_get_color_space = advanced_masks_get_color_space,
 	.video_tick = advanced_masks_video_tick,
 	.get_width = advanced_masks_width,
 	.get_height = advanced_masks_height,
@@ -36,6 +37,7 @@ struct obs_source_info advanced_masks_filter_v2 = {
 	.destroy = advanced_masks_destroy,
 	.update = advanced_masks_update_v2,
 	.video_render = advanced_masks_video_render,
+	.video_get_color_space = advanced_masks_get_color_space,
 	.video_tick = advanced_masks_video_tick,
 	.get_width = advanced_masks_width,
 	.get_height = advanced_masks_height,
@@ -245,6 +247,34 @@ static void advanced_masks_video_render(void *data, gs_effect_t *effect)
 		filter->base->rendering = false;
 	}
 
+}
+
+static enum gs_color_space advanced_masks_get_color_space(
+	void *data, size_t count, const enum gs_color_space *preferred_spaces)
+{
+	advanced_masks_data_t *filter = data;
+	obs_source_t *target = obs_filter_get_target(filter->base->context);
+
+	if (!target)
+		return GS_CS_SRGB;
+
+	const enum gs_color_space potential_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		target, OBS_COUNTOF(potential_spaces), potential_spaces);
+
+	enum gs_color_space space = source_space;
+	for (size_t i = 0; i < count; ++i) {
+		space = preferred_spaces[i];
+		if (space == source_space)
+			break;
+	}
+
+	return space;
 }
 
 static bool advanced_masks_multi_pass(advanced_masks_data_t* filter)
@@ -797,18 +827,22 @@ void get_input_source(base_filter_data_t *filter)
 
 	const enum gs_color_format format =
 		gs_get_format_from_space(source_space);
+	filter->source_space = source_space;
+	filter->source_format = format;
 
 	// Set up our input_texrender to catch the output texture.
 	filter->input_texrender =
-		create_or_reset_texrender(filter->input_texrender);
+		create_or_reset_texrender_format(filter->input_texrender,
+						 format);
 
 	// Start the rendering process with our correct color space params,
 	// And set up your texrender to recieve the created texture.
 	if (obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
 		    OBS_NO_DIRECT_RENDERING) &&
-	    gs_texrender_begin(filter->input_texrender,
-			       filter->width, filter->height)) {
+	    gs_texrender_begin_with_color_space(filter->input_texrender,
+						filter->width, filter->height,
+						source_space)) {
 
 		set_blending_parameters();
 		gs_ortho(0.0f, (float)filter->width, 0.0f,
@@ -857,9 +891,11 @@ static void draw_output(advanced_masks_data_t *filter)
 				      texture);
 	}
 
-	obs_source_process_filter_end(filter->base->context, pass_through,
-				      filter->base->width,
-				      filter->base->height);
+	const char *technique =
+		source_space == GS_CS_SRGB ? "Draw" : "DrawLinear";
+	obs_source_process_filter_tech_end(filter->base->context, pass_through,
+					   filter->base->width,
+					   filter->base->height, technique);
 	//gs_blend_state_pop();
 }
 

@@ -52,6 +52,8 @@ extern "C" {
 
 		uint32_t width;
 		uint32_t height;
+		enum gs_color_space source_space;
+		enum gs_color_format source_format;
 
 		uint32_t mask_effect;
 		uint32_t mask_type;

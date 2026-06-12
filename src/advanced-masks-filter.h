@@ -13,6 +13,8 @@ static uint32_t advanced_masks_height(void *data);
 static void advanced_masks_update(void *data, obs_data_t *settings);
 static void advanced_masks_update_v2(void *data, obs_data_t *settings);
 static void advanced_masks_video_render(void *data, gs_effect_t *effect);
+static enum gs_color_space advanced_masks_get_color_space(
+	void *data, size_t count, const enum gs_color_space *preferred_spaces);
 static bool advanced_masks_multi_pass(advanced_masks_data_t* filter);
 static obs_properties_t *advanced_masks_properties(void *data);
 static void advanced_masks_video_tick(void *data, float seconds);

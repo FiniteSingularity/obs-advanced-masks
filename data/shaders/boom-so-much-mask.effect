@@ -55,7 +55,7 @@ float4 alphaImage(VertData v_in) : TARGET
 	buffer_color.a = max(0.0, buffer_color.a - alpha_reduction);
 	float alpha_mask = max(buffer_color.a, cur_color.a);
 	float4 c = image.Sample(textureSampler, v_in.uv);
-	return float4(c.rgb, c.a * alpha_mask);
+	return apply_alpha_mask(c, alpha_mask);
 }
 
 float4 adjustmentsImage(VertData v_in) : TARGET

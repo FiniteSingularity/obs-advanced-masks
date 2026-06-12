@@ -39,11 +39,25 @@ float4 mainImage(VertData v_in) : TARGET
 	return px;
 }
 
+float4 mainImageLinear(VertData v_in) : TARGET
+{
+	return output_image.Sample(textureSampler, v_in.uv);
+}
+
 technique Draw
 {
 	pass
 	{
 		vertex_shader = mainTransform(v_in);
 		pixel_shader = mainImage(v_in);
+	}
+}
+
+technique DrawLinear
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImageLinear(v_in);
 	}
 }

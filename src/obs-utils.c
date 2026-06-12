@@ -2,8 +2,17 @@
 
 gs_texrender_t *create_or_reset_texrender(gs_texrender_t *render)
 {
+	return create_or_reset_texrender_format(render, GS_RGBA);
+}
+
+gs_texrender_t *create_or_reset_texrender_format(gs_texrender_t *render,
+						 enum gs_color_format format)
+{
 	if (!render) {
-		render = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
+		render = gs_texrender_create(format, GS_ZS_NONE);
+	} else if (gs_texrender_get_format(render) != format) {
+		gs_texrender_destroy(render);
+		render = gs_texrender_create(format, GS_ZS_NONE);
 	} else {
 		gs_texrender_reset(render);
 	}

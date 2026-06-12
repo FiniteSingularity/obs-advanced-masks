@@ -615,84 +615,89 @@ void render_mask_svg(mask_svg_data_t* data,
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
-	else {
-		const char* technique = base->mask_effect == MASK_EFFECT_ALPHA
-			? "DrawFA"
-			: "DrawFAAdjustments";
-		const enum gs_color_format format = gs_get_format_from_space(source_space);
-		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_NO_DIRECT_RENDERING)) {
-			gs_effect_set_texture(data->param_svg_image, svg_texture);
-			struct vec2 uv_size;
-			uv_size.x = (float)base->width;
-			uv_size.y = (float)base->height;
-			gs_effect_set_vec2(data->param_uv_size, &uv_size);
+	const char* technique = base->mask_effect == MASK_EFFECT_ALPHA
+					? "DrawFA"
+					: "DrawFAAdjustments";
+	const enum gs_color_format format = gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
+		gs_effect_set_texture(data->param_svg_image, svg_texture);
+		struct vec2 uv_size;
+		uv_size.x = (float)base->width;
+		uv_size.y = (float)base->height;
+		gs_effect_set_vec2(data->param_uv_size, &uv_size);
 
-			struct vec2 svg_uv_size;
-			svg_uv_size.x = (float)data->svg_render_width;
-			svg_uv_size.y = (float)data->svg_render_height;
-			gs_effect_set_vec2(data->param_svg_uv_size, &svg_uv_size);
+		struct vec2 svg_uv_size;
+		svg_uv_size.x = (float)data->svg_render_width;
+		svg_uv_size.y = (float)data->svg_render_height;
+		gs_effect_set_vec2(data->param_svg_uv_size, &svg_uv_size);
 
-			struct vec2 offset;
-			offset.x = (float)data->offset_x;
-			offset.y = (float)data->offset_y;
-			gs_effect_set_vec2(data->param_offset, &offset);
+		struct vec2 offset;
+		offset.x = (float)data->offset_x;
+		offset.y = (float)data->offset_y;
+		gs_effect_set_vec2(data->param_offset, &offset);
 
-			gs_effect_set_float(data->param_primary_alpha, 1.0f);
-			gs_effect_set_float(data->param_secondary_alpha, 1.0f);
-			gs_effect_set_float(data->param_invert, data->invert ? 1.0f : 0.0f);
-			gs_effect_set_vec2(data->param_anchor, &data->anchor);
-			gs_effect_set_matrix4(data->param_rotation_matrix, &data->rotation_matrix);
+		gs_effect_set_float(data->param_primary_alpha, 1.0f);
+		gs_effect_set_float(data->param_secondary_alpha, 1.0f);
+		gs_effect_set_float(data->param_invert,
+				    data->invert ? 1.0f : 0.0f);
+		gs_effect_set_vec2(data->param_anchor, &data->anchor);
+		gs_effect_set_matrix4(data->param_rotation_matrix,
+				      &data->rotation_matrix);
 
-			if (base->mask_effect == MASK_EFFECT_ADJUSTMENT)
-			{
-				const float min_brightness = color_adj->adj_brightness
-					? color_adj->min_brightness
-					: 0.0f;
-				gs_effect_set_float(data->param_min_brightness, min_brightness);
-				const float max_brightness = color_adj->adj_brightness
-					? color_adj->max_brightness
-					: 0.0f;
-				gs_effect_set_float(data->param_max_brightness, max_brightness);
+		if (base->mask_effect == MASK_EFFECT_ADJUSTMENT) {
+			const float min_brightness = color_adj->adj_brightness
+							     ? color_adj->min_brightness
+							     : 0.0f;
+			gs_effect_set_float(data->param_min_brightness,
+					    min_brightness);
+			const float max_brightness = color_adj->adj_brightness
+							     ? color_adj->max_brightness
+							     : 0.0f;
+			gs_effect_set_float(data->param_max_brightness,
+					    max_brightness);
 
-				const float min_contrast = color_adj->adj_contrast
-					? color_adj->min_contrast
-					: 0.0f;
-				gs_effect_set_float(data->param_min_contrast, min_contrast);
-				const float max_contrast = color_adj->adj_contrast
-					? color_adj->max_contrast
-					: 0.0f;
-				gs_effect_set_float(data->param_max_contrast, max_contrast);
+			const float min_contrast = color_adj->adj_contrast
+							   ? color_adj->min_contrast
+							   : 0.0f;
+			gs_effect_set_float(data->param_min_contrast,
+					    min_contrast);
+			const float max_contrast = color_adj->adj_contrast
+							   ? color_adj->max_contrast
+							   : 0.0f;
+			gs_effect_set_float(data->param_max_contrast,
+					    max_contrast);
 
-				const float min_saturation = color_adj->adj_saturation
-					? color_adj->min_saturation
-					: 1.0f;
-				gs_effect_set_float(data->param_min_saturation, min_saturation);
-				const float max_saturation = color_adj->adj_saturation
-					? color_adj->max_saturation
-					: 1.0f;
-				gs_effect_set_float(data->param_max_saturation, max_saturation);
+			const float min_saturation =
+				color_adj->adj_saturation ? color_adj->min_saturation : 1.0f;
+			gs_effect_set_float(data->param_min_saturation,
+					    min_saturation);
+			const float max_saturation =
+				color_adj->adj_saturation ? color_adj->max_saturation : 1.0f;
+			gs_effect_set_float(data->param_max_saturation,
+					    max_saturation);
 
-				const float min_hue_shift = color_adj->adj_hue_shift
-					? color_adj->min_hue_shift
-					: 0.0f;
-				gs_effect_set_float(data->param_min_hue_shift, min_hue_shift);
+			const float min_hue_shift = color_adj->adj_hue_shift
+							    ? color_adj->min_hue_shift
+							    : 0.0f;
+			gs_effect_set_float(data->param_min_hue_shift,
+					    min_hue_shift);
 
-				const float max_hue_shift = color_adj->adj_hue_shift
-					? color_adj->max_hue_shift
-					: 1.0f;
-				gs_effect_set_float(data->param_max_hue_shift, max_hue_shift);
-			}
-
-			gs_blend_state_push();
-			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-
-			obs_source_process_filter_tech_end(base->context, data->effect_svg_mask, 0, 0, technique);
-			gs_blend_state_pop();
+			const float max_hue_shift = color_adj->adj_hue_shift
+							    ? color_adj->max_hue_shift
+							    : 1.0f;
+			gs_effect_set_float(data->param_max_hue_shift,
+					    max_hue_shift);
 		}
+
+		gs_blend_state_push();
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+		obs_source_process_filter_tech_end(
+			base->context, data->effect_svg_mask, 0, 0,
+			technique);
+		gs_blend_state_pop();
 	}
 }
 

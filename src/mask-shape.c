@@ -1564,9 +1564,6 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
 	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
 			? "Alpha"
@@ -2099,9 +2096,7 @@ static void render_rectangle_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_rectangle_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA,
-					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
-					   GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		obs_source_process_filter_tech_end(base->context,
 						   data->effect_rectangle_mask,
 						   0, 0, technique);
@@ -2128,9 +2123,6 @@ static void render_polygon_mask(mask_shape_data_t *data,
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
 	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
 			? "Alpha"
@@ -2232,9 +2224,7 @@ static void render_polygon_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_polygon_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA,
-					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
-					   GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		obs_source_process_filter_tech_end(base->context,
 						   data->effect_polygon_mask, 0,
 						   0, technique);
@@ -2260,9 +2250,6 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
 	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
 			? "Alpha"
@@ -2358,9 +2345,7 @@ static void render_star_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		gs_effect_set_vec2(data->param_star_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA,
-					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
-					   GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		obs_source_process_filter_tech_end(
 			base->context, data->effect_star_mask, 0, 0, technique);
 		gs_blend_state_pop();
@@ -2386,9 +2371,6 @@ static void render_circle_mask(mask_shape_data_t *data,
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
 	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
 			? "Alpha"
@@ -2476,9 +2458,7 @@ static void render_circle_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_circle_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA,
-					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
-					   GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		obs_source_process_filter_tech_end(base->context,
 						   data->effect_circle_mask, 0,
 						   0, technique);
@@ -2504,9 +2484,6 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
 	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
 			? "Alpha"
@@ -2600,9 +2577,7 @@ static void render_heart_mask(mask_shape_data_t *data, base_filter_data_t *base,
 		gs_effect_set_vec2(data->param_heart_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA,
-					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
-					   GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		obs_source_process_filter_tech_end(base->context,
 						   data->effect_heart_mask, 0,
 						   0, technique);
@@ -2629,9 +2604,6 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
 	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
 			? "Alpha"
@@ -2723,9 +2695,7 @@ static void render_ellipse_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_ellipse_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA,
-					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
-					   GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		obs_source_process_filter_tech_end(base->context,
 						   data->effect_ellipse_mask, 0,
 						   0, technique);
@@ -2761,9 +2731,6 @@ static void render_superfunction_mask(mask_shape_data_t *data,
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
 	const char *technique =
 		base->mask_effect == MASK_EFFECT_ALPHA && !data->frame_check
 			? "Alpha"
@@ -2860,9 +2827,7 @@ static void render_superfunction_mask(mask_shape_data_t *data,
 		gs_effect_set_vec2(data->param_super_uv_size, &uv_size);
 
 		gs_blend_state_push();
-		gs_blend_function_separate(GS_BLEND_SRCALPHA,
-					   GS_BLEND_INVSRCALPHA, GS_BLEND_ONE,
-					   GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		obs_source_process_filter_tech_end(base->context,
 						   data->effect_super_mask, 0,
 						   0, technique);

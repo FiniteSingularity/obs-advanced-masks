@@ -39,7 +39,7 @@ float4 PSFeather(VertData v_in) : TARGET
 	float4 rgba = image.Sample(textureSampler, v_in.uv);
 	float4 dist_texture = distance_field.Sample(sdfSampler, v_in.uv);
 	float mask = saturate(distance(coord, dist_texture.xy) / feather_size);
-	float4 retColor = float4(rgba.r, rgba.g, rgba.b, rgba.a * mask);
+	float4 retColor = float4(rgba.rgb * mask, rgba.a * mask);
 	return retColor;
 }
 

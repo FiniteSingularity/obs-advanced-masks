@@ -315,26 +315,24 @@ void render_super_key_mask(mask_chroma_key_data_t* data,
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
-	else {
-		const char* technique = data->showMatte ? "DrawMatte" : "Draw";
-		const enum gs_color_format format = gs_get_format_from_space(source_space);
-		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_NO_DIRECT_RENDERING)) {
-			gs_effect_set_float(data->param_super_key_k, data->k);
-			gs_effect_set_float(data->param_super_key_k2, data->k2);
-			gs_effect_set_float(data->param_super_key_veil, data->veil);
+	const char* technique = data->showMatte ? "DrawMatte" : "Draw";
+	const enum gs_color_format format = gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
+		gs_effect_set_float(data->param_super_key_k, data->k);
+		gs_effect_set_float(data->param_super_key_k2, data->k2);
+		gs_effect_set_float(data->param_super_key_veil, data->veil);
 
-			gs_blend_state_push();
-			//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+		gs_blend_state_push();
+		//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
-			obs_source_process_filter_tech_end(base->context, data->effect_super_key_mask, 0, 0, technique);
+		obs_source_process_filter_tech_end(
+			base->context, data->effect_super_key_mask, 0, 0,
+			technique);
 
-			gs_blend_state_pop();
-		}
+		gs_blend_state_pop();
 	}
 }
 
@@ -356,34 +354,41 @@ void render_advanced_key_mask(mask_chroma_key_data_t* data,
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	}
-	else {
-		const char* technique = data->showMatte ? "DrawMatte" : "Draw";
-		const enum gs_color_format format = gs_get_format_from_space(source_space);
-		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_NO_DIRECT_RENDERING)) {
-			vec2_set(&pixel_size, 1.0f / (float)width, 1.0f / (float)height);
+	const char* technique = data->showMatte ? "DrawMatte" : "Draw";
+	const enum gs_color_format format = gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
+		vec2_set(&pixel_size, 1.0f / (float)width, 1.0f / (float)height);
 
-			gs_effect_set_float(data->param_advanced_key_opacity, data->opacity);
-			gs_effect_set_float(data->param_advanced_key_contrast, data->contrast);
-			gs_effect_set_float(data->param_advanced_key_brightness, data->brightness);
-			gs_effect_set_float(data->param_advanced_key_gamma, data->gamma);
-			gs_effect_set_vec2(data->param_advanced_key_chroma_key, &data->chroma);
-			gs_effect_set_vec2(data->param_advanced_key_pixel_size, &pixel_size);
-			gs_effect_set_float(data->param_advanced_key_similarity, data->similarity);
-			gs_effect_set_float(data->param_advanced_key_smoothness, data->smoothness);
-			gs_effect_set_float(data->param_advanced_key_spill, data->spill);
+		gs_effect_set_float(data->param_advanced_key_opacity,
+				    data->opacity);
+		gs_effect_set_float(data->param_advanced_key_contrast,
+				    data->contrast);
+		gs_effect_set_float(data->param_advanced_key_brightness,
+				    data->brightness);
+		gs_effect_set_float(data->param_advanced_key_gamma,
+				    data->gamma);
+		gs_effect_set_vec2(data->param_advanced_key_chroma_key,
+				   &data->chroma);
+		gs_effect_set_vec2(data->param_advanced_key_pixel_size,
+				   &pixel_size);
+		gs_effect_set_float(data->param_advanced_key_similarity,
+				    data->similarity);
+		gs_effect_set_float(data->param_advanced_key_smoothness,
+				    data->smoothness);
+		gs_effect_set_float(data->param_advanced_key_spill,
+				    data->spill);
 
-			gs_blend_state_push();
-			//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+		gs_blend_state_push();
+		//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
-			obs_source_process_filter_tech_end(base->context, data->effect_advanced_key_mask, 0, 0, technique);
+		obs_source_process_filter_tech_end(
+			base->context, data->effect_advanced_key_mask, 0, 0,
+			technique);
 
-			gs_blend_state_pop();
-		}
+		gs_blend_state_pop();
 	}
 }
 

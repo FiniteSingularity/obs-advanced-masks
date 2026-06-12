@@ -74,7 +74,7 @@ float4 alphaImage(VertData v_in) : TARGET
 #endif
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	float4 color = image.Sample(textureSampler, v_in.uv);
-	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
+	return apply_alpha_mask(color, invert ? 1.0 - alpha : alpha);
 }
 
 float4 adjustmentsImage(VertData v_in) : TARGET
@@ -119,7 +119,7 @@ float4 alphaThresholdImage(VertData v_in) : TARGET
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	alpha = step(threshold_value, alpha);
 	float4 color = image.Sample(textureSampler, v_in.uv);
-	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
+	return apply_alpha_mask(color, invert ? 1.0 - alpha : alpha);
 }
 
 float4 adjustmentsThresholdImage(VertData v_in) : TARGET
@@ -165,7 +165,7 @@ float4 alphaRangeImage(VertData v_in) : TARGET
 	float alpha = multiplier * (mask.r * channel_multipliers.r + mask.g * channel_multipliers.g + mask.b * channel_multipliers.b + mask.a * channel_multipliers.a);
 	alpha = smoothstep(range_min, range_max, alpha);
 	float4 color = image.Sample(textureSampler, v_in.uv);
-	return float4(color.rgb, color.a * (invert ? 1.0 - alpha : alpha));
+	return apply_alpha_mask(color, invert ? 1.0 - alpha : alpha);
 }
 
 float4 adjustmentsRangeImage(VertData v_in) : TARGET

@@ -155,28 +155,27 @@ void render_feather_mask(mask_feather_data_t *data,
 
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(base->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
-	if (source_space == GS_CS_709_EXTENDED) {
-		obs_source_skip_video_filter(base->context);
-	} else {
-		const char* technique = "Draw";
-		const enum gs_color_format format = gs_get_format_from_space(source_space);
-		if (obs_source_process_filter_begin_with_color_space(base->context, format, source_space,
-			OBS_NO_DIRECT_RENDERING)) {
-			gs_effect_set_float(data->param_feather_size, data->featherSize);
-			gs_effect_set_texture(data->param_feather_distance_field, distance_field);
-			if (data->param_feather_uv_size) {
-				struct vec2 uv_size;
-				uv_size.x = (float)base->width;
-				uv_size.y = (float)base->height;
-				gs_effect_set_vec2(data->param_feather_uv_size, &uv_size);
-			}
-			gs_blend_state_push();
-			gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-
-			obs_source_process_filter_tech_end(base->context, effect, 0, 0, technique);
-
-			gs_blend_state_pop();
+	const char* technique = "Draw";
+	const enum gs_color_format format = gs_get_format_from_space(source_space);
+	if (obs_source_process_filter_begin_with_color_space(
+		    base->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
+		gs_effect_set_float(data->param_feather_size, data->featherSize);
+		gs_effect_set_texture(data->param_feather_distance_field,
+				      distance_field);
+		if (data->param_feather_uv_size) {
+			struct vec2 uv_size;
+			uv_size.x = (float)base->width;
+			uv_size.y = (float)base->height;
+			gs_effect_set_vec2(data->param_feather_uv_size, &uv_size);
 		}
+		gs_blend_state_push();
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+		obs_source_process_filter_tech_end(base->context, effect, 0, 0,
+						   technique);
+
+		gs_blend_state_pop();
 	}
 }
 

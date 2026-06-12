@@ -52,7 +52,7 @@ float4 mainAlphaImage(VertData v_in) : TARGET
 	
 	float alpha = saturate((coord_p.x - position + width / 2.0f) / width);
 	float4 col = image.Sample(textureSampler, v_in.uv);
-	return float4(col.rgb, col.a * (invert ? 1.0f - alpha : alpha));
+	return apply_alpha_mask(col, invert ? 1.0f - alpha : alpha);
 }
 
 float4 mainAdjustmentsImage(VertData v_in) : TARGET
@@ -112,7 +112,7 @@ float4 debugAlphaImage(VertData v_in) : TARGET
 		return float4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
 	
-	return float4(color.rgb, color.a * (invert ? 1.0f - alpha : alpha));
+	return apply_alpha_mask(color, invert ? 1.0f - alpha : alpha);
 }
 
 
