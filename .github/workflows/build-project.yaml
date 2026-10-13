@@ -341,7 +341,7 @@ jobs:
   windows-package-signed:
     name: Package Windows (signed) 📀
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    environment: release-signing
+    environment: release-staging
     runs-on: [self-hosted, Windows, X64]
     needs: [check-event, windows-build]
     defaults:
