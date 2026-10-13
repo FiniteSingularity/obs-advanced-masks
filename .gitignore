@@ -7,18 +7,16 @@
 !/cmake
 !/data
 !/src
-!/media
 !.clang-format
-!.cmake-format.json
+!.config
+!.gersemirc
 !.gitignore
-!.all-contributorsrc
 !buildspec.json
 !CMakeLists.txt
 !CMakePresets.json
 !LICENSE
 !README.md
-!installer.iss.in
-!resource.rc.in
+!manifest.json
 
 # Exclude lock files
 *.lock.json
