@@ -43,6 +43,13 @@ find_package(CURL REQUIRED)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE nlohmann_json CURL::libcurl)
 
+if(APPLE)
+  target_link_libraries(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE "$<LINK_LIBRARY:FRAMEWORK,Security.framework>" "$<LINK_LIBRARY:FRAMEWORK,CoreFoundation.framework>"
+  )
+endif()
+
 if(ENABLE_QT)
   find_package(Qt6 COMPONENTS Widgets Core Svg Xml)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::Svg Qt6::Xml)

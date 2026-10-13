@@ -17,7 +17,6 @@
 !LICENSE
 !README.md
 !manifest.json
-!matrix-rain-webapp
 
 # Exclude lock files
 *.lock.json
