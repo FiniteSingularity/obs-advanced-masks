@@ -4,7 +4,7 @@
     Name="$(var.ProductDisplayName)"
     Manufacturer="$(var.ProductAuthor)"
     Version="$(var.MsiVersion)"
-    UpgradeCode="ED2469FC-4D7A-46E0-A29F-608171BC0523"
+    UpgradeCode="B06FCCEA-B5FE-4157-BEDB-A42C9FF8B601"
     Language="1033"
     Scope="perMachine"
     InstallerVersion="500">
@@ -93,7 +93,7 @@
       <Files Include="$(var.StagingDir)\**" />
     </ComponentGroup>
 
-    <Component Id="InstallState" Directory="PLUGINFOLDER" Guid="554A2225-2796-4962-B9D0-31D33FC8339F" Bitness="always64">
+    <Component Id="InstallState" Directory="PLUGINFOLDER" Guid="C78D17DD-D61B-470C-85DF-E68A0AE5C204" Bitness="always64">
       <RegistryKey Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" ForceDeleteOnUninstall="yes">
         <RegistryValue Name="InstallScope" Type="string" Value="[INSTALLSCOPE]" KeyPath="yes" />
         <RegistryValue Name="ObsRoot" Type="string" Value="[OBSROOT]" />

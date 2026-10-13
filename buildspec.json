@@ -33,7 +33,7 @@
     },
     "platformConfig": {
         "macos": {
-            "bundleId": "com.f15y.advancedmasks"
+            "bundleId": "com.f15y.advanced-masks"
         }
     },
     "name": "obs-advanced-masks",

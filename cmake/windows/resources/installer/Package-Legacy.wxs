@@ -4,7 +4,7 @@
     Name="$(var.ProductDisplayName) (Legacy)"
     Manufacturer="$(var.ProductAuthor)"
     Version="$(var.MsiVersion)"
-    UpgradeCode="548FBBAC-DB40-4214-A286-F371BE3B0A9F"
+    UpgradeCode="41647ED1-2132-4ACA-A159-12262E3C4A3D"
     Language="1033"
     Scope="perMachine"
     InstallerVersion="500">
@@ -61,7 +61,7 @@
       <Files Include="$(var.StagingDir)\**" />
     </ComponentGroup>
 
-    <Component Id="InstallState" Directory="INSTALLFOLDER" Guid="9CE97128-7797-47B9-9FCA-C773F60511AC" Bitness="always64">
+    <Component Id="InstallState" Directory="INSTALLFOLDER" Guid="95A54432-54EE-4C34-B199-7BE5F337BD63" Bitness="always64">
       <RegistryKey Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName) Legacy" ForceDeleteOnUninstall="yes">
         <RegistryValue Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
         <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
