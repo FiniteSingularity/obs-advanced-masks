@@ -71,7 +71,7 @@ struct mask_source_data {
 	gs_texrender_t *source_mask_texrender;
 	gs_effect_t *effect_source_mask;
 
-	gs_image_file_t *mask_image;
+	gs_texture_t *mask_texture;
 
 	bool loading_effect;
 	uint32_t source_mask_filter_type;

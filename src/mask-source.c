@@ -51,10 +51,10 @@ void mask_source_destroy(mask_source_data_t *data)
 		obs_weak_source_release(data->mask_source_source);
 	}
 
-	if (data->mask_image) {
-		gs_image_file_free(data->mask_image);
-		bfree(data->mask_image);
+	if (data->mask_texture) {
+		gs_texture_destroy(data->mask_texture);
 	}
+
 	obs_leave_graphics();
 	dstr_free(&data->mask_source_name);
 	bfree(data->mask_image_path);
@@ -83,23 +83,24 @@ void mask_source_update(mask_source_data_t *data,
 
 	const char *mask_image_file =
 		obs_data_get_string(settings, "mask_source_image");
-	if (strcmp(mask_image_file, data->mask_image_path) != 0) {
-		strcpy(data->mask_image_path, mask_image_file);
-		if (data->mask_image == NULL) {
-			data->mask_image = bzalloc(sizeof(gs_image_file_t));
-		} else {
-			obs_enter_graphics();
-			gs_image_file_free(data->mask_image);
-			obs_leave_graphics();
-		}
-		if (strlen(mask_image_file)) {
-			gs_image_file_init(data->mask_image, mask_image_file);
-			obs_enter_graphics();
-			gs_image_file_init_texture(data->mask_image);
-			obs_leave_graphics();
-		}
-	}
 
+
+	if (strcmp(mask_image_file, data->mask_image_path) != 0) {
+		if (data->mask_texture) {
+			obs_enter_graphics();
+			gs_texture_destroy(data->mask_texture);
+			data->mask_texture = NULL;
+			obs_leave_graphics();
+		}
+		if (mask_image_file && strlen(mask_image_file)) {
+			obs_enter_graphics();
+			data->mask_texture = gs_texture_create_from_file(mask_image_file);
+			// data->mask_texture_size.x = (float)gs_texture_get_width(data->mask_texture);
+			// data->mask_texture_size.y = (float)gs_texture_get_height(data->mask_texture);
+			obs_leave_graphics();
+		}
+		strcpy(data->mask_image_path, mask_image_file);
+	}
 
 	data->source_mask_filter_type = (uint32_t)obs_data_get_int(
 		settings, "mask_source_mask_properties_list");
@@ -1045,8 +1046,8 @@ void render_image_mask(mask_source_data_t *data, base_filter_data_t *base,
 		set_render_params(data, color_adj);
 
 		gs_texture_t *source_texture = NULL;
-		if (data->mask_image) {
-			source_texture = data->mask_image->texture;
+		if (data->mask_texture) {
+			source_texture = data->mask_texture;
 		}
 		else {
 			obs_source_skip_video_filter(base->context);
