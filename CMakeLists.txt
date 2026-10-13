@@ -26,17 +26,17 @@ endif()
 
 # Check if nlohmann_json exists
 if(EXISTS "${JSON_TARBALL_PATH}")
-    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar xJf "${JSON_TARBALL_PATH}"
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-    )
-    add_library(nlohmann_json INTERFACE)
-    target_include_directories(nlohmann_json INTERFACE "${CMAKE_BINARY_DIR}/json/single_include")
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}")
+  execute_process(
+    COMMAND ${CMAKE_COMMAND} -E tar xJf "${JSON_TARBALL_PATH}"
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+  )
+  add_library(nlohmann_json INTERFACE)
+  target_include_directories(nlohmann_json INTERFACE "${CMAKE_BINARY_DIR}/json/single_include")
 else()
-    include(FetchContent)
-    FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
-    FetchContent_MakeAvailable(json)
+  include(FetchContent)
+  FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+  FetchContent_MakeAvailable(json)
 endif()
 
 find_package(CURL REQUIRED)
@@ -66,36 +66,36 @@ endif()
 target_sources(
   ${PROJECT_NAME}
   PRIVATE
-	src/advanced-masks-filter.c
-	src/base-filter.h
-	src/color-adjustments.c
-	src/color-adjustments.h
-	src/obs-advanced-masks-plugin.c
-	src/advanced-masks-filter.h
-	src/advanced-masks.h
-	src/mask-bsm.c
-	src/mask-bsm.h
-	src/mask-chroma-key.c
-	src/mask-chroma-key.h
-	src/mask-feather.c
-	src/mask-feather.h
-	src/mask-font-awesome.cpp
-	src/mask-font-awesome.hpp
-	src/mask-gradient.c
-	src/mask-gradient.h
-	src/mask-shape.c
-	src/mask-shape.h
-	src/mask-source.c
-	src/mask-source.h
-	src/mask-svg.c
-	src/mask-svg.h
-	src/obs-utils.c
-	src/obs-utils.h
-	src/svg-utils.cpp
-	src/svg-utils.hpp
-	src/utils.c
-	src/utils.h
-	src/version.h
+    src/advanced-masks-filter.c
+    src/base-filter.h
+    src/color-adjustments.c
+    src/color-adjustments.h
+    src/obs-advanced-masks-plugin.c
+    src/advanced-masks-filter.h
+    src/advanced-masks.h
+    src/mask-bsm.c
+    src/mask-bsm.h
+    src/mask-chroma-key.c
+    src/mask-chroma-key.h
+    src/mask-feather.c
+    src/mask-feather.h
+    src/mask-font-awesome.cpp
+    src/mask-font-awesome.hpp
+    src/mask-gradient.c
+    src/mask-gradient.h
+    src/mask-shape.c
+    src/mask-shape.h
+    src/mask-source.c
+    src/mask-source.h
+    src/mask-svg.c
+    src/mask-svg.h
+    src/obs-utils.c
+    src/obs-utils.h
+    src/svg-utils.cpp
+    src/svg-utils.hpp
+    src/utils.c
+    src/utils.h
+    src/version.h
 )
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
