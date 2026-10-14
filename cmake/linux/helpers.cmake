@@ -91,6 +91,10 @@ function(target_install_resources target)
       COMMENT "Copy ${target} resources to rundir"
       VERBATIM
     )
+
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/manifest.json")
+      target_add_resource(${target} "${CMAKE_CURRENT_SOURCE_DIR}/manifest.json")
+    endif()
   endif()
 endfunction()
 
