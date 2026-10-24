@@ -13,9 +13,7 @@
       Description="$(var.ProductDisplayName) $(var.ProductVersion) for OBS Studio 33 and newer"
       Manufacturer="$(var.ProductAuthor)" />
 
-    <MajorUpgrade
-      AllowSameVersionUpgrades="yes"
-      DowngradeErrorMessage="A newer version of $(var.ProductDisplayName) is already installed." />
+    <MajorUpgrade AllowDowngrades="yes" />
 
     <MediaTemplate EmbedCab="yes" />
 

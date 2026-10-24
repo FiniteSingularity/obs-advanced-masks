@@ -1,7 +1,7 @@
 {
     "display_name": "Advanced Masks",
     "id": "7e35ff80-cd8e-482e-a9cf-38ab4bdb05df",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "authors": ["FiniteSingularity"],
     "name": "obs-advanced-masks",
     "description": "An plugin for OBS that provides advanced masking filters.",
