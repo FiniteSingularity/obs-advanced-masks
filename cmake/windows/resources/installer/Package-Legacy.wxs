@@ -13,9 +13,7 @@
       Description="$(var.ProductDisplayName) $(var.ProductVersion) for OBS Studio 28 - 32 (legacy plugin layout)"
       Manufacturer="$(var.ProductAuthor)" />
 
-    <MajorUpgrade
-      AllowSameVersionUpgrades="yes"
-      DowngradeErrorMessage="A newer version of $(var.ProductDisplayName) (Legacy) is already installed." />
+    <MajorUpgrade AllowDowngrades="yes" />
 
     <MediaTemplate EmbedCab="yes" />
 
